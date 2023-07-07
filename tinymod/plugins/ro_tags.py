@@ -2,6 +2,8 @@ from hata import Client, Guild
 
 import os, pathlib
 
+from hata.ext.slash import abort
+
 TinyMod: Client
 GUILD: Guild
 
@@ -13,6 +15,7 @@ TAG_NAMES = list(TAGS)
 
 @TinyMod.interactions(guild=GUILD)
 async def tags(tag: ("str", "Tag to send")):
+  if tag not in TAGS: abort(f"Tag `{tag}` not found.")
   return TAGS[tag]
 
 @tags.autocomplete("tag")
