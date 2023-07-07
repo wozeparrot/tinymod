@@ -3,7 +3,7 @@ name = "tinymod"
 version = "0.1.0"
 description = "tinygrad's premier discord moderation bot"
 authors = ["Woze Parrot <wozeparrot@gmail.com>"]
-license = "MIT"
+license = "Apache-2.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]
