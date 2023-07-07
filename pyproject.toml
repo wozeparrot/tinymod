@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "tinymod"
+version = "0.1.0"
+description = "tinygrad's premier discord moderation bot"
+authors = ["Woze Parrot <wozeparrot@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+hata = "^1.3.32"
+python-dotenv = "^1.0.0"
+pygithub = "^1.59.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
