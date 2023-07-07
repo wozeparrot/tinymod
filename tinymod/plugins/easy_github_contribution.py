@@ -8,6 +8,7 @@ TinyMod: Client
 GUILD: Guild
 
 CHANNEL_ID = 1069254062131920966
+ADMIN_ROLE = Role.precreate(1068980562477465670)
 ROLE = Role.precreate(1068980606672850944)
 GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
 
@@ -41,6 +42,9 @@ async def message_create(client: Client, message: Message):
 
 @TinyMod.interactions(custom_id="egc.accept")
 async def egc_accept(client: Client, event: InteractionEvent):
+  # ensure that user clicking the button is an admin
+  if not event.user.has_role(ADMIN_ROLE): return
+
   # give user role
   await client.user_role_add(event.user, ROLE)
 
