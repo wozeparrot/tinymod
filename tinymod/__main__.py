@@ -20,8 +20,8 @@ async def ready(client: Client):
 
 @slash.error
 async def slash_error(client: Client, event, *_):
-  await client.interaction_response_message_create(event, "Something broke! Ping @wozeparrot")
-  return True
+  await client.interaction_response_message_create(event, "Something broke! Ping <@359455849812328449>")
+  return False
 
 # Load plugins
 add_default_plugin_variables(TinyMod=TinyMod, GUILD=GUILD)
