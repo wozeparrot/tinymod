@@ -21,7 +21,7 @@
         };
 
         devShells.default = pkgs.mkShell {
-          packages = [ poetry2nix.packages.${system}.poetry pkgs.sqlite ];
+          packages = [ poetry2nix.packages.${system}.poetry pkgs.sqlite pkgs.sqlite-web ];
         };
       });
 }
