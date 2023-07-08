@@ -20,7 +20,7 @@ async def setup(_):
 async def log_message(action: str, message: Message):
   if message.author.bot: return
   async with aiosqlite.connect(DATABASE) as db:
-    await db.execute("INSERT INTO logging_messages (id, timestamp, channel_id, user_id, username, action, content, json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (str(uuid.uuid4()), time.monotonic(), message.channel.id, message.author.id, message.author.full_name, action, message.content, json.dumps(message.to_data(include_internals=True))))
+    await db.execute("INSERT INTO logging_messages (id, timestamp, channel_id, user_id, username, action, content, json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (str(uuid.uuid4()), time.time(), message.channel.id, message.author.id, message.author.full_name, action, message.content, json.dumps(message.to_data(include_internals=True))))
     await db.commit()
 
 @TinyMod.events
@@ -37,7 +37,7 @@ async def log_member(action: str, user: ClientUserBase):
   profile: GuildProfile | None = user.get_guild_profile_for(GUILD)
   if profile is None: return
   async with aiosqlite.connect(DATABASE) as db:
-    await db.execute("INSERT INTO logging_members (id, timestamp, user_id, username, action, json) VALUES (?, ?, ?, ?, ?, ?)", (str(uuid.uuid4()), time.monotonic(), user.id, user.full_name, action, json.dumps(profile.to_data(include_internals=True))))
+    await db.execute("INSERT INTO logging_members (id, timestamp, user_id, username, action, json) VALUES (?, ?, ?, ?, ?, ?)", (str(uuid.uuid4()), time.time(), user.id, user.full_name, action, json.dumps(profile.to_data(include_internals=True))))
     await db.commit()
 
 @TinyMod.events
