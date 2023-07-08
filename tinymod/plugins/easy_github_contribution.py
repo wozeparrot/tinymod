@@ -28,7 +28,7 @@ async def message_create(client: Client, message: Message):
   if message.author.has_role(ROLE):
     return await client.message_delete(message)
   # check if the message is a link to a pr
-  if not (message.content.startswith("https://github.com/tinygrad/tinygrad/") or message.content.startswith("http://github.com/tinygrad/tinygrad/")):
+  if not ("https://github.com/tinygrad/tinygrad/" in message.content or "http://github.com/tinygrad/tinygrad/" in message.content):
     return await client.message_delete(message)
   # check if the pr is merged
   if not GITHUB.get_repo("tinygrad/tinygrad").get_pull(int(message.content.split("/")[-1])).merged:
@@ -46,7 +46,7 @@ async def egc_accept(client: Client, event: InteractionEvent):
   if not event.user.has_role(ADMIN_ROLE): return
 
   # give user role
-  await client.user_role_add(event.user, ROLE)
+  await client.user_role_add(event.message.referenced_message.author, ROLE)
 
   # cleanup
   await client.message_delete(event.message.referenced_message)
@@ -55,6 +55,9 @@ async def egc_accept(client: Client, event: InteractionEvent):
 
 @TinyMod.interactions(custom_id="egc.deny")
 async def egc_deny(client: Client, event: InteractionEvent):
+  # ensure that user clicking the button is an admin
+  if not event.user.has_role(ADMIN_ROLE): return
+
   # cleanup
   await client.message_delete(event.message.referenced_message)
   await client.interaction_component_acknowledge(event)
