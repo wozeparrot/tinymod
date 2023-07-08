@@ -12,7 +12,7 @@ DATABASE = "tinymod.db"
 # ensure that the tables are setup
 async def setup(_):
   async with aiosqlite.connect(DATABASE) as db:
-    await db.execute("CREATE TABLE IF NOT EXISTS logging_messages (id TEXT PRIMARY KEY, timestamp INTEGER, user_id INTEGER, username TEXT, action TEXT, content TEXT, json TEXT)")
+    await db.execute("CREATE TABLE IF NOT EXISTS logging_messages (id TEXT PRIMARY KEY, timestamp INTEGER, channel_id INTEGER, user_id INTEGER, username TEXT, action TEXT, content TEXT, json TEXT)")
     await db.execute("CREATE TABLE IF NOT EXISTS logging_members (id TEXT PRIMARY KEY, timestamp INTEGER, user_id INTEGER, username TEXT, json TEXT)")
     await db.commit()
 
@@ -20,7 +20,7 @@ async def setup(_):
 async def log_message(action: str, message: Message):
   if message.author.bot: return
   async with aiosqlite.connect(DATABASE) as db:
-    await db.execute("INSERT INTO logging_messages (id, timestamp, user_id, username, action, content, json) VALUES (?, ?, ?, ?, ?, ?, ?)", (str(uuid.uuid4()), time.monotonic(), message.author.id, message.author.full_name, action, message.content, json.dumps(message.to_data(include_internals=True))))
+    await db.execute("INSERT INTO logging_messages (id, timestamp, channel_id, user_id, username, action, content, json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (str(uuid.uuid4()), time.monotonic(), message.channel.id, message.author.id, message.author.full_name, action, message.content, json.dumps(message.to_data(include_internals=True))))
     await db.commit()
 
 @TinyMod.events
