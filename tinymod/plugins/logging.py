@@ -33,8 +33,8 @@ async def message_update(client: Client, message: Message, _): await log_message
 async def message_delete(client: Client, message: Message): await log_message("delete", message)
 
 # member logging
-async def log_member(action: str, user: ClientUserBase):
-  profile: GuildProfile | None = user.get_guild_profile_for(GUILD)
+async def log_member(action: str, user: ClientUserBase, _profile: GuildProfile | None=None):
+  profile: GuildProfile | None = user.get_guild_profile_for(GUILD) if _profile is None else _profile
   if profile is None: return
   async with aiosqlite.connect(DATABASE) as db:
     await db.execute("INSERT INTO logging_members (id, timestamp, user_id, username, action, json) VALUES (?, ?, ?, ?, ?, ?)", (str(uuid.uuid4()), time.time(), user.id, user.full_name, action, json.dumps(profile.to_data(include_internals=True))))
@@ -47,4 +47,4 @@ async def guild_user_add(client: Client, guild: Guild, user: ClientUserBase): aw
 async def guild_user_update(client: Client, guild: Guild, user: ClientUserBase, _): await log_member("update", user)
 
 @TinyMod.events
-async def guild_user_delete(client: Client, guild: Guild, user: ClientUserBase, _): await log_member("delete", user)
+async def guild_user_delete(client: Client, guild: Guild, user: ClientUserBase, profile: GuildProfile): await log_member("delete", user, profile)
