@@ -3,8 +3,7 @@ from hata.ext.slash import abort
 
 TinyMod: Client
 GUILD: Guild
-
-ADMIN_ROLE = Role.precreate(1068980562477465670)
+ADMIN_ROLE: Role
 
 @TinyMod.interactions(guild=GUILD,show_for_invoking_user_only=True)
 async def vcjump(client, event, channel: ("channel_id", "Channel ID to jump to")):

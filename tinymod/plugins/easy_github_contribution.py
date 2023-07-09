@@ -6,9 +6,9 @@ import os
 
 TinyMod: Client
 GUILD: Guild
+ADMIN_ROLE: Role
 
 CHANNEL_ID = 1069254062131920966
-ADMIN_ROLE = Role.precreate(1068980562477465670)
 ROLE = Role.precreate(1068980606672850944)
 GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
 
