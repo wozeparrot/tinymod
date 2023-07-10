@@ -35,8 +35,14 @@ async def message_create(client: Client, message: Message):
 
   # check if the link is to a pr
   if "/pull/" in message.content:
+    # get pr number
+    pr_number = re.search(r"/pull/(\d+)", message.content)
+    if pr_number is None:
+      # send a direct message to the user
+      await client.message_create(dm_channel, "Please post the link to the PR instead.")
+      return await client.message_delete(message)
     # check if the pr is merged
-    if not GITHUB.get_repo("tinygrad/tinygrad").get_pull(int(message.content.split("/")[-1])).merged:
+    if not GITHUB.get_repo("tinygrad/tinygrad").get_pull(int(pr_number.group(1))).merged:
       # send a direct message to the user
       await client.message_create(dm_channel, "Your PR is not merged yet. Please wait for it to be merged before posting it.")
       return await client.message_delete(message)
