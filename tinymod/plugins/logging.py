@@ -1,4 +1,4 @@
-from hata import Client, ClientUserBase, Guild, GuildProfile, Message
+from hata import AutoModerationActionExecutionEvent, Client, ClientUserBase, Guild, GuildProfile, Message
 from hata.ext import asyncio
 import aiosqlite
 
@@ -14,6 +14,7 @@ async def setup(_):
   async with aiosqlite.connect(DATABASE) as db:
     await db.execute("CREATE TABLE IF NOT EXISTS logging_messages (id TEXT PRIMARY KEY, timestamp INTEGER, channel_id INTEGER, user_id INTEGER, username TEXT, action TEXT, content TEXT, json TEXT)")
     await db.execute("CREATE TABLE IF NOT EXISTS logging_members (id TEXT PRIMARY KEY, timestamp INTEGER, user_id INTEGER, username TEXT, action TEXT, json TEXT)")
+    await db.execute("CREATE TABLE IF NOT EXISTS logging_automod (id TEXT PRIMARY KEY, timestamp INTEGER, user_id INTEGER, username TEXT, action TEXT, json TEXT)")
     await db.commit()
 
 # message logging
@@ -48,3 +49,12 @@ async def guild_user_update(client: Client, guild: Guild, user: ClientUserBase, 
 
 @TinyMod.events
 async def guild_user_delete(client: Client, guild: Guild, user: ClientUserBase, profile: GuildProfile): await log_member("delete", user, profile)
+
+# automod logging
+async def log_automod(action: str, user: ClientUserBase, payload):
+  async with aiosqlite.connect(DATABASE) as db:
+    await db.execute("INSERT INTO logging_automod (id, timestamp, user_id, username, action, json) VALUES (?, ?, ?, ?, ?, ?)", (str(uuid.uuid4()), time.time(), user.id, user.full_name, action, json.dumps(payload.to_data())))
+    await db.commit()
+
+@TinyMod.events
+async def auto_moderation_action_execution(client: Client, event: AutoModerationActionExecutionEvent): await log_automod("action", event.user, event)
