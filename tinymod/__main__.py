@@ -21,7 +21,7 @@ async def ready(client: Client):
 
 @slash.error
 async def slash_error(client: Client, event, *_):
-  await client.interaction_response_message_create(event, "Something broke! Ping <@359455849812328449>", show_for_invoking_user_only=True)
+  await client.interaction_followup_message_create(event, "Something broke! Ping <@359455849812328449>", show_for_invoking_user_only=True)
   return False
 
 # Load plugins
