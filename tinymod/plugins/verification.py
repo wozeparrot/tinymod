@@ -23,18 +23,19 @@ BUTTON_EMOJI = {"red": "🔴", "green": "🟢", "blue": "🔵"}
 @TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True)
 async def verify(client: Client, event: InteractionEvent):
   early_exit = False
-  if event.user.has_role(ROLE):
-    early_exit = True
-    yield "You are already verified!"
-  if event.channel != CHANNEL and not early_exit:
-    early_exit = True
-    yield "Please use this command in <#1069241062616469566>."
+  if not event.user.has_role(ADMIN_ROLE):
+    if event.user.has_role(ROLE):
+      early_exit = True
+      yield "You are already verified!"
+    if event.channel != CHANNEL and not early_exit:
+      early_exit = True
+      yield "Please use this command in <#1069241062616469566>."
 
   if not early_exit:
-    print(f"Serving verification request from {event.user.full_name} ({event.user.id})")
-
     # generate a list of buttons that have to be clicked in order (3 for now)
     buttons = random.choices(BUTTONS, k=NUMBER_OF_CLICKS)
+
+    print(f"Serving verification request from {event.user.full_name} ({event.user.id}) with buttons {buttons}")
 
     # send the initial verification message
     embed = Embed("Please click on the buttons in the following order")
