@@ -75,6 +75,8 @@ async def verify(client: Client, event: InteractionEvent):
           embed.description = DENY_EMOJI.as_emoji
           embed.fields = None
           yield InteractionResponse(embed=embed, components=None, event=component_interaction)
+
+          print(f"Verification failed for {event.user.full_name} ({event.user.id})")
           break
     except TimeoutError:
       failed = True
@@ -95,4 +97,3 @@ async def verify(client: Client, event: InteractionEvent):
       await client.user_role_add(event.user, ROLE)
 
       print(f"Verification successful for {event.user.full_name} ({event.user.id})")
-    else: print(f"Verification failed for {event.user.full_name} ({event.user.id})")
