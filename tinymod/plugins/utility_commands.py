@@ -17,8 +17,12 @@ async def vcjump(client, event, channel: ("channel_id", "Channel ID to jump to")
   voice_state = event.guild.voice_states.get(event.user.id, None)
   if not voice_state: abort("You must be in a voice channel to use this command.")
 
-  # get all members in the voice channel
-  for user in voice_state.channel.iter_voice_users():
-    await client.user_voice_move(user, (event.guild.id, channel))
+  # try to move all users in the voice channel to the new channel
+  # skip users that cannot be moved
+  for _ in range(3):
+    for user in voice_state.channel.iter_voice_users():
+      try:
+        await client.user_voice_move(user, (event.guild.id, channel))
+      except: pass
 
   return f"Moved all users in {voice_state.channel:m} to <#{channel}>."
