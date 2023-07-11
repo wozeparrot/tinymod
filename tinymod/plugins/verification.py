@@ -12,7 +12,8 @@ NUMBER_OF_CLICKS = 3
 ROLE = Role.precreate(1068999934516408380)
 CHANNEL = Channel.precreate(1069241062616469566)
 VERIFY_EMOJI = Emoji.precreate(1127803062455648316)
-NEXT_EMOJI = Emoji.precreate(1127804283929231391)
+NEXT_EMOJI = Emoji.precreate(1128034829020180541)
+DENY_EMOJI = Emoji.precreate(1128032112486912190)
 
 # Start Verify Button
 START_BUTTON = Button("Start Verification", emoji=VERIFY_EMOJI, custom_id="verification.start", style=ButtonStyle.link)
@@ -35,7 +36,7 @@ async def init_verify(client: Client, event: InteractionEvent):
 @TinyMod.interactions(custom_id="verification.start", show_for_invoking_user_only=True)
 async def start_verify(client: Client, event: InteractionEvent):
   await client.interaction_component_acknowledge(event)
-  await client.interaction_followup_message_create(event, "Press to continue...", components=NEXT_BUTTON, show_for_invoking_user_only=True)
+  await client.interaction_followup_message_create(event, "Ensure that you have read and understood everything in <#1068979651336216706>. Then press to continue...", components=NEXT_BUTTON, show_for_invoking_user_only=True)
 
 @TinyMod.interactions(custom_id="verification.next", show_for_invoking_user_only=True)
 async def verify(client: Client, event: InteractionEvent):
@@ -46,7 +47,7 @@ async def verify(client: Client, event: InteractionEvent):
       yield "You are already verified!"
 
   if not early_exit:
-    # generate a list of buttons that have to be clicked in order (3 for now)
+    # generate a list of buttons that have to be clicked in order
     buttons = random.choices(BUTTONS, k=NUMBER_OF_CLICKS)
 
     print(f"Serving verification request from {event.user.full_name} ({event.user.id}) with buttons {buttons}")
@@ -71,14 +72,14 @@ async def verify(client: Client, event: InteractionEvent):
         else:
           failed = True
           embed.title = "Incorrect button clicked! Please restart verification."
-          embed.description = "❌"
+          embed.description = DENY_EMOJI.as_emoji
           embed.fields = None
           yield InteractionResponse(embed=embed, components=None, event=component_interaction)
           break
     except TimeoutError:
       failed = True
       embed.title = "Verification timed out! Please restart verification."
-      embed.description = "❌"
+      embed.description = DENY_EMOJI.as_emoji
       embed.fields = None
       await client.interaction_response_message_edit(event, embed=embed, components=None)
 
@@ -86,7 +87,7 @@ async def verify(client: Client, event: InteractionEvent):
 
     if not failed:
       embed.title = "Verification successful!"
-      embed.description = "✅"
+      embed.description = VERIFY_EMOJI.as_emoji
       embed.fields = None
       yield InteractionResponse(embed=embed, components=None, event=component_interaction)
 
