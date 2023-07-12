@@ -29,6 +29,7 @@ BUTTON_EMOJI = {"red": "🔴", "green": "🟢", "blue": "🔵"}
 
 @TinyMod.interactions(guild=GUILD)
 async def init_verify(client: Client, event: InteractionEvent):
+  """Creates the verification button."""
   # check if the user has the admin role
   if not event.user.has_role(ADMIN_ROLE): return
   return InteractionResponse("Click the button below to start the verification process.", components=START_BUTTON)

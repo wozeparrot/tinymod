@@ -15,6 +15,7 @@ TAG_NAMES = list(TAGS)
 
 @TinyMod.interactions(guild=GUILD)
 async def tags(tag: ("str", "Tag to send")):
+  """Sends a short snippet of information."""
   if tag not in TAGS: abort(f"Tag `{tag}` not found.")
   return TAGS[tag]
 
