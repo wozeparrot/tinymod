@@ -1,5 +1,7 @@
-from hata import Client, Guild, InteractionEvent, Role
-from hata.ext.slash import abort
+from hata import Client, Guild, Role, LocalAudio
+from hata.ext.slash import InteractionResponse, abort
+
+import json
 
 TinyMod: Client
 GUILD: Guild
@@ -27,3 +29,21 @@ async def leave(client: Client, event):
   await voice_client.disconnect()
 
   return f"Left {voice_client.channel:m}."
+
+@TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True)
+async def tts(client: Client, event, text: ("str", "Text to say.")):
+  """Send a TTS message to the voice channel."""
+  voice_client = client.voice_clients.get(event.guild.id, None)
+  if not voice_client: abort("Not in a voice channel.")
+
+  message = yield InteractionResponse("Generating audio...")
+
+  async with client.http.post("http://127.0.0.1:8000", data=text) as response:
+    if response.status != 200: abort("Failed to generate audio.")
+    else: await response.json()
+    yield InteractionResponse("Generated audio.", message=message)
+
+  audio = await LocalAudio("/home/woze/dev/tinygrad/test.opus")
+  voice_client.append(audio)
+
+  yield InteractionResponse(f"Sent TTS message to {voice_client.channel:m}.", message=message)
