@@ -1,9 +1,9 @@
-from hata import Client, Guild, Message, User
+from hata import Client, Guild, User
 
 TinyMod: Client
 GUILD: Guild
 
 @TinyMod.interactions(guild=GUILD)
-async def question(_, user: User):
+async def question(user: User):
   """Recommends reading How To Ask Questions The Smart Way to a user."""
-  return Message(f'Hello {user.mention}, I would recommend reading: [How To Ask Questions The Smart Way](http://www.catb.org/~esr/faqs/smart-questions.html).')
+  return f"Hello {user:m}, I would recommend reading: [How To Ask Questions The Smart Way](http://www.catb.org/~esr/faqs/smart-questions.html)."
