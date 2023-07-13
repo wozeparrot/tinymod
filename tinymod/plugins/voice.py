@@ -1,8 +1,6 @@
 from hata import Client, Guild, Role, LocalAudio
 from hata.ext.slash import InteractionResponse, abort
 
-import json
-
 TinyMod: Client
 GUILD: Guild
 ADMIN_ROLE: Role
