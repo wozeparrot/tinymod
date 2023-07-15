@@ -300,6 +300,17 @@ files = [
 ]
 
 [[package]]
+name = "inotify-simple"
+version = "1.3.5"
+description = "A simple wrapper around inotify. No fancy bells and whistles, just a literal wrapper with ctypes. Under 100 lines of code!"
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*"
+files = [
+    {file = "inotify_simple-1.3.5.tar.gz", hash = "sha256:8440ffe49c4ae81a8df57c1ae1eb4b6bfa7acb830099bfb3e305b383005cc128"},
+]
+
+[[package]]
 name = "pycparser"
 version = "2.21"
 description = "C parser in Python"
@@ -538,4 +549,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "3c6e1f46039916905ee53c78dca1cc1e73397e546f3c72b35728dd63883076ad"
+content-hash = "44d1ae32d590880d6efd48388fa5fbdf96c64677a782f4fca5797ad6085a9959"

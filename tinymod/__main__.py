@@ -3,6 +3,7 @@ load_dotenv()
 
 from hata import Activity, ActivityType, Client, Guild, Role, wait_for_interruption
 from hata.ext.plugin_loader import add_default_plugin_variables, load_all_plugin, register_plugin
+from hata.ext.plugin_auto_reloader.utils import start_auto_reloader, stop_auto_reloader, warn_auto_reloader_availability
 from hata.ext.slash import setup_ext_slash
 
 import os
@@ -29,7 +30,12 @@ add_default_plugin_variables(TinyMod=TinyMod, GUILD=GUILD, ADMIN_ROLE=ADMIN_ROLE
 register_plugin("plugins")
 load_all_plugin()
 
+# Start auto reloader
+warn_auto_reloader_availability()
+start_auto_reloader()
+
 # Start bot
 TinyMod.start()
 
 wait_for_interruption()
+stop_auto_reloader()
