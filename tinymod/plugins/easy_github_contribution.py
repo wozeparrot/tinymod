@@ -1,4 +1,4 @@
-from hata import Client, Guild, InteractionEvent, Message, Role
+from hata import Client, Guild, InteractionEvent, Message, Role, Emoji
 from hata.ext.slash import Button, Row, ButtonStyle
 from github import Github, Auth
 
@@ -11,9 +11,11 @@ ADMIN_ROLE: Role
 CHANNEL_ID = 1069254062131920966
 ROLE = Role.precreate(1068980606672850944)
 GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
+ACCEPT_EMOJI = Emoji.precreate(1127803062455648316)
+DENY_EMOJI = Emoji.precreate(1128032112486912190)
 
-ACCEPT_BUTTON = Button("Accept", custom_id="egc.accept", style=ButtonStyle.green)
-DENY_BUTTON = Button("Deny", custom_id="egc.deny", style=ButtonStyle.red)
+ACCEPT_BUTTON = Button("Accept", emoji=ACCEPT_EMOJI, custom_id="egc.accept", style=ButtonStyle.green)
+DENY_BUTTON = Button("Deny", emoji=DENY_EMOJI, custom_id="egc.deny", style=ButtonStyle.red)
 COMPONENTS = Row(ACCEPT_BUTTON, DENY_BUTTON)
 
 @TinyMod.events
