@@ -98,3 +98,17 @@ async def verify(client: Client, event: InteractionEvent):
       await client.user_role_add(event.user, ROLE)
 
       print(f"Verification successful for {event.user.full_name} ({event.user.id})")
+
+@TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True)
+async def unverified(client: Client, event):
+  """Purges unverified users if they have been unverified for a whole day."""
+  if not event.user.has_role(ADMIN_ROLE): return
+
+  # get estimate of purge
+  estimate = await client.guild_prune_estimate(GUILD, days=1)
+  message = yield InteractionResponse(f"Estimating that {estimate} unverified users will be purged", event=event)
+
+  # purge unverified users
+  await client.guild_prune(GUILD, days=1, reason="Unverified user purge")
+
+  yield InteractionResponse(f"Purged an estimated {estimate} unverified users", message=message, event=event)
