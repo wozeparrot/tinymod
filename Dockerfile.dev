@@ -1,13 +1,13 @@
-FROM python:3.8-slim-buster
+FROM python:3.11-slim-buster
 RUN apt-get update && \
     apt-get update
 
-ARG workdir=/usr/src/tinymod
-RUN mkdir -p ${workdir}
-WORKDIR ${workdir}
+ARG WORKDIR=/usr/src/tinymod
+RUN mkdir -p ${WORKDIR}
+WORKDIR ${WORKDIR}
 
 RUN python -m pip install --upgrade pip
 COPY . .
-RUN python -m pip install .e
+RUN python -m pip install -e .
 
 CMD ["python", "tinymod"]
