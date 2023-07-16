@@ -4,9 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile.dev
       args:
-        - WORKDIR=/src/usr/tinymod
+        - WORKDIR=/usr/src/tinymod
     volumes:
-    - ./tinymod:/src/usr/tinymod/tinymod
+    - ./tinymod:/usr/src/tinymod/tinymod
     ports:
     - 8000:8000
     
