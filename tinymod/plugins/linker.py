@@ -1,4 +1,4 @@
-from hata import Client, Guild, Role, Message, Embed
+from hata import Client, Guild, Role, Message, Embed, Color
 from github import Github, Auth
 
 import os, re
@@ -31,14 +31,28 @@ async def message_create(client: Client, message: Message):
   # build an embed
   embed = Embed(title=issue.title, url=issue.html_url)
   embed.add_author(issue.user.name or issue.user.login, issue.user.avatar_url, issue.user.html_url)
-  embed.add_footer(f"GitHub {'Pull' if pr else 'Issue'} #{number}")
+  embed.add_footer(f"GitHub {'Pull' if pr else 'Issue'} #{number} | {issue.state if not pr else issue.state if not issue.merged else 'merged'}")
 
   # fields look ugly so we build a description
-  embed.description = f"""Created at <t:{int(issue.created_at.replace(tzinfo=timezone.utc).timestamp())}:D>, Updated at <t:{int(issue.updated_at.replace(tzinfo=timezone.utc).timestamp())}:D>
-                    **{issue.comments} comments"""
   if pr:
-    embed.description += f""", {issue.commits} commits :: +{issue.additions}, -{issue.deletions}**"""
-  else: embed.description += "**"
+    embed.description = f"""**{issue.comments} comments, {issue.commits} commits :: +{issue.additions}, -{issue.deletions}**
+    """
+    # set the embed color based on the PR status
+    if issue.merged:
+      embed.color = Color(0x6f42c1)
+    elif issue.closed_at is not None:
+      embed.color = Color(0xd73a49)
+    else:
+      embed.color = Color(0x2cbe4e)
+  else:
+    embed.description = f"""**{issue.comments} comments**
+    """
+    # set the embed color based on the issue status
+    if issue.closed_at is not None:
+      embed.color = Color(0xd73a49)
+    else:
+      embed.color = Color(0x2cbe4e)
+  embed.description += f"""Created at <t:{int(issue.created_at.replace(tzinfo=timezone.utc).timestamp())}:D>, Updated at <t:{int(issue.updated_at.replace(tzinfo=timezone.utc).timestamp())}:D>"""
 
   # link to the github issue or pr
   await client.message_create(message.channel, embed=embed)
