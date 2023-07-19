@@ -10,7 +10,7 @@ ADMIN_ROLE: Role
 
 GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
 
-NUMBER_PATTERN = re.compile(r'#(\d+)$')
+NUMBER_PATTERN = re.compile(r'#(\d+)')
 
 @TinyMod.events
 async def message_create(client: Client, message: Message):
