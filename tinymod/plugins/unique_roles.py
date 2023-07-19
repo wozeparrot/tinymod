@@ -9,7 +9,7 @@ PURPLE_ROLE = Role.precreate(1068980606672850944)
 
 @TinyMod.events
 async def guild_user_update(client: Client, guild: Guild, user, old_attributes):
-  if old_attributes["role_ids"] is None: return
+  if old_attributes.get("role_ids") is None: return
 
   if not (PURPLE_ROLE.id in old_attributes["role_ids"] or BLUE_ROLE.id in old_attributes["role_ids"]): return
 
