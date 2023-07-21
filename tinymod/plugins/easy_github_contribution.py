@@ -26,14 +26,17 @@ async def message_create(client: Client, message: Message):
   if message.author.bot: return
 
   # quick returns for messages that don't need to be manually checked
-  # check if the user already has the role
-  if message.author.has_role(ROLE): return await client.message_delete(message)
   if message.content is None: return await client.message_delete(message)
   # check if the message is a link to something in the tinygrad repo
   if not ("https://github.com/tinygrad/tinygrad/" in message.content or "http://github.com/tinygrad/tinygrad/" in message.content):
     return await client.message_delete(message)
 
   dm_channel = await client.channel_private_create(message.author)
+
+  # check if the user already has the role
+  if message.author.has_role(ROLE):
+    await client.message_create(dm_channel, "You already have the contributor role.")
+    return await client.message_delete(message)
 
   # check if the link is to a pr
   if "/pull/" in message.content:
