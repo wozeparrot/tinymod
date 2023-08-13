@@ -32,7 +32,7 @@
         ]);
 
         shellHook = ''
-          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${pkgs.libopus}/lib
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${pkgs.libopus}/lib:${pkgs.cairo}/lib
         '';
       };
     });
