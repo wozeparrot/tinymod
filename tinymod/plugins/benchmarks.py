@@ -1,8 +1,9 @@
 from typing import Annotated
 from hata import Client, Guild, Role
 from hata.ext.slash import InteractionResponse
-from scarletio import ReuAsyncIO
 from github import Github, Auth
+import pygal
+from pygal.style import NeonStyle
 
 import os, csv, zipfile
 from pathlib import Path
@@ -100,8 +101,6 @@ async def graph_benchmark(client: Client, event,
       points[int(path.name)] = float(next(onnx_inference_speed_reader)[index])
 
   # graph the data
-  import pygal
-  from pygal.style import NeonStyle
   chart = pygal.XY(show_legend=False, style=NeonStyle, dots_size=4)
   chart.title = f"{system} {model} {device} {'jitted' if jitted == 'true' else 'un-jitted'}"
   chart.x_title = "run number"
