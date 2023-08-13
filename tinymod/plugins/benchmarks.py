@@ -13,13 +13,14 @@ ADMIN_ROLE: Role
 
 GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
 BENCHMARKS_DIR = Path("benchmarks")
+GH_HEADERS = {
+  "Accept": "application/vnd.github+json",
+  "User-Agent": "curl/7.54.1",
+  "Authorization": f"Bearer {os.environ['GH_TOKEN']}"
+}
 
 async def download_benchmark(client: Client, run_number: int, artifacts_url: str):
-  async with client.http.get(artifacts_url, headers={
-    "Accept": "application/vnd.github+json",
-    "User-Agent": "curl/7.54.1",
-    "Authorization": f"Bearer {os.environ['GH_TOKEN']}"
-  }) as response:
+  async with client.http.get(artifacts_url, headers=GH_HEADERS) as response:
     if response.status == 200:
       artifacts = await response.json()
       artifacts = artifacts["artifacts"]
@@ -31,11 +32,7 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
 
       # download the artifacts
       for artifact in artifact_urls:
-        async with client.http.get(artifact_urls[artifact], headers={
-          "Accept": "application/vnd.github+json",
-          "User-Agent": "curl/7.54.1",
-          "Authorization": f"Bearer {os.environ['GH_TOKEN']}"
-        }) as response:
+        async with client.http.get(artifact_urls[artifact], headers=GH_HEADERS) as response:
           # save the artifact to a file
           if response.status == 200:
             # ensure that the directory for the run number exists
