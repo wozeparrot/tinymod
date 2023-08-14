@@ -5,7 +5,7 @@ from github import Github, Auth
 import pygal
 from pygal.style import NeonStyle
 
-import os, csv, zipfile
+import os, csv, zipfile, re
 from pathlib import Path
 
 TinyMod: Client
@@ -19,6 +19,8 @@ GH_HEADERS = {
   "User-Agent": "curl/7.54.1",
   "Authorization": f"Bearer {os.environ['GH_TOKEN']}"
 }
+LLAMA_REGEX = re.compile(r"ran model in (\d+\.\d+) ms")
+LLAMA_REGEX_2 = re.compile(r"sync in (\d+\.\d+) ms")
 
 async def download_benchmark(client: Client, run_number: int, artifacts_url: str):
   async with client.http.get(artifacts_url, headers=GH_HEADERS) as response:
@@ -61,51 +63,94 @@ async def download_benchmarks(client: Client, event):
     # check if the artifacts have already been downloaded
     if not (BENCHMARKS_DIR / "artifacts" / f"{run.run_number}").exists():
       await download_benchmark(client, run.run_number, run.artifacts_url)
+    else: # we can actually break here since the workflow runs are in order
+      break
 
   yield InteractionResponse("done", message=message)
 
 @TinyMod.interactions(guild=GUILD)
 async def graph_benchmark(client: Client, event,
   system: Annotated[str, ["amd", "mac"], "system the benchmark is run on"],
-  model: Annotated[str, ["resnet50", "openpilot", "efficientnet", "shufflenet"], "model the benchmark is for"],
-  device: Annotated[str, ["gpu", "clang"], "device the benchmark is run on"],
+  model: Annotated[str, ["resnet50", "openpilot", "efficientnet", "shufflenet", "llama"], "model the benchmark is for"],
+  device: Annotated[str, ["clang", "gpu"], "device the benchmark is run on"],
   jitted: Annotated[str, ["true", "false"], "whether the benchmark is jitted or not"],
+  sync: Annotated[str, ["true", "false"], "show the sync time or not (only for llama)"]
 ):
   """Graphs the selected benchmark"""
-  points = {}
+  points, points_2, good_to_graph = [], [], True
+  legend, legend_2 = "", ""
 
-  # scan the artifacts directory for new benchmarks
-  for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
-    # skip non-directories
-    if not path.is_dir(): continue
+  if model == "llama":
+    if device != "gpu":
+      yield "llama only runs on gpu"
+      good_to_graph = False
+    else:
+      for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
+        # skip non-directories
+        if not path.is_dir(): continue
 
-    # open the zip file
-    with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
-      onnx_inference_speed_file = zip.read("onnx_inference_speed.csv").decode("utf-8")
-      onnx_inference_speed_reader = csv.reader(onnx_inference_speed_file.splitlines(), delimiter=',')
-      # always skip the first line
-      next(onnx_inference_speed_reader)
+        # open the zip file
+        with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
+          # some of the older artifacts don't have llama so we just skip
+          if f"llama_{'jitted' if jitted == 'true' else 'unjitted'}.txt" not in zip.namelist(): continue
+          llama_file = zip.read(f"llama_{'jitted' if jitted == 'true' else 'unjitted'}.txt").decode("utf-8")
+          # the runtime is part of the string "ran model in {runtime} ms" so we use regex to extract it
+          runtime_strs_found = LLAMA_REGEX.finditer(llama_file)
+          for _ in range(3): next(runtime_strs_found) # skip first 3 runs for warmup
+          # average the rest of the runs
+          runtime_sum, runtime_len = 0, 0
+          for runtime_str in runtime_strs_found:
+            runtime_sum += float(runtime_str.group(1))
+            runtime_len += 1
+          points.append((int(path.name), runtime_sum / runtime_len))
+          # do the same for the second regex
+          if sync == "true":
+            sync_strs_found = LLAMA_REGEX_2.finditer(llama_file)
+            for _ in range(3): next(sync_strs_found) # skip first 3 runs for warmup
+            # average the rest of the runs
+            sync_sum, sync_len = 0, 0
+            for sync_str in sync_strs_found:
+              sync_sum += float(sync_str.group(1))
+              sync_len += 1
+            points_2.append((int(path.name), sync_sum / sync_len))
+      legend, legend_2 = "runtime", "sync time"
+  else: # onnx model
+    # scan the artifacts directory for new benchmarks
+    for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
+      # skip non-directories
+      if not path.is_dir(): continue
 
-      skip_count = 0
-      if model == "openpilot": skip_count = 1
-      elif model == "efficientnet": skip_count = 2
-      elif model == "shufflenet": skip_count = 3
-      for _ in range(skip_count): next(onnx_inference_speed_reader)
+      # open the zip file
+      with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
+        onnx_inference_speed_file = zip.read("onnx_inference_speed.csv").decode("utf-8")
+        onnx_inference_speed_reader = csv.reader(onnx_inference_speed_file.splitlines(), delimiter=',')
+        # always skip the first line
+        next(onnx_inference_speed_reader)
 
-      index = 0
-      if device == "gpu": index = 1
-      elif device == "clang": index = 1
+        skip_count = 0
+        if model == "openpilot": skip_count = 1
+        elif model == "efficientnet": skip_count = 2
+        elif model == "shufflenet": skip_count = 3
+        for _ in range(skip_count): next(onnx_inference_speed_reader)
 
-      if jitted == "true": index += 1
+        index = 0
+        if device == "gpu": index = 1
+        elif device == "clang": index = 1
 
-      points[int(path.name)] = float(next(onnx_inference_speed_reader)[index])
+        if jitted == "true": index += 1
 
-  # graph the data
-  chart = pygal.XY(show_legend=False, style=NeonStyle, dots_size=4)
-  chart.title = f"{system} {model} {device} {'jitted' if jitted == 'true' else 'un-jitted'}"
-  chart.x_title = "run number"
-  chart.y_title = "time (ms)"
-  chart.add("", [(key, points[key]) for key in points])
-  chart_png = chart.render_to_png()
+        points.append((int(path.name), float(next(onnx_inference_speed_reader)[index])))
+    legend = "runtime"
 
-  yield InteractionResponse(file=("chart.png", chart_png))
+  if good_to_graph:
+    # graph the data
+    chart = pygal.XY(legend_at_bottom=True, style=NeonStyle, dots_size=4)
+    chart.title = f"{system} {model} {device} {'jitted' if jitted == 'true' else 'un-jitted'}"
+    chart.x_title = "run number"
+    chart.y_title = "time (ms)"
+    chart.add(legend, sorted(points, key=lambda x: x[0]))
+    if len(points_2) > 0:
+      chart.add(legend_2, sorted(points_2, key=lambda x: x[0]))
+    chart_png = chart.render_to_png()
+
+    yield InteractionResponse(file=("chart.png", chart_png))
