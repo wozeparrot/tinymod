@@ -19,8 +19,11 @@ GH_HEADERS = {
   "User-Agent": "curl/7.54.1",
   "Authorization": f"Bearer {os.environ['GH_TOKEN']}"
 }
+
 LLAMA_REGEX = re.compile(r"ran model in (\d+\.\d+) ms")
 LLAMA_REGEX_2 = re.compile(r"sync in (\d+\.\d+) ms")
+CIFAR_REGEX = re.compile(r"(\d+\.\d+) ms run")
+CIFAR_REGEX_2 = re.compile(r"(\d+\.\d+) ms CL")
 
 async def download_benchmark(client: Client, run_number: int, artifacts_url: str):
   async with client.http.get(artifacts_url, headers=GH_HEADERS) as response:
@@ -71,10 +74,10 @@ async def download_benchmarks(client: Client, event):
 @TinyMod.interactions(guild=GUILD)
 async def graph_benchmark(client: Client, event,
   system: Annotated[str, ["amd", "mac"], "system the benchmark is run on"],
-  model: Annotated[str, ["resnet50", "openpilot", "efficientnet", "shufflenet", "llama"], "model the benchmark is for"],
+  model: Annotated[str, ["resnet50", "openpilot", "efficientnet", "shufflenet", "llama", "cifar"], "model the benchmark is for"],
   device: Annotated[str, ["clang", "gpu"], "device the benchmark is run on"],
   jitted: Annotated[str, ["true", "false"], "whether the benchmark is jitted or not"],
-  sync: Annotated[str, ["true", "false"], "show the sync time or not (only for llama)"]
+  sync: Annotated[str, ["true", "false"], "show the sync time or not"]
 ):
   """Graphs the selected benchmark"""
   points, points_2, good_to_graph = [], [], True
@@ -114,6 +117,40 @@ async def graph_benchmark(client: Client, event,
               sync_len += 1
             points_2.append((int(path.name), sync_sum / sync_len))
       legend, legend_2 = "runtime", "sync time"
+  elif model == "cifar":
+    if device != "gpu" or jitted != "true":
+      yield "cifar only runs on gpu and jitted"
+      good_to_graph = False
+    else:
+      for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
+        # skip non-directories
+        if not path.is_dir(): continue
+
+        # open the zip file
+        with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
+          # some of the older artifacts don't have cifar so we just skip
+          if "train_cifar.txt" not in zip.namelist(): continue
+          cifar_file = zip.read("train_cifar.txt").decode("utf-8")
+          # extract the runtime
+          runtime_strs_found = CIFAR_REGEX.finditer(cifar_file)
+          for _ in range(3): next(runtime_strs_found) # skip first 3 runs for warmup
+          # average the rest of the runs
+          runtime_sum, runtime_len = 0, 0
+          for runtime_str in runtime_strs_found:
+            runtime_sum += float(runtime_str.group(1))
+            runtime_len += 1
+          points.append((int(path.name), runtime_sum / runtime_len))
+          # do the same for the second regex
+          if sync == "true":
+            sync_strs_found = CIFAR_REGEX_2.finditer(cifar_file)
+            for _ in range(3): next(sync_strs_found)
+            # average the rest of the runs
+            sync_sum, sync_len = 0, 0
+            for sync_str in sync_strs_found:
+              sync_sum += float(sync_str.group(1))
+              sync_len += 1
+            points_2.append((int(path.name), sync_sum / sync_len))
+      legend, legend_2 = "runtime", "CL time"
   else: # onnx model
     # scan the artifacts directory for new benchmarks
     for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
