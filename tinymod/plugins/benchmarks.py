@@ -24,6 +24,7 @@ LLAMA_REGEX = re.compile(r"ran model in (\d+\.\d+) ms")
 LLAMA_REGEX_2 = re.compile(r"sync in (\d+\.\d+) ms")
 CIFAR_REGEX = re.compile(r"(\d+\.\d+) ms run")
 CIFAR_REGEX_2 = re.compile(r"(\d+\.\d+) ms CL")
+SPEED_V_TORCH_REGEX = re.compile(r"(\d+\.\d+)x")
 
 async def download_benchmark(client: Client, run_number: int, artifacts_url: str):
   async with client.http.get(artifacts_url, headers=GH_HEADERS) as response:
@@ -191,3 +192,60 @@ async def graph_benchmark(client: Client, event,
     chart_png = chart.render_to_png()
 
     yield InteractionResponse(file=("chart.png", chart_png))
+
+@TinyMod.interactions(guild=GUILD)
+async def graph_speed_v_torch(client: Client, event,
+  system: Annotated[str, ["amd", "mac"], "system the benchmark is run on"],
+  operation: Annotated[str, ["all", "add", "exp", "gemm", "conv", "cat", "permute", "pow", "relu", "sub", "sum"], "operation to graph"],
+):
+  """Graphs the speed vs torch"""
+  points = []
+
+  if operation == "all":
+    for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
+      # skip non-directories
+      if not path.is_dir(): continue
+
+      # open the zip file
+      with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
+        # some of the older artifacts don't have llama so we just skip
+        if "torch_speed.txt" not in zip.namelist(): continue
+        torch_file = zip.read("torch_speed.txt").decode("utf-8")
+        # extract the runtime
+        torch_strs_found = SPEED_V_TORCH_REGEX.finditer(torch_file)
+        # average the rest of the runs
+        torch_sum, torch_len = 0, 0
+        for torch_str in torch_strs_found:
+          torch_sum += float(torch_str.group(1))
+          torch_len += 1
+        points.append((int(path.name), torch_sum / torch_len))
+  else:
+    for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
+      # skip non-directories
+      if not path.is_dir(): continue
+
+      # open the zip file
+      with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
+        # some of the older artifacts don't have llama so we just skip
+        if "torch_speed.txt" not in zip.namelist(): continue
+        torch_file = zip.read("torch_speed.txt").decode("utf-8")
+        # remove lines that don't match the operation
+        torch_file = "\n".join([line for line in torch_file.splitlines() if operation in line])
+        # extract the runtime
+        torch_strs_found = SPEED_V_TORCH_REGEX.finditer(torch_file)
+        # average the rest of the runs
+        torch_sum, torch_len = 0, 0
+        for torch_str in torch_strs_found:
+          torch_sum += float(torch_str.group(1))
+          torch_len += 1
+        points.append((int(path.name), torch_sum / torch_len))
+
+  # graph the data
+  chart = pygal.XY(show_legend=False, style=NeonStyle, dots_size=4)
+  chart.title = f"{operation} operation speed vs torch on {system}"
+  chart.x_title = "run number"
+  chart.y_title = "ratio"
+  chart.add("", sorted(points, key=lambda x: x[0]))
+  chart_png = chart.render_to_png()
+
+  yield InteractionResponse(file=("chart.png", chart_png))
