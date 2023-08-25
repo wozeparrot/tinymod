@@ -100,7 +100,9 @@ async def graph_benchmark(client: Client, event,
           llama_file = zip.read(f"llama_{'jitted' if jitted == 'true' else 'unjitted'}.txt").decode("utf-8")
           # the runtime is part of the string "ran model in {runtime} ms" so we use regex to extract it
           runtime_strs_found = LLAMA_REGEX.finditer(llama_file)
-          for _ in range(3): next(runtime_strs_found) # skip first 3 runs for warmup
+          try:
+            for _ in range(3): next(runtime_strs_found) # skip first 3 runs for warmup
+          except: continue # skip if there are less than 3 runs
           # average the rest of the runs
           runtime_sum, runtime_len = 0, 0
           for runtime_str in runtime_strs_found:
