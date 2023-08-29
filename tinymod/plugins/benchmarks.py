@@ -90,6 +90,9 @@ async def graph_benchmark(client: Client, event,
       good_to_graph = False
     else:
       for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
+        # skip known bad runs
+        if path.name in ["171"]: continue
+
         # skip non-directories
         if not path.is_dir(): continue
 
