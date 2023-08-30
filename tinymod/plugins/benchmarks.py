@@ -24,6 +24,8 @@ LLAMA_REGEX = re.compile(r"ran model in (\d+\.\d+) ms")
 LLAMA_REGEX_2 = re.compile(r"sync in (\d+\.\d+) ms")
 CIFAR_REGEX = re.compile(r"(\d+\.\d+) ms run")
 CIFAR_REGEX_2 = re.compile(r"(\d+\.\d+) ms CL")
+MATMUL_REGEX = re.compile(r"(\d+\.\d+) GFLOPS,")
+SD_REGEX = re.compile(r"step in (\d+\.\d+) ms")
 SPEED_V_TORCH_REGEX = re.compile(r"(\d+\.\d+)x")
 
 async def download_benchmark(client: Client, run_number: int, artifacts_url: str):
@@ -75,18 +77,18 @@ async def download_benchmarks(client: Client, event):
 @TinyMod.interactions(guild=GUILD)
 async def graph_benchmark(client: Client, event,
   system: Annotated[str, ["amd", "mac"], "system the benchmark is run on"],
-  model: Annotated[str, ["resnet50", "openpilot", "efficientnet", "shufflenet", "llama", "cifar"], "model the benchmark is for"],
+  model: Annotated[str, ["resnet50", "openpilot", "efficientnet", "shufflenet", "llama", "cifar", "matmul", "sd"], "model the benchmark is for"],
   device: Annotated[str, ["clang", "gpu"], "device the benchmark is run on"],
   jitted: Annotated[str, ["true", "false"], "whether the benchmark is jitted or not"],
   sync: Annotated[str, ["true", "false"], "show the sync time or not"]
 ):
   """Graphs the selected benchmark"""
   points, points_2, good_to_graph = [], [], True
-  legend, legend_2 = "", ""
+  legend, legend_2, flops = "", "", False
 
   if model == "llama":
     if device != "gpu":
-      yield "llama only runs on gpu"
+      await client.interaction_response_message_create(event, "llama only runs on gpu", show_for_invoking_user_only=True)
       good_to_graph = False
     else:
       for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
@@ -125,7 +127,7 @@ async def graph_benchmark(client: Client, event,
       legend, legend_2 = "runtime", "sync time"
   elif model == "cifar":
     if device != "gpu" or jitted != "true":
-      yield "cifar only runs on gpu and jitted"
+      await client.interaction_response_message_create(event, "cifar only runs on gpu and jitted", show_for_invoking_user_only=True)
       good_to_graph = False
     else:
       for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
@@ -157,6 +159,59 @@ async def graph_benchmark(client: Client, event,
               sync_len += 1
             points_2.append((int(path.name), sync_sum / sync_len))
       legend, legend_2 = "runtime", "CL time"
+  elif model == "matmul":
+    if device != "gpu" or jitted != "false":
+      await client.interaction_response_message_create(event, "matmul only runs on gpu and un-jitted", show_for_invoking_user_only=True)
+      good_to_graph = False
+    else:
+      for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
+        # skip non-directories
+        if not path.is_dir(): continue
+
+        # open the zip file
+        with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
+          # some of the older artifacts don't have matmul so we just skip
+          if "matmul.txt" not in zip.namelist(): continue
+          matmul_file = zip.read("matmul.txt").decode("utf-8")
+          # extract the runtime
+          runtime_strs_found = MATMUL_REGEX.finditer(matmul_file)
+          try:
+            for _ in range(3): next(runtime_strs_found) # skip first 3 runs for warmup
+          except: continue # skip if there are less than 3 runs
+          # average the rest of the runs
+          runtime_sum, runtime_len = 0, 0
+          for runtime_str in runtime_strs_found:
+            runtime_sum += float(runtime_str.group(1))
+            runtime_len += 1
+          points.append((int(path.name), runtime_sum / runtime_len))
+      legend, flops = "runtime", True
+  elif model == "sd":
+    device = "default"
+    if jitted != "true":
+      await client.interaction_response_message_create(event, "sd only runs jitted", show_for_invoking_user_only=True)
+      good_to_graph = False
+    else:
+      for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
+        # skip non-directories
+        if not path.is_dir(): continue
+
+        # open the zip file
+        with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
+          # some of the older artifacts don't have sd so we just skip
+          if "sd.txt" not in zip.namelist(): continue
+          sd_file = zip.read("sd.txt").decode("utf-8")
+          # extract the runtime
+          runtime_strs_found = SD_REGEX.finditer(sd_file)
+          try:
+            for _ in range(3): next(runtime_strs_found) # skip first 3 runs for warmup
+          except: continue
+          # average the rest of the runs
+          runtime_sum, runtime_len = 0, 0
+          for runtime_str in runtime_strs_found:
+            runtime_sum += float(runtime_str.group(1))
+            runtime_len += 1
+          points.append((int(path.name), runtime_sum / runtime_len))
+      legend = "runtime"
   else: # onnx model
     # scan the artifacts directory for new benchmarks
     for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
@@ -190,7 +245,7 @@ async def graph_benchmark(client: Client, event,
     chart = pygal.XY(legend_at_bottom=True, style=NeonStyle, dots_size=4)
     chart.title = f"{system} {model} {device} {'jitted' if jitted == 'true' else 'un-jitted'}"
     chart.x_title = "run number"
-    chart.y_title = "time (ms)"
+    chart.y_title = "time (ms)" if not flops else "GFLOPS"
     chart.add(legend, sorted(points, key=lambda x: x[0]))
     if len(points_2) > 0:
       chart.add(legend_2, sorted(points_2, key=lambda x: x[0]))
