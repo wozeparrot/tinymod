@@ -298,7 +298,9 @@ async def graph_speed_v_torch(client: Client, event,
         for torch_str in torch_strs_found:
           torch_sum += float(torch_str.group(1))
           torch_len += 1
-        points.append((int(path.name), torch_sum / torch_len))
+        try:
+          points.append((int(path.name), torch_sum / torch_len))
+        except: pass # skip if there are no runs
 
   # graph the data
   chart = pygal.XY(show_legend=False, style=NeonStyle, dots_size=4)
