@@ -238,22 +238,26 @@ async def graph_benchmark(client: Client, event,
     legend = "runtime"
 
   if good_to_graph:
+    # sort the points by run number
+    points = sorted(points, key=lambda x: x[0])
+    points_2 = sorted(points_2, key=lambda x: x[0]) if len(points_2) > 0 else []
+
     # strip outliers by standard deviation
     # calculate the mean
     mean = sum([point[1] for point in points]) / len(points)
     # calculate the standard deviation
     std_dev = (sum([(point[1] - mean) ** 2 for point in points]) / len(points)) ** 0.5
     # strip outliers
-    points = [point for point in points if abs(point[1] - mean) < std_dev * 4]
+    points = [point for point in points[:-3] if abs(point[1] - mean) < std_dev * 4] + points[-3:]
 
     # graph the data
     chart = pygal.XY(legend_at_bottom=True, style=NeonStyle, dots_size=4)
     chart.title = f"{system} {model} {device} {'jitted' if jitted == 'true' else 'un-jitted'}"
     chart.x_title = "run number"
     chart.y_title = "time (ms)" if not flops else "GFLOPS"
-    chart.add(legend, sorted(points, key=lambda x: x[0]))
+    chart.add(legend, points)
     if len(points_2) > 0:
-      chart.add(legend_2, sorted(points_2, key=lambda x: x[0]))
+      chart.add(legend_2, points_2)
     chart_png = chart.render_to_png()
 
     yield InteractionResponse(file=("chart.png", chart_png))
