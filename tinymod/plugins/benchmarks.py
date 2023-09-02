@@ -92,9 +92,6 @@ async def graph_benchmark(client: Client, event,
       good_to_graph = False
     else:
       for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
-        # skip known bad runs
-        if path.name in ["171"]: continue
-
         # skip non-directories
         if not path.is_dir(): continue
 
@@ -241,6 +238,14 @@ async def graph_benchmark(client: Client, event,
     legend = "runtime"
 
   if good_to_graph:
+    # strip outliers by standard deviation
+    # calculate the mean
+    mean = sum([point[1] for point in points]) / len(points)
+    # calculate the standard deviation
+    std_dev = (sum([(point[1] - mean) ** 2 for point in points]) / len(points)) ** 0.5
+    # strip outliers
+    points = [point for point in points if abs(point[1] - mean) < std_dev * 4]
+
     # graph the data
     chart = pygal.XY(legend_at_bottom=True, style=NeonStyle, dots_size=4)
     chart.title = f"{system} {model} {device} {'jitted' if jitted == 'true' else 'un-jitted'}"
