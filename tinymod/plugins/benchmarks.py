@@ -1,5 +1,5 @@
 from typing import Annotated
-from hata import Client, Guild, Role
+from hata import Client, Guild, Role, Message
 from hata.ext.slash import InteractionResponse
 from github import Github, Auth
 import pygal
@@ -7,6 +7,7 @@ from pygal.style import NeonStyle
 
 import os, csv, zipfile, re
 from pathlib import Path
+from math import inf
 
 TinyMod: Client
 GUILD: Guild
@@ -19,304 +20,178 @@ GH_HEADERS = {
   "User-Agent": "curl/7.54.1",
   "Authorization": f"Bearer {os.environ['GH_TOKEN']}"
 }
+CI_CHANNEL_ID = 1068993556905218128
+GITHUB_WEBHOOK_ID = 1068993579520884826
+ALL_SYSTEMS = ["amd", "mac", "nvidia"]
+RANGE = range(10, 100 + 1, 10)
 
-LLAMA_REGEX = re.compile(r"ran model in (\d+\.\d+) ms")
-LLAMA_REGEX_2 = re.compile(r"sync in (\d+\.\d+) ms")
-CIFAR_REGEX = re.compile(r"(\d+\.\d+) ms run")
-CIFAR_REGEX_2 = re.compile(r"(\d+\.\d+) ms CL")
-MATMUL_REGEX = re.compile(r"(\d+\.\d+) GFLOPS,")
-SD_REGEX = re.compile(r"step in (\d+\.\d+) ms")
-SPEED_V_TORCH_REGEX = re.compile(r"(\d+\.\d+)x")
-
-async def download_benchmark(client: Client, run_number: int, artifacts_url: str):
+# ***** Downloading benchmarks *****
+async def download_benchmark(client: Client, run_number: int, artifacts_url: str, system: str) -> bool:
   async with client.http.get(artifacts_url, headers=GH_HEADERS) as response:
     if response.status == 200:
       artifacts = await response.json()
       artifacts = artifacts["artifacts"]
 
-      artifact_urls = {
-        "amd": [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (AMD)"][0],
-        "mac": [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (Mac)"][0],
-      }
+      match (system):
+        case "amd":
+            artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (AMD)"]
+        case "mac":
+            artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (Mac)"]
+        case "nvidia":
+            artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (NVIDIA)"]
+        case _: return False
 
-      # download the artifacts
-      for artifact in artifact_urls:
-        async with client.http.get(artifact_urls[artifact], headers=GH_HEADERS) as response:
-          # save the artifact to a file
-          if response.status == 200:
-            # ensure that the directory for the run number exists
-            (BENCHMARKS_DIR / "artifacts" / f"{run_number}").mkdir(parents=True, exist_ok=True)
-            with open(BENCHMARKS_DIR / "artifacts" / f"{run_number}" / f"{artifact}.zip", "wb") as f:
-              f.write(await response.read())
+      if len(artifact) < 1: return False
+      artifact = artifact[0]
 
-@TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True)
-async def download_benchmarks(client: Client, event):
-  """Downloads the benchmark artifacts from ones that are not already downloaded"""
-  if not event.user.has_role(ADMIN_ROLE): return
+      # download the artifact
+      async with client.http.get(artifact, headers=GH_HEADERS) as response:
+        # save the artifact to a file
+        if response.status == 200:
+          # ensure that the directory for the run number exists
+          (BENCHMARKS_DIR / "artifacts" / f"{run_number}").mkdir(parents=True, exist_ok=True)
+          with open(BENCHMARKS_DIR / "artifacts" / f"{run_number}" / f"{system}.zip", "wb") as f:
+            f.write(await response.read())
+          return True
+        else:
+          print(f"failed to download artifact for run {run_number} with response {response}")
+  return False
 
-  # get workflow runs from github
+async def download_missing_benchmarks_for_system(client: Client, system: str):
   repo = GITHUB.get_repo("tinygrad/tinygrad")
   workflow_runs = repo.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
-  message = yield f"found {workflow_runs.totalCount} workflow runs"
+  yield workflow_runs.totalCount
 
-  # get the latest workflow run
   for run in workflow_runs:
-    # skip all runs under 25
+    # skip all runs under 25 because they are not the right format
     if run.run_number <= 25: continue
-    yield InteractionResponse(f"downloading artifacts from run {run.run_number}", message=message)
+    if not (BENCHMARKS_DIR / "artifacts" / f"{run.run_number}" / f"{system}.zip").exists():
+      succeeded = await download_benchmark(client, run.run_number, run.artifacts_url, system)
+      yield run.run_number
+    else: break # we can actually break here since the workflow runs are in order
+    if not succeeded: break
 
-    # fetch the artifacts from the latest workflow run
-    # check if the artifacts have already been downloaded
-    if not (BENCHMARKS_DIR / "artifacts" / f"{run.run_number}").exists():
-      await download_benchmark(client, run.run_number, run.artifacts_url)
-    else: # we can actually break here since the workflow runs are in order
-      break
+@TinyMod.events # type: ignore
+async def message_create(client: Client, message: Message):
+  if message.channel.id != CI_CHANNEL_ID: return
+  if message.author.id != GITHUB_WEBHOOK_ID: return
 
+  print("got a message from the github webhook")
+
+@TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True) # type: ignore
+async def bm_download_missing(client: Client, event,
+  system: Annotated[str, ALL_SYSTEMS, "system to download missing benchmarks for"]
+):
+  """Downloads the missing benchmarks for a system"""
+  if not event.user.has_role(ADMIN_ROLE): return
+  download = download_missing_benchmarks_for_system(client, system)
+  message = yield f"found {await anext(download)} runs"
+  async for run_number in download:
+    yield InteractionResponse(f"downloaded run {run_number}", message=message)
   yield InteractionResponse("done", message=message)
 
-@TinyMod.interactions(guild=GUILD)
-async def graph_benchmark(client: Client, event,
-  system: Annotated[str, ["amd", "mac"], "system the benchmark is run on"],
-  model: Annotated[str, ["resnet50", "openpilot", "efficientnet", "shufflenet", "llama", "cifar", "matmul", "sd"], "model the benchmark is for"],
-  device: Annotated[str, ["clang", "gpu"], "device the benchmark is run on"],
-  jitted: Annotated[str, ["true", "false"], "whether the benchmark is jitted or not"],
-  sync: Annotated[str, ["true", "false"], "show the sync time or not"]
-):
-  """Graphs the selected benchmark"""
-  points, points_2, good_to_graph = [], [], True
-  legend, legend_2, flops = "", "", False
+# ***** Graphing benchmarks *****
+def get_benchmarks(filename: str, system: str):
+  for path in (BENCHMARKS_DIR / "artifacts").iterdir():
+    if not path.is_dir(): continue
+    if not (path / f"{system}.zip").exists(): continue
+    with zipfile.ZipFile(path / f"{system}.zip") as zip:
+      if filename not in zip.namelist(): continue
+      with zip.open(filename) as f:
+        yield int(path.name), f.read().decode()
 
-  if model == "llama":
-    if device != "gpu":
-      await client.interaction_response_message_create(event, "llama only runs on gpu", show_for_invoking_user_only=True)
-      good_to_graph = False
-    else:
-      for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
-        # skip non-directories
-        if not path.is_dir(): continue
+def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int) -> float:
+  iter = regex.finditer(benchmark)
+  try:
+    for _ in range(skip_count): next(iter)
+  except: return -inf
+  sums, counts = 0, 0
+  for match in iter:
+    sums += float(match.group(1))
+    counts += 1
+  if counts == 0: return -inf
+  return sums / counts
 
-        # open the zip file
-        with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
-          # some of the older artifacts don't have llama so we just skip
-          if f"llama_{'jitted' if jitted == 'true' else 'unjitted'}.txt" not in zip.namelist(): continue
-          llama_file = zip.read(f"llama_{'jitted' if jitted == 'true' else 'unjitted'}.txt").decode("utf-8")
-          # the runtime is part of the string "ran model in {runtime} ms" so we use regex to extract it
-          runtime_strs_found = LLAMA_REGEX.finditer(llama_file)
-          try:
-            for _ in range(3): next(runtime_strs_found) # skip first 3 runs for warmup
-          except: continue # skip if there are less than 3 runs
-          # average the rest of the runs
-          runtime_sum, runtime_len = 0, 0
-          for runtime_str in runtime_strs_found:
-            runtime_sum += float(runtime_str.group(1))
-            runtime_len += 1
-          points.append((int(path.name), runtime_sum / runtime_len))
-          # do the same for the second regex
-          if sync == "true":
-            sync_strs_found = LLAMA_REGEX_2.finditer(llama_file)
-            for _ in range(3): next(sync_strs_found) # skip first 3 runs for warmup
-            # average the rest of the runs
-            sync_sum, sync_len = 0, 0
-            for sync_str in sync_strs_found:
-              sync_sum += float(sync_str.group(1))
-              sync_len += 1
-            points_2.append((int(path.name), sync_sum / sync_len))
-      legend, legend_2 = "runtime", "sync time"
-  elif model == "cifar":
-    if device != "gpu" or jitted != "true":
-      await client.interaction_response_message_create(event, "cifar only runs on gpu and jitted", show_for_invoking_user_only=True)
-      good_to_graph = False
-    else:
-      for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
-        # skip non-directories
-        if not path.is_dir(): continue
+def filter_outliers_by_stddev(points: list[tuple[int, float]], stddev_multiplier: float = 2) -> list[tuple[int, float]]:
+  points = sorted(points, key=lambda x: x[1])
+  avg = sum(point[1] for point in points) / len(points)
+  std = (sum((point[1] - avg) ** 2 for point in points) / len(points)) ** 0.5
+  return [point for point in points if abs(point[1] - avg) < stddev_multiplier * std]
 
-        # open the zip file
-        with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
-          # some of the older artifacts don't have cifar so we just skip
-          if "train_cifar.txt" not in zip.namelist(): continue
-          cifar_file = zip.read("train_cifar.txt").decode("utf-8")
-          # extract the runtime
-          runtime_strs_found = CIFAR_REGEX.finditer(cifar_file)
-          for _ in range(3): next(runtime_strs_found) # skip first 3 runs for warmup
-          # average the rest of the runs
-          runtime_sum, runtime_len = 0, 0
-          for runtime_str in runtime_strs_found:
-            runtime_sum += float(runtime_str.group(1))
-            runtime_len += 1
-          points.append((int(path.name), runtime_sum / runtime_len))
-          # do the same for the second regex
-          if sync == "true":
-            sync_strs_found = CIFAR_REGEX_2.finditer(cifar_file)
-            for _ in range(3): next(sync_strs_found)
-            # average the rest of the runs
-            sync_sum, sync_len = 0, 0
-            for sync_str in sync_strs_found:
-              sync_sum += float(sync_str.group(1))
-              sync_len += 1
-            points_2.append((int(path.name), sync_sum / sync_len))
-      legend, legend_2 = "runtime", "CL time"
-  elif model == "matmul":
-    if device != "gpu" or jitted != "false":
-      await client.interaction_response_message_create(event, "matmul only runs on gpu and un-jitted", show_for_invoking_user_only=True)
-      good_to_graph = False
-    else:
-      for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
-        # skip non-directories
-        if not path.is_dir(): continue
-
-        # open the zip file
-        with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
-          # some of the older artifacts don't have matmul so we just skip
-          if "matmul.txt" not in zip.namelist(): continue
-          matmul_file = zip.read("matmul.txt").decode("utf-8")
-          # extract the runtime
-          runtime_strs_found = MATMUL_REGEX.finditer(matmul_file)
-          try:
-            for _ in range(3): next(runtime_strs_found) # skip first 3 runs for warmup
-          except: continue # skip if there are less than 3 runs
-          # average the rest of the runs
-          runtime_sum, runtime_len = 0, 0
-          for runtime_str in runtime_strs_found:
-            runtime_sum += float(runtime_str.group(1))
-            runtime_len += 1
-          points.append((int(path.name), runtime_sum / runtime_len))
-      legend, flops = "runtime", True
-  elif model == "sd":
-    device = "default"
-    if jitted != "true":
-      await client.interaction_response_message_create(event, "sd only runs jitted", show_for_invoking_user_only=True)
-      good_to_graph = False
-    else:
-      for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
-        # skip non-directories
-        if not path.is_dir(): continue
-
-        # open the zip file
-        with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
-          # some of the older artifacts don't have sd so we just skip
-          if "sd.txt" not in zip.namelist(): continue
-          sd_file = zip.read("sd.txt").decode("utf-8")
-          # extract the runtime
-          runtime_strs_found = SD_REGEX.finditer(sd_file)
-          try:
-            for _ in range(3): next(runtime_strs_found) # skip first 3 runs for warmup
-          except: continue
-          # average the rest of the runs
-          runtime_sum, runtime_len = 0, 0
-          for runtime_str in runtime_strs_found:
-            runtime_sum += float(runtime_str.group(1))
-            runtime_len += 1
-          points.append((int(path.name), runtime_sum / runtime_len))
-      legend = "runtime"
-  else: # onnx model
-    # scan the artifacts directory for new benchmarks
-    for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
-      # skip non-directories
-      if not path.is_dir(): continue
-
-      # open the zip file
-      with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
-        onnx_inference_speed_file = zip.read("onnx_inference_speed.csv").decode("utf-8")
-        onnx_inference_speed_reader = csv.reader(onnx_inference_speed_file.splitlines(), delimiter=',')
-        # always skip the first line
-        next(onnx_inference_speed_reader)
-
-        skip_count = 0
-        if model == "openpilot": skip_count = 1
-        elif model == "efficientnet": skip_count = 2
-        elif model == "shufflenet": skip_count = 3
-        for _ in range(skip_count): next(onnx_inference_speed_reader)
-
-        index = 0
-        if device == "gpu": index = 1
-        elif device == "clang": index = 1
-
-        if jitted == "true": index += 1
-
-        points.append((int(path.name), float(next(onnx_inference_speed_reader)[index])))
-    legend = "runtime"
-
-  if good_to_graph:
-    # sort the points by run number
+STYLE = NeonStyle(font_family="sans-serif", title_font_size=24, legend_font_size=18, background="#151510", plot_background="#151510")
+def points_to_graph(title: str, legend_points: list[tuple[str, list[tuple[int, float]]]], gflops: bool = False) -> bytes:
+  chart = pygal.XY(width=1280, height=800, legend_at_bottom=True, style=STYLE, title=title, x_title="Run Number", y_title="Runtime (ms)" if not gflops else "GFLOPS")
+  for legend, points in legend_points:
+    points = filter_outliers_by_stddev(points)
     points = sorted(points, key=lambda x: x[0])
-    points_2 = sorted(points_2, key=lambda x: x[0]) if len(points_2) > 0 else []
-
-    # strip outliers by standard deviation
-    # calculate the mean
-    mean = sum([point[1] for point in points]) / len(points)
-    # calculate the standard deviation
-    std_dev = (sum([(point[1] - mean) ** 2 for point in points]) / len(points)) ** 0.5
-    # strip outliers
-    points = [point for point in points[:-3] if abs(point[1] - mean) < std_dev * 4] + points[-3:]
-
-    # graph the data
-    chart = pygal.XY(legend_at_bottom=True, style=NeonStyle, dots_size=4)
-    chart.title = f"{system} {model} {device} {'jitted' if jitted == 'true' else 'un-jitted'}"
-    chart.x_title = "run number"
-    chart.y_title = "time (ms)" if not flops else "GFLOPS"
     chart.add(legend, points)
-    if len(points_2) > 0:
-      chart.add(legend_2, points_2)
-    chart_png = chart.render_to_png()
+  return chart.render_to_png()
 
-    yield InteractionResponse(file=("chart.png", chart_png))
+BM_GRAPH = TinyMod.interactions(None, name="bm-graph", description="Graphs a benchmark", guild=GUILD) # type: ignore
 
-@TinyMod.interactions(guild=GUILD)
-async def graph_speed_v_torch(client: Client, event,
-  system: Annotated[str, ["amd", "mac"], "system the benchmark is run on"],
-  operation: Annotated[str, ["all", "add", "exp", "gemm", "conv", "cat", "permute", "pow", "relu", "sub", "sum"], "operation to graph"],
+SD_REGEX = re.compile(r"step in (\d+\.\d+) ms")
+@BM_GRAPH.interactions
+async def stable_diffusion(client: Client, event,
+  system: Annotated[str, ["amd", "mac"], "system to graph"],
+  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
 ):
-  """Graphs the speed vs torch"""
+  """Graphs the stable diffusion benchmark"""
+  message = yield "graphing..." # acknowledge the command
+
   points = []
+  for run_number, benchmark in get_benchmarks("sd.txt", system):
+    runtime = regex_extract_benchmark(SD_REGEX, benchmark, 3)
+    if runtime == -inf: continue
+    points.append((run_number, runtime))
 
-  if operation == "all":
-    for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
-      # skip non-directories
-      if not path.is_dir(): continue
+  if last_n is not None:
+    points = points[-last_n:]
 
-      # open the zip file
-      with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
-        # some of the older artifacts don't have llama so we just skip
-        if "torch_speed.txt" not in zip.namelist(): continue
-        torch_file = zip.read("torch_speed.txt").decode("utf-8")
-        # extract the runtime
-        torch_strs_found = SPEED_V_TORCH_REGEX.finditer(torch_file)
-        # average the rest of the runs
-        torch_sum, torch_len = 0, 0
-        for torch_str in torch_strs_found:
-          torch_sum += float(torch_str.group(1))
-          torch_len += 1
-        points.append((int(path.name), torch_sum / torch_len))
-  else:
-    for path in (BENCHMARKS_DIR / "artifacts").glob("*"):
-      # skip non-directories
-      if not path.is_dir(): continue
+  chart = points_to_graph(f"{system} Stable Diffusion", [("runtime", points)])
+  yield InteractionResponse("", file=("chart.png", chart), message=message)
 
-      # open the zip file
-      with zipfile.ZipFile(path / f"{system}.zip", "r") as zip:
-        # some of the older artifacts don't have llama so we just skip
-        if "torch_speed.txt" not in zip.namelist(): continue
-        torch_file = zip.read("torch_speed.txt").decode("utf-8")
-        # remove lines that don't match the operation
-        torch_file = "\n".join([line for line in torch_file.splitlines() if operation in line])
-        # extract the runtime
-        torch_strs_found = SPEED_V_TORCH_REGEX.finditer(torch_file)
-        # average the rest of the runs
-        torch_sum, torch_len = 0, 0
-        for torch_str in torch_strs_found:
-          torch_sum += float(torch_str.group(1))
-          torch_len += 1
-        try:
-          points.append((int(path.name), torch_sum / torch_len))
-        except: pass # skip if there are no runs
+LLAMA_REGEX = re.compile(r"total (\d+\.\d+) ms")
+@BM_GRAPH.interactions
+async def llama(client: Client, event,
+  system: Annotated[str, ["amd", "mac"], "system to graph"],
+  jit: Annotated[str | bool, ["true", "false"], "jitted?"],
+  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
+):
+  """Graphs the llama benchmark"""
+  message = yield "graphing..." # acknowledge the command
+  jit = jit == "true"
 
-  # graph the data
-  chart = pygal.XY(show_legend=False, style=NeonStyle, dots_size=4)
-  chart.title = f"{operation} operation speed vs torch on {system}"
-  chart.x_title = "run number"
-  chart.y_title = "ratio"
-  chart.add("", sorted(points, key=lambda x: x[0]))
-  chart_png = chart.render_to_png()
+  points = []
+  for run_number, benchmark in get_benchmarks("llama_jitted.txt" if jit else "llama_unjitted.txt", system):
+    runtime = regex_extract_benchmark(LLAMA_REGEX, benchmark, 3)
+    if runtime == -inf: continue
+    points.append((run_number, runtime))
 
-  yield InteractionResponse(file=("chart.png", chart_png))
+  if last_n is not None:
+    points = points[-last_n:]
+
+  chart = points_to_graph(f"{system} Llama{' jitted' if jit else ''}", [("runtime", points)])
+  yield InteractionResponse("", file=("chart.png", chart), message=message)
+
+GPT2_REGEX = re.compile(r"total (\d+\.\d+) ms")
+@BM_GRAPH.interactions
+async def gpt2(client: Client, event,
+  system: Annotated[str, ALL_SYSTEMS, "system to graph"],
+  jit: Annotated[str | bool, ["true", "false"], "jitted?"],
+  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
+):
+  """Graphs the gpt2 benchmark"""
+  message = yield "graphing..." # acknowledge the command
+  jit = jit == "true"
+
+  points = []
+  for run_number, benchmark in get_benchmarks("gpt2_jitted.txt" if jit else "gpt2_unjitted.txt", system):
+    runtime = regex_extract_benchmark(LLAMA_REGEX, benchmark, 3)
+    if runtime == -inf: continue
+    points.append((run_number, runtime))
+
+  if last_n is not None:
+    points = points[-last_n:]
+
+  chart = points_to_graph(f"{system} GPT2{' jitted' if jit else ''}", [("runtime", points)])
+  yield InteractionResponse("", file=("chart.png", chart), message=message)
