@@ -5,7 +5,7 @@ TinyMod: Client
 GUILD: Guild
 ADMIN_ROLE: Role
 
-@TinyMod.interactions(guild=GUILD,show_for_invoking_user_only=True)
+@TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True)
 async def vcjump(client, event, channel: ("channel_id", "Channel ID to jump to")):
   """Moves all users in the voice channel that you are in to another voice channel."""
   if not channel: abort("You must provide a channel ID to jump to.")
