@@ -18,7 +18,7 @@ ACCEPT_BUTTON = Button("Accept", emoji=ACCEPT_EMOJI, custom_id="egc.accept", sty
 DENY_BUTTON = Button("Deny", emoji=DENY_EMOJI, custom_id="egc.deny", style=ButtonStyle.red)
 COMPONENTS = Row(ACCEPT_BUTTON, DENY_BUTTON)
 
-@TinyMod.events
+@TinyMod.events # type: ignore
 async def message_create(client: Client, message: Message):
   # check channel id
   if message.channel.id != CHANNEL_ID: return
@@ -74,7 +74,7 @@ async def message_create(client: Client, message: Message):
   # reply with the components for admins to accept or deny
   await client.message_create(message, "", allowed_mentions="!replied_user", components=COMPONENTS)
 
-@TinyMod.interactions(custom_id="egc.accept")
+@TinyMod.interactions(custom_id="egc.accept") # type: ignore
 async def egc_accept(client: Client, event: InteractionEvent):
   # ensure that user clicking the button is an admin
   if not event.user.has_role(ADMIN_ROLE): return
@@ -87,7 +87,7 @@ async def egc_accept(client: Client, event: InteractionEvent):
   await client.interaction_component_acknowledge(event)
   await client.interaction_response_message_delete(event)
 
-@TinyMod.interactions(custom_id="egc.deny")
+@TinyMod.interactions(custom_id="egc.deny") # type: ignore
 async def egc_deny(client: Client, event: InteractionEvent):
   # ensure that user clicking the button is an admin
   if not event.user.has_role(ADMIN_ROLE): return
