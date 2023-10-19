@@ -1,11 +1,12 @@
 from typing import Annotated
 from hata import Client, Guild, Role, Message
 from hata.ext.slash import InteractionResponse
+from scarletio import sleep
 from github import Github, Auth
 import pygal
 from pygal.style import NeonStyle
 
-import os, csv, zipfile, re
+import os, zipfile, re
 from pathlib import Path
 from math import inf
 
@@ -71,12 +72,27 @@ async def download_missing_benchmarks_for_system(client: Client, system: str):
     else: break # we can actually break here since the workflow runs are in order
     if not succeeded: break
 
+async def auto_download_benchmarks(client: Client):
+  await sleep(5 * 60) # wait 5 minutes before starting
+  for system in ALL_SYSTEMS:
+    download = download_missing_benchmarks_for_system(client, system)
+    async for run_number in download: _ = run_number
+
 @TinyMod.events # type: ignore
 async def message_create(client: Client, message: Message):
   if message.channel.id != CI_CHANNEL_ID: return
   if message.author.id != GITHUB_WEBHOOK_ID: return
+  if len(message.embeds) < 1: return
 
-  print("got a message from the github webhook")
+  # check if it is a commit to master
+  embed = message.embeds[0]
+  if "[tinygrad:master]" not in embed.title: return
+  if "new commit" not in embed.title: return
+
+  # queue the download
+  await client.reaction_add(message, "⬇️")
+  await auto_download_benchmarks(client)
+  await client.reaction_add(message, "✅")
 
 @TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True) # type: ignore
 async def bm_download_missing(client: Client, event,
