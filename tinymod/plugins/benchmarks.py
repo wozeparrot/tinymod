@@ -90,6 +90,32 @@ async def bm_download_missing(client: Client, event,
     yield InteractionResponse(f"downloaded run {run_number}", message=message)
   yield InteractionResponse("done", message=message)
 
+# ***** Benchmark utilities *****
+@TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True) # type: ignore
+async def bm_commit(client: Client, event,
+  run_number: (int, "estimated run number to show commits around"), # type: ignore
+):
+  """Shows the commits around a run number"""
+  message = yield "fetching commits..." # acknowledge the command
+
+  commits = []
+  repo = GITHUB.get_repo("tinygrad/tinygrad")
+  workflow_runs = repo.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
+  for run in workflow_runs:
+    if run.run_number in range(run_number - 5, run_number + 5):
+      try: commits.append({"run": run.run_number, "sha": run.head_sha, "message": run.head_commit.message.split("\n")[0], "link": run.html_url})
+      except: continue
+    if run.run_number <= run_number - 5: break
+
+  # build message
+  send_message = f"Commits around run {run_number}:\n"
+  for commit in commits:
+    send_message += f"[`{commit['sha'][:7]}`](<{commit['link']}>) - {commit['message']}"
+    if commit["run"] == run_number: send_message += f" **<-- run {run_number}**\n"
+    else: send_message += "\n"
+
+  yield InteractionResponse(send_message, message=message)
+
 # ***** Graphing benchmarks *****
 def get_benchmarks(filename: str, system: str):
   for path in (BENCHMARKS_DIR / "artifacts").iterdir():
