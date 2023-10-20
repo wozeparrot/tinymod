@@ -153,7 +153,7 @@ async def metric_graph(
         ("gzip_compression_ratio", "gzip compression ratio"),
       ]:
     chart = pygal.DateTimeLine(
-      width=1280, height=800,
+      width=800, height=500,
       style=STYLE,
       show_legend=False,
       show_dots=False,
@@ -162,7 +162,6 @@ async def metric_graph(
     )
 
     chart.title = title
-    chart.y_title = title
     chart.add("", [(m["date"], m[col]) for m in metrics])
     charts.append(Image.open(BytesIO(chart.render_to_png())))
 
