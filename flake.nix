@@ -15,7 +15,7 @@
     poetry2nix,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
-      inherit (poetry2nix.legacyPackages.${system}) mkPoetryApplication;
+      inherit (poetry2nix.legacyPackages.${system}) mkPoetryApplication mkPoetryEnv defaultPoetryOverrides;
       pkgs = nixpkgs.legacyPackages.${system};
     in {
       packages = {
@@ -23,17 +23,37 @@
         default = self.packages.${system}.myapp;
       };
 
-      devShells.default = pkgs.mkShell {
-        packages = [
+      devShells.default = (mkPoetryEnv {
+        projectDir = ./.;
+        extraPackages = p: with p; [
+          setuptools
+        ];
+        overrides = defaultPoetryOverrides.extend (self: super: {
+          scarletio = super.scarletio.overridePythonAttrs (old: {
+            propagatedBuildInputs = (old.propagatedBuildInputs or [ ])
+              ++ [ super.setuptools ];
+          });
+          pygal = super.pygal.overridePythonAttrs (old: {
+            propagatedBuildInputs = (old.propagatedBuildInputs or [ ])
+              ++ [ super.pytest-runner ];
+          });
+          hata = super.hata.overridePythonAttrs {
+            # remove the `hata.discord.bin` subpackage
+            postPatch = ''
+              substituteInPlace setup.py --replace "'hata.discord.bin'," ""
+            '';
+          };
+          pygithub = super.pygithub.overridePythonAttrs (old: {
+            propagatedBuildInputs = (old.propagatedBuildInputs or [ ])
+              ++ [ super.setuptools-scm ];
+          });
+        });
+      }).env.overrideAttrs (old: {
+        buildInputs = with pkgs; [
           poetry2nix.packages.${system}.poetry
-        ] ++ (with pkgs; [
           sqlite
           sqlite-web
-        ]);
-
-        shellHook = ''
-          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${pkgs.libopus}/lib:${pkgs.cairo}/lib
-        '';
-      };
+        ];
+      });
     });
 }
