@@ -1,10 +1,10 @@
 import math
 import shelve
-from typing import Annotated, Optional
 import hashlib
 import tempfile
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 import tokenize
 import token
 import gzip
@@ -25,26 +25,26 @@ ADMIN_ROLE: Role
 REPO = "https://github.com/tinygrad/tinygrad.git"
 BRANCH = "master"
 FILE_FILTER = "tinygrad/**/*.py"
-
-WORKING_DIR = tempfile.gettempdir() + "/" + hashlib.sha256(REPO.encode("utf-8")).hexdigest()
-CACHE = shelve.open("metrics.cache")
 STYLE = NeonStyle(font_family="sans-serif", title_font_size=24, legend_font_size=18, background="#151510", plot_background="#151510")
-UPDATE_LOCK = Lock()
+
+WORKING_DIR = Path(tempfile.gettempdir()) / f"tinymod-{hashlib.sha256(REPO.encode()).hexdigest()}"
+CACHE = shelve.open("metrics.cache")
 LOOP = get_event_loop()
+UPDATE_LOCK = Lock(LOOP)
 
 async def git_cmd(*args):
-  p = await LOOP.subprocess_exec(["git", *args], cwd=WORKING_DIR)
+  p = await LOOP.subprocess_shell(" ".join(["git", *args]), cwd=WORKING_DIR)
   return await p.communicate()
 
 async def clone_or_pull():
   if not os.path.exists(WORKING_DIR): os.mkdir(WORKING_DIR)
-  if not os.path.exists(os.path.join(WORKING_DIR, ".git")): 
+  if not os.path.exists(os.path.join(WORKING_DIR, ".git")):
     await git_cmd("clone", REPO, ".")
     await git_cmd("checkout", BRANCH)
   else: 
     await git_cmd("checkout", BRANCH)
     await git_cmd("pull")
-    
+
 async def get_commits():
   out, _ = await git_cmd("log", "--reflog", "--date=iso")
   out = out.decode("utf-8")
@@ -110,7 +110,7 @@ async def update_metrics():
     commits = sorted(await get_commits(), key=lambda c: c[1])
     if len(old_metrics) > 0:
       last_date: datetime = max(m["date"] for m in old_metrics)
-      commits = [ c for c in commits if c[1] > last_date ]
+      commits = [c for c in commits if c[1] > last_date]
 
     new_metrics = []
     for c in commits:
@@ -120,27 +120,28 @@ async def update_metrics():
         "hash": c[0],
         **get_metrics()
       }) 
-    
+
     CACHE[BRANCH] = list({ m["date"].date(): m for m in old_metrics + new_metrics }.values())
-  
+
 @TinyMod.interactions(guild=GUILD) # type: ignore
 async def metric_graph(
-    start_offset: (int | None, "start offset in days from today") = None, # type: ignore
-    end_offset: (int | None, "end offset in days from today") = None # type: ignore
+    start_offset: (int, "start offset in days from today") = None, # type: ignore
+    end_offset: (int, "end offset in days from today") = None # type: ignore
 ):
+  """Graph the line metrics"""
   message = yield "graphing..." # acknowledge the command
   await update_metrics()
   metrics = CACHE[BRANCH]
 
-  metrics = [ m for m in metrics if m["linecount"] > 0 ]
+  metrics = [m for m in metrics if m["linecount"] > 0]
 
   if start_offset:
     min_date = datetime.today() - timedelta(days=start_offset)
-    metrics = [ m for m in metrics if m["date"] > min_date ]
+    metrics = [m for m in metrics if m["date"] > min_date]
 
   if end_offset:
     max_date = datetime.today() - timedelta(days=end_offset)
-    metrics = [ m for m in metrics if m["date"] < max_date ]
+    metrics = [m for m in metrics if m["date"] < max_date]
 
   charts = []
   for col, title in [
@@ -152,16 +153,17 @@ async def metric_graph(
         ("gzip_compression_ratio", "gzip compression ratio"),
       ]:
     chart = pygal.DateTimeLine(
+      width=1280, height=800,
       style=STYLE,
       show_legend=False,
       show_dots=False,
       x_label_rotation=35, truncate_label=-1,
-      x_value_formatter=lambda dt: dt.strftime('%d, %b %Y'))
+      x_value_formatter=lambda dt: dt.strftime('%d, %b %Y')
+    )
 
     chart.title = title
-    chart.x_title = "date"
     chart.y_title = title
-    chart.add("", [ (m["date"], m[col]) for m in metrics ])
+    chart.add("", [(m["date"], m[col]) for m in metrics])
     charts.append(Image.open(BytesIO(chart.render_to_png())))
 
   chart_size = (max(c.width for c in charts), max(c.height for c in charts))
@@ -177,15 +179,16 @@ async def metric_graph(
   
 @TinyMod.interactions(guild=GUILD) # type: ignore
 async def metric_table(client: Client, event,
-  commit: (str | None, "commit to create the table for") = None # type: ignore
+  commit: (str, "commit to create the table for") = None # type: ignore
 ):
+  """Show the line metrics table"""
   message = yield "generating the table..." # acknowledge the command
   await update_metrics()
   metrics = CACHE[BRANCH]
-  
+
   if commit is None:
     metric = max(metrics, key=lambda m: m["date"])
-  else: 
+  else:
     metric = next((m for m in metrics if m["hash"] == commit), None)
     if metric is None:
       await client.interaction_response_message_create(event, f"commit with hash {commit} not found", show_for_invoking_user_only=True)
@@ -198,12 +201,12 @@ async def metric_table(client: Client, event,
     "Chars/Line": "chars_per_line"
   }
 
-  md_table = [  ]
+  md_table = []
   md_table.append(" | file | " + " | ".join(label_key_map.keys()))
   md_table.append(" | " + " | ".join([ "---" for _ in range(len(label_key_map.keys()) + 1)]))
   for fm in sorted(metric["files"], key=lambda fm: fm["filename"]):
-    md_table.append(" | " + " | ".join([ fm["filename"] ] + [ "{:.1f}".format(fm[label_key_map[label]]) for label in label_key_map.keys() ]))
+    md_table.append(" | " + " | ".join([ fm["filename"] ] + [ "{:.1f}".format(fm[label_key_map[label]]) for label in label_key_map.keys()]))
   md_table.append(" | " + " | ".join([ "---" for _ in range(len(label_key_map.keys()) + 1)]))
-  md_table.append(" | **total** | " + " | ".join([ "**{:.1f}**".format(metric[label_key_map[label]]) for label in label_key_map.keys() ]))
+  md_table.append(" | **total** | " + " | ".join([ "**{:.1f}**".format(metric[label_key_map[label]]) for label in label_key_map.keys()]))
 
   yield InteractionResponse("\n".join(md_table), message=message)
