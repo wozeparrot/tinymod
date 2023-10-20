@@ -16,7 +16,10 @@ import glob
 import numpy as np
 from hata import Client, Guild, Role
 from hata.ext.slash import InteractionResponse
+from hata.ext import asyncio
 from scarletio import Lock, get_event_loop
+import aiosqlite
+import pickle
 
 TinyMod: Client
 GUILD: Guild
@@ -26,12 +29,25 @@ REPO = "https://github.com/tinygrad/tinygrad.git"
 BRANCH = "master"
 FILE_FILTER = "tinygrad/**/*.py"
 STYLE = NeonStyle(font_family="sans-serif", title_font_size=24, legend_font_size=18, background="#151510", plot_background="#151510")
-
 WORKING_DIR = Path(tempfile.gettempdir()) / f"tinymod-{hashlib.sha256(REPO.encode()).hexdigest()}"
-CACHE = shelve.open("metrics.cache")
+DATABASE = "tinymod.db"
 LOOP = get_event_loop()
 UPDATE_LOCK = Lock(LOOP)
 
+async def setup(_):
+  async with aiosqlite.connect(DATABASE) as db:
+    await db.execute("CREATE TABLE IF NOT EXISTS metrics(hash, date, raw)")
+    await db.commit()
+
+async def load_metrics():
+  async with aiosqlite.connect(DATABASE) as db:
+    return [ pickle.loads(item[0]) async for item in await db.execute("SELECT raw from metrics") ]
+
+async def insert_metrics(metrics):
+  async with aiosqlite.connect(DATABASE) as db:
+    await db.executemany("INSERT INTO metrics VALUES(?, ?, ?)", [ (m["hash"], m["date"], pickle.dumps(m)) for m in metrics ])
+    await db.commit()
+    
 async def git_cmd(*args):
   p = await LOOP.subprocess_shell(" ".join(["git", *args]), cwd=WORKING_DIR)
   return await p.communicate()
@@ -105,7 +121,7 @@ def get_metrics():
 async def update_metrics():
   async with UPDATE_LOCK:
     await clone_or_pull()
-    old_metrics = CACHE[BRANCH] if BRANCH in CACHE else []
+    old_metrics = await load_metrics()
 
     commits = sorted(await get_commits(), key=lambda c: c[1])
     if len(old_metrics) > 0:
@@ -121,7 +137,7 @@ async def update_metrics():
         **get_metrics()
       }) 
 
-    CACHE[BRANCH] = list({ m["date"].date(): m for m in old_metrics + new_metrics }.values())
+    await insert_metrics(new_metrics)
 
 @TinyMod.interactions(guild=GUILD) # type: ignore
 async def metric_graph(
@@ -131,7 +147,7 @@ async def metric_graph(
   """Graph the line metrics"""
   message = yield "graphing..." # acknowledge the command
   await update_metrics()
-  metrics = CACHE[BRANCH]
+  metrics = await load_metrics()
 
   metrics = [m for m in metrics if m["linecount"] > 0]
 
@@ -183,7 +199,7 @@ async def metric_table(client: Client, event,
   """Show the line metrics table"""
   message = yield "generating the table..." # acknowledge the command
   await update_metrics()
-  metrics = CACHE[BRANCH]
+  metrics = await load_metrics()
 
   if commit is None:
     metric = max(metrics, key=lambda m: m["date"])
