@@ -27,7 +27,7 @@ REPO = "https://github.com/tinygrad/tinygrad.git"
 BRANCH = "master"
 FILE_FILTER = "tinygrad/**/*.py"
 WORKING_DIR = tempfile.gettempdir() + "/" + hashlib.sha256(REPO.encode("utf-8")).hexdigest()
-CACHE = shelve.open(WORKING_DIR + ".cache")
+CACHE = shelve.open("metrics.cache")
 STYLE = NeonStyle(font_family="sans-serif", title_font_size=24, legend_font_size=18, background="#151510", plot_background="#151510")
 UPDATE_LOCK = asyncio.Lock()
 
