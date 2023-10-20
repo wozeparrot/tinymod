@@ -195,9 +195,7 @@ async def metric_table(client: Client, event,
 
   label_key_map = {
     "Lines": "linecount",
-    "Tokens": "tokencount",
     "Tokens/Line": "tokens_per_line",
-    "Chars/Line": "chars_per_line"
   }
 
   md_table = []
