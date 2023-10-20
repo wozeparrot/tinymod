@@ -16,7 +16,7 @@ import glob
 import numpy as np
 from hata import Client, Guild, Role
 from hata.ext.slash import InteractionResponse
-from scarletio import Lock, get_event_loop()
+from scarletio import Lock, get_event_loop
 
 TinyMod: Client
 GUILD: Guild
