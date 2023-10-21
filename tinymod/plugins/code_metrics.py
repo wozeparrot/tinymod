@@ -214,12 +214,18 @@ async def metric_table(client: Client, event,
     "Tokens/Line": "tokens_per_line",
   }
 
-  md_table = []
-  md_table.append(" | file | " + " | ".join(label_key_map.keys()))
-  md_table.append(" | " + " | ".join([ "---" for _ in range(len(label_key_map.keys()) + 1)]))
+  table_cells = []
+  table_cells.append(["file"] + list(label_key_map.keys()))
+  table_cells.append([ "---" for _ in range(len(label_key_map.keys()) + 1)])
   for fm in sorted(metric["files"], key=lambda fm: fm["filename"]):
-    md_table.append(" | " + " | ".join([ fm["filename"] ] + [ "{:.1f}".format(fm[label_key_map[label]]) for label in label_key_map.keys()]))
-  md_table.append(" | " + " | ".join([ "---" for _ in range(len(label_key_map.keys()) + 1)]))
-  md_table.append(" | **total** | " + " | ".join([ "**{:.1f}**".format(metric[label_key_map[label]]) for label in label_key_map.keys()]))
+    table_cells.append([ fm["filename"] ] + [ "{:.1f}".format(fm[label_key_map[label]]) for label in label_key_map.keys() ])
+  table_cells.append([ "---" for _ in range(len(label_key_map.keys()) + 1)])
+  table_cells.append(["total"] + [ "{:.1f}".format(metric[label_key_map[label]]) for label in label_key_map.keys() ])
+    
+  col_widths = [ max(len(row[i]) for row in table_cells) for i in range(len(table_cells[0]) - 1) ] + [ 0 ] 
+  txt_table = "\n".join(" | ".join(cell.ljust(col_widths[i]) for i, cell in enumerate(row)) for row in table_cells)
 
-  yield InteractionResponse("\n".join(md_table), message=message)
+  if len(txt_table) < 1992:
+    yield InteractionResponse(f"```\n{txt_table}\n```", message=message)
+  else:
+    yield InteractionResponse("", file=("metrics.txt", txt_table), message=message)
