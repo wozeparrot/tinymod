@@ -1,25 +1,18 @@
-import math
-import hashlib
-import tempfile
-import os
+import math, hashlib, tempfile, os, glob
+import tokenize, token, gzip, json
 from datetime import datetime, timedelta
 from pathlib import Path
-import tokenize
-import token
-import gzip
 from io import BytesIO
 from typing import Optional
 import pygal
 from pygal.style import NeonStyle
 from PIL import Image
-import glob
 import numpy as np
 from hata import Client, Guild, Role
 from hata.ext.slash import InteractionResponse
-from hata.ext import asyncio
 from scarletio import Lock, get_event_loop
+from hata.ext import asyncio
 import aiosqlite
-import json
 
 TinyMod: Client
 GUILD: Guild
@@ -62,16 +55,16 @@ async def insert_metrics(metrics: list[dict]):
       (
         *(m[col] for col in METRICS_DB_COLS_NATIVE),
         *(json.dumps(m[col]) for col in METRICS_DB_COLS_JSON.values())
-      ) for m in metrics 
+      ) for m in metrics
     ])
-    await db.commit()    
+    await db.commit()
 
 async def get_most_recent_metric(cols: Optional[list[str]] = None):
   if cols is None: cols = METRICS_DB_COLS_NATIVE + list(METRICS_DB_COLS_JSON.keys())
   async with aiosqlite.connect(DATABASE) as db:
     cur = await db.execute(f"SELECT {','.join(cols)} from metrics WHERE timestamp = (SELECT MAX(timestamp) FROM metrics)")
     item = await cur.fetchone()
-    if item: return dict((METRICS_DB_COLS_JSON[k], json.loads(v)) if k in METRICS_DB_COLS_JSON else (k, v) for k, v in zip(cols, item) )
+    if item: return dict((METRICS_DB_COLS_JSON[k], json.loads(v)) if k in METRICS_DB_COLS_JSON else (k, v) for k, v in zip(cols, item))
     else: return None
 
 async def get_metric_by_hash(hash: str, cols: Optional[list[str]] = None):
@@ -79,7 +72,7 @@ async def get_metric_by_hash(hash: str, cols: Optional[list[str]] = None):
   async with aiosqlite.connect(DATABASE) as db:
     cur = await db.execute(f"SELECT {','.join(cols)} from metrics WHERE hash = ?", hash)
     item = await cur.fetchone()
-    if item: return dict((METRICS_DB_COLS_JSON[k], json.loads(v)) if k in METRICS_DB_COLS_JSON else (k, v) for k, v in zip(cols, item) )
+    if item: return dict((METRICS_DB_COLS_JSON[k], json.loads(v)) if k in METRICS_DB_COLS_JSON else (k, v) for k, v in zip(cols, item))
     else: return None
 
 async def git_cmd(*args):
@@ -155,7 +148,6 @@ def get_metrics():
 async def update_metrics():
   async with UPDATE_LOCK:
     await clone_or_pull()
-    old_metrics = await load_metrics()
 
     commits = sorted(await get_commits(), key=lambda c: c[1])
     most_recent_metric = await get_most_recent_metric(["timestamp"])
@@ -169,12 +161,12 @@ async def update_metrics():
         "timestamp": c[1],
         "hash": c[0],
         **get_metrics()
-      }) 
+      })
 
     await insert_metrics(new_metrics)
 
 @TinyMod.interactions(guild=GUILD) # type: ignore
-async def metric_graph(
+async def metrics_graph(client: Client, event,
     start_offset: (int, "start offset in days from today") = None, # type: ignore
     end_offset: (int, "end offset in days from today") = None # type: ignore
 ):
@@ -213,7 +205,7 @@ async def metric_graph(
 
     chart.title = title
     chart.add("", [(datetime.fromtimestamp(m["timestamp"]), m[col]) for m in metrics])
-    charts.append(Image.open(BytesIO(chart.render_to_png())))
+    charts.append(Image.open(BytesIO(chart.render_to_png()))) # type: ignore
 
   chart_size = (max(c.width for c in charts), max(c.height for c in charts))
   w = int(len(charts) ** 0.5)
@@ -225,7 +217,7 @@ async def metric_graph(
   chart_raw = BytesIO()
   full_chart.save(chart_raw, format="PNG")
   yield InteractionResponse("", file=("chart.png", chart_raw.getvalue()), message=message)
-  
+
 @TinyMod.interactions(guild=GUILD) # type: ignore
 async def metric_table(client: Client, event,
   commit: (str, "commit to create the table for") = None # type: ignore
@@ -249,10 +241,10 @@ async def metric_table(client: Client, event,
   table_cells = []
   table_cells.append(["file"] + list(label_key_map.keys()))
   table_cells.append(["---" for _ in range(len(label_key_map.keys()) + 1)])
-  for fm in sorted(metric["files"], key=lambda fm: fm["filename"]):
+  for fm in sorted(metric["files"], key=lambda fm: fm["filename"]): # type: ignore
     table_cells.append([fm["filename"]] + ["{:.1f}".format(fm[label_key_map[label]]) for label in label_key_map.keys()])
   table_cells.append(["---" for _ in range(len(label_key_map.keys()) + 1)])
-  table_cells.append(["total"] + ["{:.1f}".format(metric[label_key_map[label]]) for label in label_key_map.keys()])
+  table_cells.append(["total"] + ["{:.1f}".format(metric[label_key_map[label]]) for label in label_key_map.keys()]) # type: ignore
 
   col_widths = [max(len(row[i]) for row in table_cells) for i in range(len(table_cells[0]) - 1)] + [0]
   txt_table = "\n".join(" | ".join(cell.ljust(col_widths[i]) for i, cell in enumerate(row)) for row in table_cells)
