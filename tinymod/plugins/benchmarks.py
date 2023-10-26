@@ -92,6 +92,29 @@ async def message_create(client: Client, message: Message):
   # queue the download
   await client.reaction_add(message, "⬇️")
   await auto_download_benchmarks(client)
+  await client.reaction_clear(message)
+
+  # find the run
+  repo = GITHUB.get_repo("tinygrad/tinygrad")
+  workflow_runs = repo.get_workflow("benchmark.yml").get_runs(branch="master", event="push")
+  for run in workflow_runs:
+    if run.head_sha == embed.url.split("/")[-1]:
+      break
+  else:
+    await client.reaction_add(message, "❌")
+    return
+
+  # check run status and conclusion
+  if run.status != "completed" or run.conclusion != "success":
+    await client.reaction_add(message, "❌")
+    return
+
+  # check if the run is downloaded
+  if not (BENCHMARKS_DIR / "artifacts" / f"{run.run_number}").exists():
+    await client.reaction_add(message, "❌")
+    return
+
+  # its good
   await client.reaction_add(message, "✅")
 
 @TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True) # type: ignore
@@ -104,6 +127,18 @@ async def bm_download_missing(client: Client, event,
   message = yield f"found {await anext(download)} runs"
   async for run_number in download:
     yield InteractionResponse(f"downloaded run {run_number}", message=message)
+  yield InteractionResponse("done", message=message)
+
+@TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True) # type: ignore
+async def bm_download_missing_for_all(client: Client, event):
+  """Downloads the missing benchmarks for all systems"""
+  if not event.user.has_role(ADMIN_ROLE): return
+  message = yield "downloading..."
+  for system in ALL_SYSTEMS:
+    download = download_missing_benchmarks_for_system(client, system)
+    yield InteractionResponse(f"found {await anext(download)} runs for {system}", message=message)
+    async for run_number in download:
+      yield InteractionResponse(f"downloaded run {run_number} - {system}", message=message)
   yield InteractionResponse("done", message=message)
 
 # ***** Benchmark utilities *****
@@ -161,11 +196,13 @@ def filter_outliers_by_stddev(points: list[tuple[int, float]], stddev_multiplier
   return [point for point in points if abs(point[1] - avg) < stddev_multiplier * std]
 
 STYLE = NeonStyle(font_family="sans-serif", title_font_size=24, legend_font_size=18, background="#151510", plot_background="#151510")
-def points_to_graph(title: str, legend_points: list[tuple[str, list[tuple[int, float]]]], gflops: bool = False) -> bytes:
+def points_to_graph(title: str, legend_points: list[tuple[str, list[tuple[int, float]]]], last_n: int | None, gflops: bool = False) -> bytes:
   chart = pygal.XY(width=1280, height=800, legend_at_bottom=True, style=STYLE, title=title, x_title="Run Number", y_title="Runtime (ms)" if not gflops else "GFLOPS")
   for legend, points in legend_points:
     points = filter_outliers_by_stddev(points)
     points = sorted(points, key=lambda x: x[0])
+    if last_n is not None:
+        points = points[-last_n:]
     chart.add(legend, points)
   return chart.render_to_png()
 
@@ -186,10 +223,7 @@ async def stable_diffusion(client: Client, event,
     if runtime == -inf: continue
     points.append((run_number, runtime))
 
-  if last_n is not None:
-    points = points[-last_n:]
-
-  chart = points_to_graph(f"{system} Stable Diffusion", [("runtime", points)])
+  chart = points_to_graph(f"{system} Stable Diffusion", [("runtime", points)], last_n)
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
 LLAMA_REGEX = re.compile(r"total (\d+\.\d+) ms")
@@ -209,10 +243,7 @@ async def llama(client: Client, event,
     if runtime == -inf: continue
     points.append((run_number, runtime))
 
-  if last_n is not None:
-    points = points[-last_n:]
-
-  chart = points_to_graph(f"{system} Llama{' jitted' if jit else ''}", [("runtime", points)])
+  chart = points_to_graph(f"{system} Llama{' jitted' if jit else ''}", [("runtime", points)], last_n)
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
 GPT2_REGEX = re.compile(r"total (\d+\.\d+) ms")
@@ -232,8 +263,5 @@ async def gpt2(client: Client, event,
     if runtime == -inf: continue
     points.append((run_number, runtime))
 
-  if last_n is not None:
-    points = points[-last_n:]
-
-  chart = points_to_graph(f"{system} GPT2{' jitted' if jit else ''}", [("runtime", points)])
+  chart = points_to_graph(f"{system} GPT2{' jitted' if jit else ''}", [("runtime", points)], last_n)
   yield InteractionResponse("", file=("chart.png", chart), message=message)
