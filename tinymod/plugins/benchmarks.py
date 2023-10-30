@@ -73,7 +73,7 @@ async def download_missing_benchmarks_for_system(client: Client, system: str):
     if not succeeded: break
 
 async def auto_download_benchmarks(client: Client):
-  await sleep(5 * 60) # wait 5 minutes before starting
+  await sleep(10 * 60) # wait 10 minutes before starting
   for system in ALL_SYSTEMS:
     download = download_missing_benchmarks_for_system(client, system)
     async for run_number in download: _ = run_number
@@ -116,6 +116,8 @@ async def message_create(client: Client, message: Message):
 
   # its good
   await client.reaction_add(message, "✅")
+
+  # fire off the regression check
 
 @TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True) # type: ignore
 async def bm_download_missing(client: Client, event,
@@ -265,3 +267,7 @@ async def gpt2(client: Client, event,
 
   chart = points_to_graph(f"{system} GPT2{' jitted' if jit else ''}", [("runtime", points)], last_n)
   yield InteractionResponse("", file=("chart.png", chart), message=message)
+
+# ***** Regression testing *****
+async def check_regression(client: Client, run_number: int, system: str):
+  pass
