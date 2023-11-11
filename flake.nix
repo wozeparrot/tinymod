@@ -15,8 +15,8 @@
     poetry2nix,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
-      inherit (poetry2nix.legacyPackages.${system}) mkPoetryApplication mkPoetryEnv defaultPoetryOverrides;
       pkgs = nixpkgs.legacyPackages.${system};
+      inherit (poetry2nix.lib.mkPoetry2Nix { inherit pkgs; }) mkPoetryApplication mkPoetryEnv defaultPoetryOverrides;
     in {
       packages = {
         myapp = mkPoetryApplication {projectDir = self;};
@@ -50,7 +50,7 @@
         });
       }).env.overrideAttrs (old: {
         buildInputs = with pkgs; [
-          poetry2nix.packages.${system}.poetry
+          poetry
           sqlite
           sqlite-web
         ];
