@@ -268,6 +268,22 @@ async def gpt2(client: Client, event,
   chart = points_to_graph(f"{system} GPT2{' jitted' if jit else ''}", [("runtime", points)], last_n)
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
+GPT2BEAM_REGEX = re.compile(r"total (\d+\.\d+) ms")
+@BM_GRAPH.interactions
+async def gpt2_beam(client: Client, event):
+  """Graphs the gpt2 benchmark on nvidia with beam and half"""
+  message = yield "graphing..." # acknowledge the command
+
+  points = []
+  for run_number, benchmark in get_benchmarks("gpt2_half_beam.txt", "nvidia"):
+    runtime = regex_extract_benchmark(GPT2BEAM_REGEX, benchmark, 3)
+    if runtime == -inf: continue
+    points.append((run_number, runtime))
+
+  chart = points_to_graph(f"NVIDIA GPT2 BEAM + HALF", [("runtime", points)], None)
+  yield InteractionResponse("", file=("chart.png", chart), message=message)
+
+
 # ***** Regression testing *****
 async def check_regression(client: Client, run_number: int, system: str):
   pass
