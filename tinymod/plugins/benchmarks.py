@@ -1,5 +1,5 @@
 from typing import Annotated
-from hata import Client, Guild, Role, Message, Embed
+from hata import Client, Guild, ReactionAddEvent, Role, Message, Embed
 from hata.ext.slash import InteractionResponse
 from scarletio import sleep
 from github import Github, Auth
@@ -67,6 +67,7 @@ async def download_missing_benchmarks_for_system(client: Client, system: str):
     # skip all runs under 25 because they are not the right format
     if run.run_number <= 25: continue
     if not (BENCHMARKS_DIR / "artifacts" / f"{run.run_number}" / f"{system}.zip").exists():
+      print(f"downloading run {run.run_number} for {system}")
       succeeded = await download_benchmark(client, run.run_number, run.artifacts_url, system)
       yield run.run_number
     else: break # we can actually break here since the workflow runs are in order
@@ -74,6 +75,7 @@ async def download_missing_benchmarks_for_system(client: Client, system: str):
 
 async def auto_download_benchmarks(client: Client):
   for system in ALL_SYSTEMS:
+    print(f"downloading missing benchmarks for {system}")
     download = download_missing_benchmarks_for_system(client, system)
     async for run_number in download: _ = run_number
 
@@ -107,9 +109,9 @@ async def post_auto_download(client: Client, message: Message, embed: Embed):
 async def message_create(client: Client, message: Message):
   if message.channel.id != CI_CHANNEL_ID: return
   if message.author.id != GITHUB_WEBHOOK_ID: return
-  if len(message.embeds) < 1: return
 
   # check if it is a commit to master
+  if len(message.embeds) < 1: return
   embed = message.embeds[0]
   if "[tinygrad:master]" not in embed.title: return
   if "new commit" not in embed.title: return
@@ -123,17 +125,22 @@ async def message_create(client: Client, message: Message):
   await post_auto_download(client, message, embed)
 
 @TinyMod.events # type: ignore
-async def reaction_clear(client: Client, message: Message, reactions):
+async def reaction_add(client: Client, event: ReactionAddEvent):
+  message = event.message
   if message.channel.id != CI_CHANNEL_ID: return
+  if message.partial: message = await client.message_get(message)
   if message.author.id != GITHUB_WEBHOOK_ID: return
-  if len(message.embeds) < 1: return
+  if event.user.bot: return
+  if not event.user.has_role(ADMIN_ROLE): return
 
   # check if it is a commit to master
+  if len(message.embeds) < 1: return
   embed = message.embeds[0]
   if "[tinygrad:master]" not in embed.title: return
   if "new commit" not in embed.title: return
 
   # requeue the download
+  await client.reaction_clear(message)
   await client.reaction_add(message, "⬇️")
   await auto_download_benchmarks(client)
   await client.reaction_clear(message)
