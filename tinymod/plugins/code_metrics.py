@@ -239,10 +239,10 @@ async def metric_table(client: Client, event,
   }
 
   table_cells = []
-  table_cells.append(["file"] + list(label_key_map.keys()))
+  table_cells.append(["file in `tinygrad/`"] + list(label_key_map.keys()))
   table_cells.append(["---" for _ in range(len(label_key_map.keys()) + 1)])
   for fm in sorted(metric["files"], key=lambda fm: fm["filename"]): # type: ignore
-    table_cells.append([fm["filename"]] + ["{:.1f}".format(fm[label_key_map[label]]) for label in label_key_map.keys()])
+    table_cells.append([fm["filename"].replace("tinygrad/", "")] + ["{:.1f}".format(fm[label_key_map[label]]) for label in label_key_map.keys()])
   table_cells.append(["---" for _ in range(len(label_key_map.keys()) + 1)])
   table_cells.append(["total"] + ["{:.1f}".format(metric[label_key_map[label]]) for label in label_key_map.keys()]) # type: ignore
 
