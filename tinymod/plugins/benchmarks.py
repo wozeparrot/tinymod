@@ -1,5 +1,5 @@
 from typing import Annotated
-from hata import Client, Guild, Role, Message
+from hata import Client, Guild, Role, Message, Embed
 from hata.ext.slash import InteractionResponse
 from scarletio import sleep
 from github import Github, Auth
@@ -73,10 +73,35 @@ async def download_missing_benchmarks_for_system(client: Client, system: str):
     if not succeeded: break
 
 async def auto_download_benchmarks(client: Client):
-  await sleep(10 * 60) # wait 10 minutes before starting
   for system in ALL_SYSTEMS:
     download = download_missing_benchmarks_for_system(client, system)
     async for run_number in download: _ = run_number
+
+async def post_auto_download(client: Client, message: Message, embed: Embed):
+  # find the run
+  repo = GITHUB.get_repo("tinygrad/tinygrad")
+  workflow_runs = repo.get_workflow("benchmark.yml").get_runs(branch="master", event="push")
+  for run in workflow_runs:
+    if run.head_sha == embed.url.split("/")[-1]:
+      break
+  else:
+    await client.reaction_add(message, "❓")
+    return
+
+  # check run status and conclusion
+  if run.status != "completed" or run.conclusion != "success":
+    await client.reaction_add(message, "❌")
+    return
+
+  # check if the run is downloaded
+  if not (BENCHMARKS_DIR / "artifacts" / f"{run.run_number}").exists():
+    await client.reaction_add(message, "⛔")
+    return
+
+  # its good
+  await client.reaction_add(message, "✅")
+
+  # TODO: fire off the regression check
 
 @TinyMod.events # type: ignore
 async def message_create(client: Client, message: Message):
@@ -91,33 +116,29 @@ async def message_create(client: Client, message: Message):
 
   # queue the download
   await client.reaction_add(message, "⬇️")
+  await sleep(10 * 60) # wait 10 minutes before starting
   await auto_download_benchmarks(client)
   await client.reaction_clear(message)
 
-  # find the run
-  repo = GITHUB.get_repo("tinygrad/tinygrad")
-  workflow_runs = repo.get_workflow("benchmark.yml").get_runs(branch="master", event="push")
-  for run in workflow_runs:
-    if run.head_sha == embed.url.split("/")[-1]:
-      break
-  else:
-    await client.reaction_add(message, "❌")
-    return
+  await post_auto_download(client, message, embed)
 
-  # check run status and conclusion
-  if run.status != "completed" or run.conclusion != "success":
-    await client.reaction_add(message, "❌")
-    return
+@TinyMod.events # type: ignore
+async def reaction_clear(client: Client, message: Message, reactions):
+  if message.channel.id != CI_CHANNEL_ID: return
+  if message.author.id != GITHUB_WEBHOOK_ID: return
+  if len(message.embeds) < 1: return
 
-  # check if the run is downloaded
-  if not (BENCHMARKS_DIR / "artifacts" / f"{run.run_number}").exists():
-    await client.reaction_add(message, "❌")
-    return
+  # check if it is a commit to master
+  embed = message.embeds[0]
+  if "[tinygrad:master]" not in embed.title: return
+  if "new commit" not in embed.title: return
 
-  # its good
-  await client.reaction_add(message, "✅")
+  # requeue the download
+  await client.reaction_add(message, "⬇️")
+  await auto_download_benchmarks(client)
+  await client.reaction_clear(message)
 
-  # TODO: fire off the regression check
+  await post_auto_download(client, message, embed)
 
 @TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True) # type: ignore
 async def bm_download_missing(client: Client, event,
