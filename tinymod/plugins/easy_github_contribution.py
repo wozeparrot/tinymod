@@ -82,6 +82,10 @@ async def egc_accept(client: Client, event: InteractionEvent):
   # give user role
   await client.user_role_add(event.message.referenced_message.author, ROLE)
 
+  # dm the user that their request was accepted
+  dm_channel = await client.channel_private_create(event.message.referenced_message.author)
+  await client.message_create(dm_channel, "You're now a purple!")
+
   # cleanup
   await client.message_delete(event.message.referenced_message)
   await client.interaction_component_acknowledge(event)
