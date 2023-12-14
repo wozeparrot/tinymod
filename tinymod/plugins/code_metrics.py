@@ -67,14 +67,6 @@ async def get_most_recent_metric(cols: Optional[list[str]] = None):
     if item: return dict((METRICS_DB_COLS_JSON[k], json.loads(v)) if k in METRICS_DB_COLS_JSON else (k, v) for k, v in zip(cols, item))
     else: return None
 
-async def get_metric_by_hash(hash: str, cols: Optional[list[str]] = None):
-  if cols is None: cols = METRICS_DB_COLS_NATIVE + list(METRICS_DB_COLS_JSON.keys())
-  async with aiosqlite.connect(DATABASE) as db:
-    cur = await db.execute(f"SELECT {','.join(cols)} from metrics WHERE hash = ?", hash)
-    item = await cur.fetchone()
-    if item: return dict((METRICS_DB_COLS_JSON[k], json.loads(v)) if k in METRICS_DB_COLS_JSON else (k, v) for k, v in zip(cols, item))
-    else: return None
-
 async def git_cmd(*args):
   p = await LOOP.subprocess_shell(" ".join(["git", *args]), cwd=WORKING_DIR)
   return await p.communicate()
@@ -219,19 +211,12 @@ async def metrics_graph(client: Client, event,
   yield InteractionResponse("", file=("chart.png", chart_raw.getvalue()), message=message)
 
 @TinyMod.interactions(guild=GUILD) # type: ignore
-async def metric_table(client: Client, event,
-  commit: (str, "commit to create the table for") = None # type: ignore
-):
+async def metric_table(client: Client, event,):
   """Show the line metrics table"""
   message = yield "generating the table..." # acknowledge the command
-  await update_metrics()
 
-  if commit is None: metric = await get_most_recent_metric()
-  else:
-    metric = await get_metric_by_hash(commit)
-    if metric is None:
-      await client.interaction_response_message_create(event, f"commit with hash {commit} not found", show_for_invoking_user_only=True)
-      return
+  await update_metrics()
+  metric = await get_most_recent_metric()
 
   label_key_map = {
     "Lines": "linecount",
