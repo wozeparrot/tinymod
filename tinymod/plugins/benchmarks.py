@@ -117,7 +117,7 @@ async def message_create(client: Client, message: Message):
   # its good
   await client.reaction_add(message, "✅")
 
-  # fire off the regression check
+  # TODO: fire off the regression check
 
 @TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True) # type: ignore
 async def bm_download_missing(client: Client, event,
