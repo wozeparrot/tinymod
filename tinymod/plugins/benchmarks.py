@@ -111,6 +111,7 @@ async def message_create(client: Client, message: Message):
   if message.author.id != GITHUB_WEBHOOK_ID: return
 
   # check if it is a commit to master
+  if message.embeds is None: return
   if len(message.embeds) < 1: return
   embed = message.embeds[0]
   if "[tinygrad:master]" not in embed.title: return
@@ -134,6 +135,7 @@ async def reaction_add(client: Client, event: ReactionAddEvent):
   if not event.user.has_role(ADMIN_ROLE): return
 
   # check if it is a commit to master
+  if message.embeds is None: return
   if len(message.embeds) < 1: return
   embed = message.embeds[0]
   if "[tinygrad:master]" not in embed.title: return
