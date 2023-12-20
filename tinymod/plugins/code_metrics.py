@@ -81,8 +81,7 @@ async def clone_or_pull():
     await git_cmd("pull")
 
 async def get_commits():
-  out, _ = await git_cmd("log", "--reflog", "--date=iso")
-  out = out.decode("utf-8")
+  out  = (await git_cmd("log", "--date=iso", BRANCH))[0].decode()
   cid = None
   result: list[tuple[str, float]] = []
   for l in out.splitlines():
