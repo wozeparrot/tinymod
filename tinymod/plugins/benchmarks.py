@@ -119,7 +119,7 @@ async def message_create(client: Client, message: Message):
 
   # queue the download
   await client.reaction_add(message, "⬇️")
-  await sleep(10 * 60) # wait 10 minutes before starting
+  await sleep(15 * 60) # wait 15 minutes before starting
   await auto_download_benchmarks(client)
   await client.reaction_clear(message)
 
