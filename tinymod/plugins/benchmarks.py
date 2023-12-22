@@ -129,10 +129,10 @@ async def message_create(client: Client, message: Message):
 async def reaction_add(client: Client, event: ReactionAddEvent):
   message = event.message
   if message.channel.id != CI_CHANNEL_ID: return
-  if message.partial: message = await client.message_get(message)
-  if message.author.id != GITHUB_WEBHOOK_ID: return
   if event.user.bot: return
   if not event.user.has_role(ADMIN_ROLE): return
+  message = await client.message_get(message)
+  if message.author.id != GITHUB_WEBHOOK_ID: return
 
   # check if it is a commit to master
   if message.embeds is None: return
