@@ -58,7 +58,7 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
           elif response.status == 400:
             # TODO: this is kinda cursed but scarletio will remove the authorization header if the origins of the redirect don't match for security reasons
             #       but, github will redirect to a different origin for the download url, so we have to manually follow the redirect
-            artifact = response.history[-1].url
+            artifact = response.url
             print(f"following redirect to {artifact}")
             continue
           print(f"failed to download artifact for run {run_number} with response {response}")
