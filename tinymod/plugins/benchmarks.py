@@ -1,7 +1,7 @@
 from typing import Annotated
 from hata import Client, Guild, ReactionAddEvent, Role, Message, Embed
 from hata.ext.slash import InteractionResponse
-from scarletio import sleep
+from scarletio import IgnoreCaseMultiValueDictionary, sleep
 from github import Github, Auth
 import pygal
 from pygal.style import NeonStyle
@@ -16,11 +16,14 @@ ADMIN_ROLE: Role
 
 GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
 BENCHMARKS_DIR = Path("benchmarks")
-GH_HEADERS = {
+class ICMVD(IgnoreCaseMultiValueDictionary):
+  def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs)
+  def __delitem__(self, key): pass
+GH_HEADERS = ICMVD({
   "Accept": "application/vnd.github+json",
   "User-Agent": "curl/7.54.1",
   "Authorization": f"Bearer {os.environ['GH_TOKEN']}"
-}
+})
 CI_CHANNEL_ID = 1068993556905218128
 GITHUB_WEBHOOK_ID = 1068993579520884826
 ALL_SYSTEMS = ["amd", "mac", "nvidia"]
@@ -46,7 +49,7 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
       artifact = artifact[0]
 
       # download the artifact
-      async with client.http.request2("GET", artifact, headers=GH_HEADERS) as response:
+      async with client.http.get(artifact, headers=GH_HEADERS) as response:
         # save the artifact to a file
         if response.status == 200:
           # ensure that the directory for the run number exists
