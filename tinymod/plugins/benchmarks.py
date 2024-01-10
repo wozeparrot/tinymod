@@ -1,7 +1,7 @@
 from typing import Annotated
 from hata import Client, Guild, ReactionAddEvent, Role, Message, Embed
 from hata.ext.slash import InteractionResponse
-from scarletio import IgnoreCaseMultiValueDictionary, sleep
+from scarletio import sleep
 from github import Github, Auth
 import pygal
 from pygal.style import NeonStyle
@@ -16,14 +16,11 @@ ADMIN_ROLE: Role
 
 GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
 BENCHMARKS_DIR = Path("benchmarks")
-class ICMVD(IgnoreCaseMultiValueDictionary):
-  def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs)
-  def __delitem__(self, key): pass
-GH_HEADERS = ICMVD({
+GH_HEADERS = {
   "Accept": "application/vnd.github+json",
   "User-Agent": "curl/7.54.1",
   "Authorization": f"Bearer {os.environ['GH_TOKEN']}"
-})
+}
 CI_CHANNEL_ID = 1068993556905218128
 GITHUB_WEBHOOK_ID = 1068993579520884826
 ALL_SYSTEMS = ["amd", "mac", "nvidia"]
@@ -49,16 +46,23 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
       artifact = artifact[0]
 
       # download the artifact
-      async with client.http.get(artifact, headers=GH_HEADERS) as response:
-        # save the artifact to a file
-        if response.status == 200:
-          # ensure that the directory for the run number exists
-          (BENCHMARKS_DIR / "artifacts" / f"{run_number}").mkdir(parents=True, exist_ok=True)
-          with open(BENCHMARKS_DIR / "artifacts" / f"{run_number}" / f"{system}.zip", "wb") as f:
-            f.write(await response.read())
-          return True
-        else:
+      for _ in range(2):
+        async with client.http.get(artifact, headers=GH_HEADERS) as response:
+          # save the artifact to a file
+          if response.status == 200:
+            # ensure that the directory for the run number exists
+            (BENCHMARKS_DIR / "artifacts" / f"{run_number}").mkdir(parents=True, exist_ok=True)
+            with open(BENCHMARKS_DIR / "artifacts" / f"{run_number}" / f"{system}.zip", "wb") as f:
+              f.write(await response.read())
+            return True
+          elif response.status == 400:
+            # TODO: this is kinda cursed but scarletio will remove the authorization header if the origins of the redirect don't match for security reasons
+            #       but, github will redirect to a different origin for the download url, so we have to manually follow the redirect
+            artifact = response.history[-1].url
+            print(f"following redirect to {artifact}")
+            continue
           print(f"failed to download artifact for run {run_number} with response {response}")
+          break
   return False
 
 async def download_missing_benchmarks_for_system(client: Client, system: str):
