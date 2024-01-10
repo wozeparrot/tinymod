@@ -35,18 +35,18 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
 
       match (system):
         case "amd":
-            artifact = [artifact["id"] for artifact in artifacts if artifact["name"] == "Speed (AMD)"]
+            artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (AMD)"]
         case "mac":
-            artifact = [artifact["id"] for artifact in artifacts if artifact["name"] == "Speed (Mac)"]
+            artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (Mac)"]
         case "nvidia":
-            artifact = [artifact["id"] for artifact in artifacts if artifact["name"] == "Speed (NVIDIA)"]
+            artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (NVIDIA)"]
         case _: return False
 
       if len(artifact) < 1: return False
       artifact = artifact[0]
 
       # download the artifact
-      async with client.http.get(f"https://api.github.com/repos/tinygrad/tinygrad/actions/artifacts/{artifact}/zip", headers=GH_HEADERS) as response:
+      async with client.http.get(artifact, headers=GH_HEADERS) as response:
         # save the artifact to a file
         if response.status == 200:
           # ensure that the directory for the run number exists
