@@ -46,7 +46,7 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
       artifact = artifact[0]
 
       # download the artifact
-      async with client.http.get(artifact, headers=GH_HEADERS) as response:
+      async with client.http.request2("GET", artifact, headers=GH_HEADERS) as response:
         # save the artifact to a file
         if response.status == 200:
           # ensure that the directory for the run number exists
