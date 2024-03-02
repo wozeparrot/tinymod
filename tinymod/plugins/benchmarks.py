@@ -220,7 +220,7 @@ def get_benchmarks(filename: str, system: str):
       with zip.open(filename) as f:
         yield int(path.name), f.read().decode()
 
-def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int) -> float:
+def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, max_count: int = 0) -> float:
   iter = regex.finditer(benchmark)
   try:
     for _ in range(skip_count): next(iter)
@@ -229,6 +229,7 @@ def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int) 
   for match in iter:
     sums += float(match.group(1))
     counts += 1
+    if max_count > 0 and counts >= max_count: break
   if counts == 0: return -inf
   return round(sums / counts, 2)
 
@@ -289,7 +290,7 @@ async def llama(client: Client, event,
   chart = points_to_graph(f"{system} Llama{' jitted' if jit else ''}", [("runtime", points)], last_n)
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
-GPT2_REGEX = re.compile(r"total (\d+\.\d+) ms")
+GPT2_REGEX = re.compile(r"ran model in[ ]+(\d+\.\d+) ms")
 @BM_GRAPH.interactions
 async def gpt2(client: Client, event,
   system: Annotated[str, ALL_SYSTEMS, "system to graph"],
@@ -310,7 +311,9 @@ async def gpt2(client: Client, event,
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
 @BM_GRAPH.interactions
-async def gpt2_beam(client: Client, event):
+async def gpt2_beam(client: Client, event,
+  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
+):
   """Graphs the gpt2 benchmark on nvidia with beam and half"""
   message = yield "graphing..." # acknowledge the command
 
@@ -320,9 +323,25 @@ async def gpt2_beam(client: Client, event):
     if runtime == -inf: continue
     points.append((run_number, runtime))
 
-  chart = points_to_graph(f"nvidia GPT2 beam + half", [("runtime", points)], None)
+  chart = points_to_graph(f"nvidia GPT2 beam + half", [("runtime", points)], last_n)
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
+CIFAR_REGEX = re.compile(r"\d+[ ]+(\d+\.\d+) ms run,")
+@BM_GRAPH.interactions
+async def cifar_one_gpu(client: Client, event,
+  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
+):
+  """Graphs the cifar training step time on tinybox with one gpu"""
+  message = yield "graphing..."
+
+  points = []
+  for run_number, benchmark in get_benchmarks("train_cifar_one_gpu.txt", "amd"):
+    runtime = regex_extract_benchmark(CIFAR_REGEX, benchmark, 3, 20)
+    if runtime == -inf: continue
+    points.append((run_number, runtime))
+
+  chart = points_to_graph("amd cifar one gpu step time", [("runtime", points)], last_n)
+  yield InteractionResponse("", file=("chart.png", chart), message=message)
 
 # ***** Regression testing *****
 async def check_regression(client: Client, run_number: int, system: str):
