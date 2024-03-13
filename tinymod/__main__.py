@@ -39,6 +39,7 @@ start_auto_reloader()
 
 # Start bot
 TinyMod.start()
+print("Bot started.")
 
 wait_for_interruption()
 stop_auto_reloader()
