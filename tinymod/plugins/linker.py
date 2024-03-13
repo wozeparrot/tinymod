@@ -19,10 +19,12 @@ async def message_create(client: Client, message: Message):
   # ignore empty messages
   if not message.content: return
 
-  # see if there is a `#<number>` at the end of the message
+  # see if there is a `##<number>` at the end of the message
   match = re.search(NUMBER_PATTERN, message.content)
   if match is None: return
   number = int(match.group(1))
+
+  print(f"Trying to link an issue/pr number: {number}")
 
   issue = GITHUB.get_repo("tinygrad/tinygrad").get_issue(number)
   # determine if it is a PR or not
