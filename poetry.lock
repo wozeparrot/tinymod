@@ -334,30 +334,6 @@ wrapt = ">=1.10,<2"
 dev = ["PyTest", "PyTest-Cov", "bump2version (<1)", "sphinx (<2)", "tox"]
 
 [[package]]
-name = "hata"
-version = "1.3.50"
-description = "A powerful asynchronous library for creating Discord bots in Python."
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "hata-1.3.50-py3-none-any.whl", hash = "sha256:1ab9e286f45b7a2e27900cf76f072b557301d0d7c688dad6c2856977867a842b"},
-    {file = "hata-1.3.50.tar.gz", hash = "sha256:6c880667c24316f4336cfc95b78ec6aed9b1b894582a4ec2823d0cc633fb9ed3"},
-]
-
-[package.dependencies]
-chardet = ">=2.0"
-PyNaCl = {version = ">=1.3.0", optional = true, markers = "extra == \"voice\""}
-scarletio = ">=1.0.64"
-
-[package.extras]
-all = ["PyNaCl (>=1.3.0)", "cchardet (>=2.0)", "inotify-simple (>=1.3.5)", "python-dateutil (>=2.0)", "snakeviz", "yappi"]
-autoreload = ["inotify-simple (>=1.3.5)"]
-cpythonspeedups = ["cchardet (>=2.0)"]
-profiling = ["snakeviz", "yappi"]
-relativedelta = ["python-dateutil (>=2.0)"]
-voice = ["PyNaCl (>=1.3.0)"]
-
-[[package]]
 name = "idna"
 version = "3.6"
 description = "Internationalized Domain Names in Applications (IDNA)"
@@ -816,4 +792,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "477331498abbf84aa400c9de162f8bea3b0a412282a807c819db21c620135a1b"
+content-hash = "2539b33055a1f7935219d4ddbf4c8f866b1732155015d16da41165580c3c5347"

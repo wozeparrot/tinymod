@@ -14,7 +14,10 @@ GUILD = Guild.precreate(os.getenv("GUILD_ID", 1068976834382925865))
 ADMIN_ROLE = Role.precreate(os.getenv("ADMIN_ROLE_ID", 1068980562477465670))
 
 # Create bot
-TinyMod = Client(TOKEN, activity=Activity("you...", activity_type=ActivityType.watching))
+TinyMod = Client(
+  TOKEN,
+  activity=Activity("you...", activity_type=ActivityType.watching),
+)
 slash = setup_ext_slash(TinyMod, use_default_exception_handler=False)
 
 @TinyMod.events
