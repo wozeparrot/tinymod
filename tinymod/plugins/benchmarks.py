@@ -27,7 +27,7 @@ AZURE_HEADERS = {
 }
 CI_CHANNEL_ID = 1068993556905218128
 GITHUB_WEBHOOK_ID = 1068993579520884826
-ALL_SYSTEMS = ["amd", "mac", "nvidia"]
+ALL_SYSTEMS = ["amd", "amd-train", "mac", "nvidia"]
 RANGE = range(10, 100 + 1, 10)
 
 # ***** Downloading benchmarks *****
@@ -39,11 +39,13 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
 
       match (system):
         case "amd":
-            artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (AMD)"]
+          artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (AMD)"]
+        case "amd-train":
+          artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (AMD Training)"]
         case "mac":
-            artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (Mac)"]
+          artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (Mac)"]
         case "nvidia":
-            artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (NVIDIA)"]
+          artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (NVIDIA)"]
         case _: return False
 
       if len(artifact) < 1: return False
@@ -328,19 +330,69 @@ async def gpt2_beam(client: Client, event,
 
 CIFAR_REGEX = re.compile(r"\d+[ ]+(\d+\.\d+) ms run,")
 @BM_GRAPH.interactions
-async def cifar_one_gpu(client: Client, event,
+async def train_cifar_one_gpu(client: Client, event,
   last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
 ):
   """Graphs the cifar training step time on tinybox with one gpu"""
   message = yield "graphing..."
 
   points = []
-  for run_number, benchmark in get_benchmarks("train_cifar_one_gpu.txt", "amd"):
+  for run_number, benchmark in get_benchmarks("train_cifar_one_gpu.txt", "amd-train"):
     runtime = regex_extract_benchmark(CIFAR_REGEX, benchmark, 3, 20)
     if runtime == -inf: continue
     points.append((run_number, runtime))
 
-  chart = points_to_graph("amd cifar one gpu step time", [("runtime", points)], last_n)
+  chart = points_to_graph("tinybox cifar one gpu step time", [("runtime", points)], last_n)
+  yield InteractionResponse("", file=("chart.png", chart), message=message)
+
+@BM_GRAPH.interactions
+async def train_cifar_six_gpu(client: Client, event,
+  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
+):
+  """Graphs the cifar training step time on tinybox with six gpus"""
+  message = yield "graphing..."
+
+  points = []
+  for run_number, benchmark in get_benchmarks("train_cifar_six_gpu.txt", "amd-train"):
+    runtime = regex_extract_benchmark(CIFAR_REGEX, benchmark, 3, 20)
+    if runtime == -inf: continue
+    points.append((run_number, runtime))
+
+  chart = points_to_graph("tinybox cifar six gpu step time", [("runtime", points)], last_n)
+  yield InteractionResponse("", file=("chart.png", chart), message=message)
+
+
+RESNET_REGEX = re.compile(r"\d+[ ]+(\d+\.\d+) ms run,")
+@BM_GRAPH.interactions
+async def train_resnet_one_gpu(client: Client, event,
+  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
+):
+  """Graphs the resnet training step time on tinybox with one gpu"""
+  message = yield "graphing..."
+
+  points = []
+  for run_number, benchmark in get_benchmarks("train_resnet_one_gpu.txt", "amd-train"):
+    runtime = regex_extract_benchmark(RESNET_REGEX, benchmark, 3)
+    if runtime == -inf: continue
+    points.append((run_number, runtime))
+
+  chart = points_to_graph("tinybox resnet one gpu step time", [("runtime", points)], last_n)
+  yield InteractionResponse("", file=("chart.png", chart), message=message)
+
+@BM_GRAPH.interactions
+async def train_resnet_six_gpu(client: Client, event,
+  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
+):
+  """Graphs the resnet training step time on tinybox with six gpus"""
+  message = yield "graphing..."
+
+  points = []
+  for run_number, benchmark in get_benchmarks("train_resnet.txt", "amd-train"):
+    runtime = regex_extract_benchmark(RESNET_REGEX, benchmark, 3)
+    if runtime == -inf: continue
+    points.append((run_number, runtime))
+
+  chart = points_to_graph("tinybox resnet six gpu step time", [("runtime", points)], last_n)
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
 # ***** Regression testing *****
