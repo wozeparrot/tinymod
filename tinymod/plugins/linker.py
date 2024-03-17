@@ -33,7 +33,13 @@ async def message_create(client: Client, message: Message):
   # build an embed
   embed = Embed(title=issue.title, url=issue.html_url)
   embed.add_author(issue.user.name or issue.user.login, issue.user.avatar_url, issue.user.html_url)
-  embed.add_footer(f"GitHub {'Pull' if pr else 'Issue'} #{number} | {issue.state if not pr else issue.state if not issue.merged else 'merged'}")
+
+  if not pr: state = issue.state
+  elif issue.merged: state = "merged"
+  elif issue.closed_at is not None: state = "closed"
+  elif issue.draft: state = "draft"
+  else: state = issue.state
+  embed.add_footer(f"GitHub {'Pull' if pr else 'Issue'} #{number} | {state}")
 
   # fields look ugly so we build a description
   if pr:
@@ -45,7 +51,8 @@ async def message_create(client: Client, message: Message):
     elif issue.closed_at is not None:
       embed.color = Color(0xd73a49)
     else:
-      embed.color = Color(0x2cbe4e)
+      if issue.draft: embed.color = Color(0x6a737d)
+      else: embed.color = Color(0x2cbe4e)
   else:
     embed.description = f"""**{issue.comments} comments**
     """
@@ -55,6 +62,8 @@ async def message_create(client: Client, message: Message):
     else:
       embed.color = Color(0x2cbe4e)
   embed.description += f"""Created at <t:{int(issue.created_at.replace(tzinfo=timezone.utc).timestamp())}:D>, Updated at <t:{int(issue.updated_at.replace(tzinfo=timezone.utc).timestamp())}:D>"""
+
+  print(f"Linked issue/pr number: {number}")
 
   # link to the github issue or pr
   await client.message_create(message.channel, embed=embed)
