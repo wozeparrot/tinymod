@@ -20,7 +20,7 @@ async def git_cmd(*args):
 
 async def ensure_curr_repo():
   if not REPO_DIR.exists():
-    p = await get_event_loop().subprocess_shell(f"git clone {REPO}", cwd=REPO_DIR)
+    p = await get_event_loop().subprocess_shell(f"git clone {REPO}", cwd=REPO_DIR.parent)
     await p.communicate()
   else:
     await git_cmd("fetch")
