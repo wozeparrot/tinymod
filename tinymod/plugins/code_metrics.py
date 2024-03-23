@@ -19,6 +19,7 @@ async def git_cmd(*args):
   return await p.communicate()
 
 async def ensure_curr_repo():
+  print("Ensuring current repo...")
   if not REPO_DIR.exists():
     p = await get_event_loop().subprocess_shell(f"git clone {REPO}", cwd=REPO_DIR.parent)
     await p.communicate()
@@ -84,6 +85,8 @@ async def message_create(client: Client, message: Message):
   if "new commit" not in embed.title: return
 
   # update the line count
+  print("Updating line count topic...")
   metrics = await get_curr_metrics()
   total_line_count = sum(m["line_count"] for m in metrics.values())
   await client.channel_edit(LINE_COUNT_CHANNEL, topic=f"Current line count: {total_line_count}")
+  print("Updated line count topic.")
