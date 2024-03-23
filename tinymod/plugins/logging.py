@@ -3,11 +3,12 @@ from hata.ext import asyncio
 import aiosqlite
 
 import json, uuid, time
+from pathlib import Path
 
 TinyMod: Client
 GUILD: Guild
 
-DATABASE = "tinymod.db"
+DATABASE = Path("persist") / "tinymod.db"
 
 # ensure that the tables are setup
 async def setup(_):

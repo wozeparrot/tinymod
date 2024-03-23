@@ -15,7 +15,7 @@ GUILD: Guild
 ADMIN_ROLE: Role
 
 GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
-BENCHMARKS_DIR = Path("benchmarks")
+BENCHMARKS_DIR = Path("persist/benchmarks")
 GH_HEADERS = {
   "Accept": "application/vnd.github+json",
   "User-Agent": "curl/7.54.1",
