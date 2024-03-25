@@ -250,7 +250,7 @@ def points_to_graph(title: str, legend_points: list[tuple[str, list[tuple[int, f
     if last_n is not None:
         points = points[-last_n:]
     chart.add(legend, points)
-  return chart.render_to_png()
+  return chart.render_to_png() # type: ignore
 
 BM_GRAPH = TinyMod.interactions(None, name="bm-graph", description="Graphs a benchmark", guild=GUILD) # type: ignore
 
