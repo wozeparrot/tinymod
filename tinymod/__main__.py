@@ -11,6 +11,8 @@ from hata.ext.plugin_loader import add_default_plugin_variables, load_all_plugin
 from hata.ext.plugin_auto_reloader.utils import start_auto_reloader, stop_auto_reloader, warn_auto_reloader_availability
 from hata.ext.slash import setup_ext_slash
 
+from scarletio import get_or_create_event_loop, sleep
+
 from stats.api import Api
 
 # Presetup some stuff
@@ -41,16 +43,19 @@ add_default_plugin_variables(TinyMod=TinyMod, GUILD=GUILD, ADMIN_ROLE=ADMIN_ROLE
 register_plugin("plugins")
 load_all_plugin()
 
-# Start auto reloader
-warn_auto_reloader_availability()
-start_auto_reloader()
+LOOP = get_or_create_event_loop()
+async def main():
+  # Start auto reloader
+  warn_auto_reloader_availability()
+  start_auto_reloader()
 
-# Start bot
-TinyMod.start()
-logging.info("Bot started.")
+  # Start bot
+  TinyMod.start()
+  logging.info("Bot started.")
 
-# start stats api
-stats_api = Api()
-
+  # start stats api
+  stats_api = Api()
+  await stats_api.start()
+  logging.info("Stats API started.")
+LOOP.run(main())
 wait_for_interruption()
-stop_auto_reloader()
