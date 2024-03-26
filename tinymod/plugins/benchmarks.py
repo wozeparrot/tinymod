@@ -6,16 +6,15 @@ from github import Github, Auth
 import pygal
 from pygal.style import NeonStyle
 
-import os, zipfile, re
-from pathlib import Path
-from math import inf
+import os, logging
+
+from common.benchmarks import BENCHMARKS_DIR, REGEXES, filter_points, regex_benchmark_to_points
 
 TinyMod: Client
 GUILD: Guild
 ADMIN_ROLE: Role
 
 GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
-BENCHMARKS_DIR = Path("persist/benchmarks")
 GH_HEADERS = {
   "Accept": "application/vnd.github+json",
   "User-Agent": "curl/7.54.1",
@@ -53,7 +52,7 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
 
       # download the artifact
       for i in range(2):
-        print(f"downloading artifact for run {run_number} from {artifact}")
+        logging.info(f"downloading artifact for run {run_number} from {artifact}")
         async with client.http.get(artifact, headers=GH_HEADERS if i == 0 else AZURE_HEADERS, redirects=0) as response:
           # save the artifact to a file
           if response.status == 200:
@@ -67,7 +66,7 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
             #       but, github will redirect to a different origin for the download url, so we have to manually follow the redirect
             artifact = response.headers["Location"]
             continue
-          print(f"failed to download artifact for run {run_number} with response {response}")
+          logging.info(f"failed to download artifact for run {run_number} with response {response}")
           break
   return False
 
@@ -80,7 +79,7 @@ async def download_missing_benchmarks_for_system(client: Client, system: str):
     # skip all runs under 25 because they are not the right format
     if run.run_number <= 25: continue
     if not (BENCHMARKS_DIR / "artifacts" / f"{run.run_number}" / f"{system}.zip").exists():
-      print(f"downloading run {run.run_number} for {system}")
+      logging.info(f"downloading run {run.run_number} for {system}")
       succeeded = await download_benchmark(client, run.run_number, run.artifacts_url, system)
       yield run.run_number
     else: break # we can actually break here since the workflow runs are in order
@@ -88,7 +87,7 @@ async def download_missing_benchmarks_for_system(client: Client, system: str):
 
 async def auto_download_benchmarks(client: Client):
   for system in ALL_SYSTEMS:
-    print(f"downloading missing benchmarks for {system}")
+    logging.info(f"downloading missing benchmarks for {system}")
     download = download_missing_benchmarks_for_system(client, system)
     async for run_number in download: _ = run_number
 
@@ -213,48 +212,14 @@ async def bm_commit(client: Client, event,
   yield InteractionResponse(send_message, message=message)
 
 # ***** Graphing benchmarks *****
-def get_benchmarks(filename: str, system: str):
-  for path in (BENCHMARKS_DIR / "artifacts").iterdir():
-    if not path.is_dir(): continue
-    if not (path / f"{system}.zip").exists(): continue
-    with zipfile.ZipFile(path / f"{system}.zip") as zip:
-      if filename not in zip.namelist(): continue
-      with zip.open(filename) as f:
-        yield int(path.name), f.read().decode()
-
-def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, max_count: int = 0) -> float:
-  iter = regex.finditer(benchmark)
-  try:
-    for _ in range(skip_count): next(iter)
-  except: return -inf
-  sums, counts = 0, 0
-  for match in iter:
-    sums += float(match.group(1))
-    counts += 1
-    if max_count > 0 and counts >= max_count: break
-  if counts == 0: return -inf
-  return round(sums / counts, 2)
-
-def filter_outliers_by_stddev(points: list[tuple[int, float]], stddev_multiplier: float = 2) -> list[tuple[int, float]]:
-  points = sorted(points, key=lambda x: x[1])
-  avg = sum(point[1] for point in points) / len(points)
-  std = (sum((point[1] - avg) ** 2 for point in points) / len(points)) ** 0.5
-  return [point for point in points if abs(point[1] - avg) < stddev_multiplier * std]
-
 STYLE = NeonStyle(font_family="sans-serif", title_font_size=24, legend_font_size=18, background="#151510", plot_background="#151510")
-def points_to_graph(title: str, legend_points: list[tuple[str, list[tuple[int, float]]]], last_n: int | None, gflops: bool = False) -> bytes:
+def points_to_graph(title: str, legend_points: list[tuple[str, list[tuple[int, float]]]], gflops: bool = False) -> bytes:
   chart = pygal.XY(width=1280, height=800, legend_at_bottom=True, style=STYLE, title=title, x_title="Run Number", y_title="Runtime (ms)" if not gflops else "GFLOPS")
-  for legend, points in legend_points:
-    points = filter_outliers_by_stddev(points) if len(points) > 10 else points
-    points = sorted(points, key=lambda x: x[0])
-    if last_n is not None:
-        points = points[-last_n:]
-    chart.add(legend, points)
+  for legend, points in legend_points: chart.add(legend, points)
   return chart.render_to_png() # type: ignore
 
 BM_GRAPH = TinyMod.interactions(None, name="bm-graph", description="Graphs a benchmark", guild=GUILD) # type: ignore
 
-SD_REGEX = re.compile(r"step in (\d+\.\d+) ms")
 @BM_GRAPH.interactions
 async def stable_diffusion(client: Client, event,
   system: Annotated[str, ["amd", "mac"], "system to graph"],
@@ -263,16 +228,12 @@ async def stable_diffusion(client: Client, event,
   """Graphs the stable diffusion benchmark"""
   message = yield "graphing..." # acknowledge the command
 
-  points = []
-  for run_number, benchmark in get_benchmarks("sd.txt", system):
-    runtime = regex_extract_benchmark(SD_REGEX, benchmark, 3)
-    if runtime == -inf: continue
-    points.append((run_number, runtime))
+  points = regex_benchmark_to_points(REGEXES["sd"], "sd.txt", system, 3)
+  points = filter_points(points, last_n)
 
-  chart = points_to_graph(f"{system} Stable Diffusion", [("runtime", points)], last_n)
+  chart = points_to_graph(f"{system} Stable Diffusion", [("runtime", points)])
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
-LLAMA_REGEX = re.compile(r"total (\d+\.\d+) ms")
 @BM_GRAPH.interactions
 async def llama(client: Client, event,
   system: Annotated[str, ["amd", "mac"], "system to graph"],
@@ -283,19 +244,15 @@ async def llama(client: Client, event,
   message = yield "graphing..." # acknowledge the command
   jit = jit == "true"
 
-  points = []
-  for run_number, benchmark in get_benchmarks("llama_jitted.txt" if jit else "llama_unjitted.txt", system):
-    runtime = regex_extract_benchmark(LLAMA_REGEX, benchmark, 3)
-    if runtime == -inf: continue
-    points.append((run_number, runtime))
+  points = regex_benchmark_to_points(REGEXES["llama"], "llama_jitted.txt" if jit else "llama_unjitted.txt", system, 3)
+  points = filter_points(points, last_n)
 
-  chart = points_to_graph(f"{system} Llama{' jitted' if jit else ''}", [("runtime", points)], last_n)
+  chart = points_to_graph(f"{system} Llama{' jitted' if jit else ''}", [("runtime", points)])
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
-GPT2_REGEX = re.compile(r"ran model in[ ]+(\d+\.\d+) ms")
 @BM_GRAPH.interactions
 async def gpt2(client: Client, event,
-  system: Annotated[str, ALL_SYSTEMS, "system to graph"],
+  system: Annotated[str, ["amd", "mac", "nvidia"], "system to graph"],
   jit: Annotated[str | bool, ["true", "false"], "jitted?"],
   last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
 ):
@@ -303,13 +260,10 @@ async def gpt2(client: Client, event,
   message = yield "graphing..." # acknowledge the command
   jit = jit == "true"
 
-  points = []
-  for run_number, benchmark in get_benchmarks("gpt2_jitted.txt" if jit else "gpt2_unjitted.txt", system):
-    runtime = regex_extract_benchmark(LLAMA_REGEX, benchmark, 3)
-    if runtime == -inf: continue
-    points.append((run_number, runtime))
+  points = regex_benchmark_to_points(REGEXES["gpt2"], "gpt2_jitted.txt" if jit else "gpt2_unjitted.txt", system, 3)
+  points = filter_points(points, last_n)
 
-  chart = points_to_graph(f"{system} GPT2{' jitted' if jit else ''}", [("runtime", points)], last_n)
+  chart = points_to_graph(f"{system} GPT2{' jitted' if jit else ''}", [("runtime", points)])
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
 @BM_GRAPH.interactions
@@ -319,16 +273,12 @@ async def gpt2_beam(client: Client, event,
   """Graphs the gpt2 benchmark on nvidia with beam and half"""
   message = yield "graphing..." # acknowledge the command
 
-  points = []
-  for run_number, benchmark in get_benchmarks("gpt2_half_beam.txt", "nvidia"):
-    runtime = regex_extract_benchmark(GPT2_REGEX, benchmark, 3)
-    if runtime == -inf: continue
-    points.append((run_number, runtime))
+  points = regex_benchmark_to_points(REGEXES["gpt2"], "gpt2_half_beam.txt", "nvidia", 3)
+  points = filter_points(points, last_n)
 
-  chart = points_to_graph(f"nvidia GPT2 beam + half", [("runtime", points)], last_n)
+  chart = points_to_graph(f"nvidia GPT2 beam + half", [("runtime", points)])
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
-CIFAR_REGEX = re.compile(r"\d+[ ]+(\d+\.\d+) ms run,")
 @BM_GRAPH.interactions
 async def train_cifar_one_gpu(client: Client, event,
   last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
@@ -336,13 +286,10 @@ async def train_cifar_one_gpu(client: Client, event,
   """Graphs the cifar training step time on tinybox with one gpu"""
   message = yield "graphing..."
 
-  points = []
-  for run_number, benchmark in get_benchmarks("train_cifar_one_gpu.txt", "amd-train"):
-    runtime = regex_extract_benchmark(CIFAR_REGEX, benchmark, 3, 20)
-    if runtime == -inf: continue
-    points.append((run_number, runtime))
+  points = regex_benchmark_to_points(REGEXES["cifar"], "train_cifar_one_gpu.txt", "amd-train", 3, 20)
+  points = filter_points(points, last_n)
 
-  chart = points_to_graph("tinybox cifar one gpu step time", [("runtime", points)], last_n)
+  chart = points_to_graph("tinybox cifar one gpu step time", [("runtime", points)])
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
 @BM_GRAPH.interactions
@@ -352,17 +299,12 @@ async def train_cifar_six_gpu(client: Client, event,
   """Graphs the cifar training step time on tinybox with six gpus"""
   message = yield "graphing..."
 
-  points = []
-  for run_number, benchmark in get_benchmarks("train_cifar_six_gpu.txt", "amd-train"):
-    runtime = regex_extract_benchmark(CIFAR_REGEX, benchmark, 3, 20)
-    if runtime == -inf: continue
-    points.append((run_number, runtime))
+  points = regex_benchmark_to_points(REGEXES["cifar"], "train_cifar_six_gpu.txt", "amd-train", 3, 20)
+  points = filter_points(points, last_n)
 
-  chart = points_to_graph("tinybox cifar six gpu step time", [("runtime", points)], last_n)
+  chart = points_to_graph("tinybox cifar six gpu step time", [("runtime", points)])
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
-
-RESNET_REGEX = re.compile(r"\d+[ ]+(\d+\.\d+) ms run,")
 @BM_GRAPH.interactions
 async def train_resnet_one_gpu(client: Client, event,
   last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
@@ -370,13 +312,10 @@ async def train_resnet_one_gpu(client: Client, event,
   """Graphs the resnet training step time on tinybox with one gpu"""
   message = yield "graphing..."
 
-  points = []
-  for run_number, benchmark in get_benchmarks("train_resnet_one_gpu.txt", "amd-train"):
-    runtime = regex_extract_benchmark(RESNET_REGEX, benchmark, 3)
-    if runtime == -inf: continue
-    points.append((run_number, runtime))
+  points = regex_benchmark_to_points(REGEXES["resnet"], "train_resnet_one_gpu.txt", "amd-train", 3)
+  points = filter_points(points, last_n)
 
-  chart = points_to_graph("tinybox resnet one gpu step time", [("runtime", points)], last_n)
+  chart = points_to_graph("tinybox resnet one gpu step time", [("runtime", points)])
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
 @BM_GRAPH.interactions
@@ -386,13 +325,10 @@ async def train_resnet_six_gpu(client: Client, event,
   """Graphs the resnet training step time on tinybox with six gpus"""
   message = yield "graphing..."
 
-  points = []
-  for run_number, benchmark in get_benchmarks("train_resnet.txt", "amd-train"):
-    runtime = regex_extract_benchmark(RESNET_REGEX, benchmark, 3)
-    if runtime == -inf: continue
-    points.append((run_number, runtime))
+  points = regex_benchmark_to_points(REGEXES["resnet"], "train_resnet.txt", "amd-train", 3)
+  points = filter_points(points, last_n)
 
-  chart = points_to_graph("tinybox resnet six gpu step time", [("runtime", points)], last_n)
+  chart = points_to_graph("tinybox resnet six gpu step time", [("runtime", points)])
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
 # ***** Regression testing *****

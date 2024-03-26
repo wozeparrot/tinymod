@@ -1,7 +1,7 @@
 from hata import BUILTIN_EMOJIS, Client, Embed, EmbedField, Emoji, Guild, InteractionEvent, Role, Channel
 from hata.ext.slash import Button, ButtonStyle, InteractionResponse, Row, iter_component_interactions
 
-import random
+import random, logging
 
 TinyMod: Client
 GUILD: Guild
@@ -51,7 +51,7 @@ async def verify(client: Client, event: InteractionEvent):
     # generate a list of buttons that have to be clicked in order
     buttons = random.choices(BUTTONS, k=NUMBER_OF_CLICKS)
 
-    print(f"Serving verification request from {event.user.full_name} ({event.user.id}) with buttons {buttons}")
+    logging.info(f"Serving verification request from {event.user.full_name} ({event.user.id}) with buttons {buttons}")
 
     # send the initial verification message
     embed = Embed("Please click on the buttons in the following order")
@@ -77,7 +77,7 @@ async def verify(client: Client, event: InteractionEvent):
           embed.fields = None
           yield InteractionResponse(embed=embed, components=None, event=component_interaction)
 
-          print(f"Verification failed for {event.user.full_name} ({event.user.id})")
+          logging.info(f"Verification failed for {event.user.full_name} ({event.user.id})")
           break
     except TimeoutError:
       failed = True
@@ -86,7 +86,7 @@ async def verify(client: Client, event: InteractionEvent):
       embed.fields = None
       await client.interaction_response_message_edit(event, embed=embed, components=None)
 
-      print(f"Verification timed out for {event.user.full_name} ({event.user.id})")
+      logging.info(f"Verification timed out for {event.user.full_name} ({event.user.id})")
 
     if not failed:
       embed.title = "Verification successful!"
@@ -97,7 +97,7 @@ async def verify(client: Client, event: InteractionEvent):
       # add the role to the user
       await client.user_role_add(event.user, ROLE)
 
-      print(f"Verification successful for {event.user.full_name} ({event.user.id})")
+      logging.info(f"Verification successful for {event.user.full_name} ({event.user.id})")
 
 @TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True)
 async def unverified(client: Client, event):

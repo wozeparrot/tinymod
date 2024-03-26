@@ -1,7 +1,7 @@
 from hata import Client, Guild, Role, Message, Embed, Color
 from github import Github, Auth
 
-import os, re
+import os, re, logging
 from datetime import timezone
 
 TinyMod: Client
@@ -24,7 +24,7 @@ async def message_create(client: Client, message: Message):
   if match is None: return
   number = int(match.group(1))
 
-  print(f"Trying to link an issue/pr number: {number}")
+  logging.info(f"Trying to link an issue/pr number: {number}")
 
   issue = GITHUB.get_repo("tinygrad/tinygrad").get_issue(number)
   # determine if it is a PR or not
@@ -63,7 +63,7 @@ async def message_create(client: Client, message: Message):
       embed.color = Color(0x2cbe4e)
   embed.description += f"""Created at <t:{int(issue.created_at.replace(tzinfo=timezone.utc).timestamp())}:D>, Updated at <t:{int(issue.updated_at.replace(tzinfo=timezone.utc).timestamp())}:D>"""
 
-  print(f"Linked issue/pr number: {number}")
+  logging.info(f"Linked issue/pr number: {number}")
 
   # link to the github issue or pr
   await client.message_create(message.channel, embed=embed)
