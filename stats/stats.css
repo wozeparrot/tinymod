@@ -1,0 +1,11 @@
+.stat-outer-container {
+  padding: 2.5rem;
+}
+
+.stat-card {
+  width: 45rem;
+}
+
+.ct-line {
+  stroke-width: 2px;
+}
