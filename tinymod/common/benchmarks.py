@@ -14,7 +14,7 @@ def get_benchmarks(filename: str, system: str):
 
 REGEXES = {
   "sd": re.compile(r"step in (\d+\.\d+) ms"),
-  "llama": re.compile(r"total (\d+\.\d+) ms"),
+  "llama": re.compile(r"total[ ]+(\d+\.\d+) ms"),
   "gpt2": re.compile(r"ran model in[ ]+(\d+\.\d+) ms"),
   "cifar": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
   "resnet": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
