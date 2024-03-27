@@ -2,19 +2,17 @@ from typing import Annotated
 from hata import Client, Guild, ReactionAddEvent, Role, Message, Embed
 from hata.ext.slash import InteractionResponse
 from scarletio import sleep
-from github import Github, Auth
 import pygal
 from pygal.style import NeonStyle
 
 import os, logging
 
-from common.benchmarks import BENCHMARKS_DIR, REGEXES, filter_points, regex_benchmark_to_points
+from common.benchmarks import REPO, BENCHMARKS_DIR, REGEXES, filter_points, regex_benchmark_to_points
 
 TinyMod: Client
 GUILD: Guild
 ADMIN_ROLE: Role
 
-GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
 GH_HEADERS = {
   "Accept": "application/vnd.github+json",
   "User-Agent": "curl/7.54.1",
@@ -71,8 +69,7 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
   return False
 
 async def download_missing_benchmarks_for_system(client: Client, system: str):
-  repo = GITHUB.get_repo("tinygrad/tinygrad")
-  workflow_runs = repo.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
+  workflow_runs = REPO.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
   yield workflow_runs.totalCount
 
   for run in workflow_runs:
@@ -93,8 +90,7 @@ async def auto_download_benchmarks(client: Client):
 
 async def post_auto_download(client: Client, message: Message, embed: Embed):
   # find the run
-  repo = GITHUB.get_repo("tinygrad/tinygrad")
-  workflow_runs = repo.get_workflow("benchmark.yml").get_runs(branch="master", event="push")
+  workflow_runs = REPO.get_workflow("benchmark.yml").get_runs(branch="master", event="push")
   for run in workflow_runs:
     if run.head_sha == embed.url.split("/")[-1]:
       break
@@ -194,8 +190,7 @@ async def bm_commit(client: Client, event,
   message = yield "fetching commits..." # acknowledge the command
 
   commits = []
-  repo = GITHUB.get_repo("tinygrad/tinygrad")
-  workflow_runs = repo.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
+  workflow_runs = REPO.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
   for run in workflow_runs:
     if run.run_number in range(run_number - 5, run_number + 5):
       try: commits.append({"run": run.run_number, "sha": run.head_sha, "message": run.head_commit.message.split("\n")[0], "link": run.html_url})

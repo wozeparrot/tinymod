@@ -35,5 +35,7 @@ class Api:
           benchmarks = self.cached_benchmarks.cache.get((filename, system), [])[-last_n:]
           benchmarks = [{"x": x, "y": y} for x, y in benchmarks]
           await protocol.send("0 " + json.dumps({"filename": filename, "system": system, "benchmarks": benchmarks}))
+        case "get-commit":
+          await protocol.send("0 " + json.dumps({"commit": self.cached_benchmarks.curr_commit}))
         case _:
           await protocol.send("1 Invalid command.")

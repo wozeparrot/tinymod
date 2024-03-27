@@ -1,6 +1,11 @@
-import zipfile, re
+from github import Github, Auth
+
+import zipfile, re, os
 from pathlib import Path
 from math import inf
+
+GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
+REPO = GITHUB.get_repo("tinygrad/tinygrad")
 
 BENCHMARKS_DIR = Path("persist/benchmarks")
 def get_benchmarks(filename: str, system: str):
