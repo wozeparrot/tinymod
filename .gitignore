@@ -1,0 +1,13 @@
+# Python
+*.pyc
+__pycache__/
+
+# Editor
+.idea
+
+# Pip
+*.egg-info
+build/
+dist/
+*.whl
+*.tar.gz
