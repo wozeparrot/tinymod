@@ -21,6 +21,11 @@
     integrity="sha512-V0+DPzYyLzIiMiWCg3nNdY+NyIiK9bED/T1xNBj08CaIUyK3sXRpB26OUCIzujMevxY9TRJFHQIxTwgzb0jVLg=="
     crossorigin="anonymous" referrerpolicy="no-referrer" />
 
+  <!-- fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Megrim&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="/common.css">
   <link rel="stylesheet" href="/index.css">
 </head>
@@ -29,11 +34,13 @@
   <div class="container">
     <div class="centered">
       <div class="header">
-        <h1>tiny<sub>stats</sub></h1>
+        <h1>tiny<sub class="megrim-regular">stats</sub></h1>
         <h4>Current Commit: <a class="clean-a" id="curr-commit"></a></h4>
-        <div class="last-n-container">
-          <h4><span class="last-n">10</span> runs</h4>
-          <input class="last-n-slider" type="range" step="10" min="0" max="100" value="50">
+        <div class="control-cluster">
+          <div class="last-n-container">
+            <h4><span class="last-n">10</span> runs</h4>
+            <input class="last-n-slider" type="range" step="10" min="0" max="100" value="50">
+          </div>
         </div>
       </div>
     </div>

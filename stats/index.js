@@ -113,8 +113,8 @@ function main() {
             if (data.type === "line" || data.type === "area") {
               data.element.animate({
                 d: {
-                  begim: 2000 * data.index,
-                  dur: 2000,
+                  begin: 2000 * data.index,
+                  dur: 1000,
                   from: data.path.clone().scale(1, 0).translate(
                     0,
                     data.chartRect.height(),
