@@ -22,8 +22,7 @@
     crossorigin="anonymous" referrerpolicy="no-referrer" />
 
   <link rel="stylesheet" href="/common.css">
-  <link rel="stylesheet" href="/header.css">
-  <link rel="stylesheet" href="/stats.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
 
 <body>
@@ -31,71 +30,99 @@
     <div class="centered">
       <div class="header">
         <h1>tiny<sub>stats</sub></h1>
+        <h4>Current Commit: <a class="clean-a" id="curr-commit"></a></h4>
+        <div class="last-n-container">
+          <h4><span class="last-n">10</span> runs</h4>
+          <input class="last-n-slider" type="range" step="10" min="0" max="100" value="50">
+        </div>
       </div>
     </div>
     <div class="centered stat-outer-container">
       <div class="card-container">
         <div class="card stat-card" data-filename="sd.txt" data-system="amd">
           <h3 class="card-header">Stable Diffusion (tinybox red)</h3>
-          <div class="ct-chart ct-octave" id="chart-sd-amd"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-sd-amd"></div>
         </div>
         <div class="card stat-card" data-filename="sd.txt" data-system="mac">
           <h3 class="card-header">Stable Diffusion (mac)</h3>
-          <div class="ct-chart ct-octave" id="chart-sd-mac"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-sd-mac"></div>
         </div>
 
         <div class="card stat-card" data-filename="llama_unjitted.txt" data-system="amd">
           <h3 class="card-header">Llama 7B unjitted (tinybox red)</h3>
-          <div class="ct-chart ct-octave" id="chart-llama_unjitted-amd"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-llama_unjitted-amd"></div>
         </div>
         <div class="card stat-card" data-filename="llama_unjitted.txt" data-system="mac">
           <h3 class="card-header">Llama 7B unjitted (mac)</h3>
-          <div class="ct-chart ct-octave" id="chart-llama_unjitted-mac"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-llama_unjitted-mac"></div>
         </div>
 
         <div class="card stat-card" data-filename="llama_jitted.txt" data-system="amd">
           <h3 class="card-header">Llama 7B jitted (tinybox red)</h3>
-          <div class="ct-chart ct-octave" id="chart-llama_jitted-amd"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-llama_jitted-amd"></div>
         </div>
         <div class="card stat-card" data-filename="llama_jitted.txt" data-system="mac">
           <h3 class="card-header">Llama 7B jitted (mac)</h3>
-          <div class="ct-chart ct-octave" id="chart-llama_jitted-mac"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-llama_jitted-mac"></div>
         </div>
 
         <div class="card stat-card" data-filename="gpt2_unjitted.txt" data-system="amd">
           <h3 class="card-header">GPT2 unjitted (tinybox red)</h3>
-          <div class="ct-chart ct-octave" id="chart-gpt2_unjitted-amd"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-gpt2_unjitted-amd"></div>
         </div>
         <div class="card stat-card" data-filename="gpt2_unjitted.txt" data-system="mac">
           <h3 class="card-header">GPT2 unjitted (mac)</h3>
-          <div class="ct-chart ct-octave" id="chart-gpt2_unjitted-mac"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-gpt2_unjitted-mac"></div>
         </div>
         <div class="card stat-card" data-filename="gpt2_unjitted.txt" data-system="nvidia">
           <h3 class="card-header">GPT2 unjitted (nvidia)</h3>
-          <div class="ct-chart ct-octave" id="chart-gpt2_unjitted-nvidia"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-gpt2_unjitted-nvidia"></div>
         </div>
 
         <div class="card stat-card" data-filename="gpt2_jitted.txt" data-system="amd">
           <h3 class="card-header">GPT2 jitted (tinybox red)</h3>
-          <div class="ct-chart ct-octave" id="chart-gpt2_jitted-amd"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-gpt2_jitted-amd"></div>
         </div>
         <div class="card stat-card" data-filename="gpt2_jitted.txt" data-system="mac">
           <h3 class="card-header">GPT2 jitted (mac)</h3>
-          <div class="ct-chart ct-octave" id="chart-gpt2_jitted-mac"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-gpt2_jitted-mac"></div>
         </div>
         <div class="card stat-card" data-filename="gpt2_jitted.txt" data-system="nvidia">
           <h3 class="card-header">GPT2 jitted (nvidia)</h3>
-          <div class="ct-chart ct-octave" id="chart-gpt2_jitted-nvidia"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-gpt2_jitted-nvidia"></div>
         </div>
 
         <div class="card stat-card" data-filename="gpt2_half_beam.txt" data-system="nvidia">
           <h3 class="card-header">GPT2 HALF=1 BEAM=2 (nvidia)</h3>
-          <div class="ct-chart ct-octave" id="chart-gpt2_half_beam-nvidia"></div>
+          <div class="ct-chart ct-major-tenth" id="chart-gpt2_half_beam-nvidia"></div>
+        </div>
+
+        <div class="card stat-card" data-filename="train_cifar_one_gpu.txt" data-system="amd-train">
+          <h3 class="card-header">hlb-cifar10 Single GPU (tinybox red)</h3>
+          <div class="ct-chart ct-major-tenth" id="chart-train_cifar_one_gpu-amd-train"></div>
+        </div>
+        <div class="card stat-card" data-filename="train_cifar_six_gpu.txt" data-system="amd-train">
+          <h3 class="card-header">hlb-cifar10 Six GPUs (tinybox red)</h3>
+          <div class="ct-chart ct-major-tenth" id="chart-train_cifar_six_gpu-amd-train"></div>
+        </div>
+
+        <div class="card stat-card" data-filename="train_resnet_one_gpu.txt" data-system="amd-train">
+          <h3 class="card-header">ResNet50 Single GPU (tinybox red)</h3>
+          <div class="ct-chart ct-major-tenth" id="chart-train_resnet_one_gpu-amd-train"></div>
+        </div>
+        <div class="card stat-card" data-filename="train_resnet.txt" data-system="amd-train">
+          <h3 class="card-header">ResNet50 Six GPUs (tinybox red)</h3>
+          <div class="ct-chart ct-major-tenth" id="chart-train_resnet-amd-train"></div>
         </div>
       </div>
     </div>
   </div>
-  <script src="/stats.js"></script>
+  <div class="back-to-top">
+    <button>
+      <i class="fa-solid fa-angle-up fa-2xl"></i>
+    </button>
+  </div>
+  <script src="/index.js"></script>
 </body>
 
 </html>

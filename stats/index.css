@@ -1,0 +1,107 @@
+/* define colors */
+@media(prefers-color-scheme: light) {
+  :root {
+    --primary-color: #a52e4d;
+    --secondary-color: #228039;
+
+    --primary-bg-color: #f0f0f0;
+    --secondary-bg-color: #eeeeee;
+    --foreground-color: #111111;
+    --accent-color: #000000;
+  }
+}
+@media(prefers-color-scheme: dark) {
+  :root {
+    --primary-color: #a52e4d;
+    --secondary-color: #228039;
+
+    --primary-bg-color: #111111;
+    --secondary-bg-color: #131313;
+    --foreground-color: #f0f0f0;
+    --accent-color: #aaaaaa;
+  }
+}
+
+/* header */
+.header {
+  width: 96vw;
+
+  padding: 0.5rem 2rem;
+  gap: 0.5rem;
+
+  background-color: var(--secondary-bg-color);
+  color: var(--foreground-color);
+
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+
+  border-radius: 10px;
+}
+@media(prefers-color-scheme: light) {
+  .header {
+    border-bottom: 2px solid var(--accent-color);
+    box-shadow: 10px 10px 20px 2px rgba(0, 0, 0, 0.4);
+  }
+}
+@media(prefers-color-scheme: dark) {
+  .header {
+    border-bottom: 2px solid var(--accent-color);
+    box-shadow: 10px 10px 20px 2px rgba(255, 255, 255, 0.1);
+  }
+}
+
+.last-n-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* stat card */
+.stat-outer-container {
+  padding: 2.5rem;
+}
+
+.stat-card {
+  width: 45rem;
+}
+
+/* back to top */
+.back-to-top {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+
+  border-radius: 10px;
+}
+
+/* chartist */
+.ct-label {
+  color: var(--foreground-color);
+  opacity: 0.6;
+}
+
+.ct-grid {
+  stroke: var(--accent-color);
+  opacity: 0.2;
+}
+
+.ct-series-a .ct-line,
+.ct-series-a .ct-point {
+  stroke: var(--primary-color);
+}
+
+.ct-line {
+  stroke-width: 2px;
+}
+
+.ct-point {
+  stroke-width: 4px;
+}
+
+.ct-series-a .ct-area {
+  fill: var(--primary-color);
+}
