@@ -411,13 +411,6 @@ class WebSocketServerProtocol(WebSocketCommonProtocol):
                             accepted_extensions.append(extension)
                             extension_headers.append((name, params))
                             break
-                    else:
-                        # no matching extension
-                        raise InvalidHandshake(
-                            f'Unsupported extension: name = {name!r}, params = {params!r}.',
-                            request = request,
-                        )
-                    
                     # If we didn't break from the loop, no extension in our list matched what the client sent. The
                     # extension is declined.
                 
