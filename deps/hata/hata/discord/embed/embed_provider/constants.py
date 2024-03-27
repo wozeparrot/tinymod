@@ -1,0 +1,4 @@
+__all__ = ()
+
+NAME_LENGTH_MAX = 256
+URL_LENGTH_MAX = 2048

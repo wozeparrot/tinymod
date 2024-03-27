@@ -1,0 +1,4 @@
+__all__ = ()
+
+ICON_URL_LENGTH_MAX = 2048
+TEXT_LENGTH_MAX = 2048
