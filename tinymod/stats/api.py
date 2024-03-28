@@ -2,14 +2,16 @@ from stats.cached_benchmarks import CachedBenchmarks
 from scarletio import get_event_loop
 from scarletio.websocket import WebSocketServer
 
-import logging, json
+import logging, json, ssl, os
 
 class Api:
   def __init__(self):
     self.cached_benchmarks = CachedBenchmarks()
 
   async def start(self):
-    self.ws = await WebSocketServer(get_event_loop(), "0.0.0.0", 10000, self.handler, extra_response_headers={"Access-Control-Allow-Origin": "*"})
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_context.load_cert_chain(os.environ["SSL_CERT_FILE"], os.environ["SSL_KEY_FILE"])
+    self.ws = await WebSocketServer(get_event_loop(), "0.0.0.0", 10000, self.handler, extra_response_headers={"Access-Control-Allow-Origin": "*"}, ssl=ssl_context)
 
   async def handler(self, protocol):
     logging.info(f"New connection from {protocol.remote_address}.")

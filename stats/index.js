@@ -18,7 +18,7 @@ function main() {
   });
 
   // connect to websocket
-  const socket = new WebSocket("ws://127.0.0.1:10000");
+  const socket = new WebSocket("wss://tinymod.dev:10000");
   console.log("Connecting to websocket");
 
   // charts
