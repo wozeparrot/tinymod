@@ -1,13 +1,13 @@
 from typing import Annotated
 from hata import Client, Guild, ReactionAddEvent, Role, Message, Embed
-from hata.ext.slash import InteractionResponse
+from hata.ext.slash import InteractionResponse, abort
 from scarletio import sleep
 import pygal
 from pygal.style import NeonStyle
 
 import os, logging
 
-from common.benchmarks import REPO, BENCHMARKS_DIR, REGEXES, filter_points, regex_benchmark_to_points
+from common.benchmarks import REPO, BENCHMARKS_DIR, TRACKED_BENCHMARKS, CachedBenchmarks, filter_points, regex_benchmark_to_points
 
 TinyMod: Client
 GUILD: Guild
@@ -111,7 +111,8 @@ async def post_auto_download(client: Client, message: Message, embed: Embed):
   # its good
   await client.reaction_add(message, "✅")
 
-  # TODO: fire off the regression check
+  # update the cache
+  CachedBenchmarks._update_cache()
 
 @TinyMod.events # type: ignore
 async def message_create(client: Client, message: Message):
@@ -207,125 +208,34 @@ async def bm_commit(client: Client, event,
   yield InteractionResponse(send_message, message=message)
 
 # ***** Graphing benchmarks *****
-STYLE = NeonStyle(font_family="sans-serif", title_font_size=24, legend_font_size=18, background="#151510", plot_background="#151510")
+STYLE = NeonStyle(font_family="sans-serif", title_font_size=24, legend_font_size=18, background="#151510", plot_background="#151510", foreground="#aaaaaa", foreground_strong="#f0f0f0")
 def points_to_graph(title: str, legend_points: list[tuple[str, list[tuple[int, float]]]], gflops: bool = False) -> bytes:
   chart = pygal.XY(width=1280, height=800, legend_at_bottom=True, style=STYLE, title=title, x_title="Run Number", y_title="Runtime (ms)" if not gflops else "GFLOPS")
   for legend, points in legend_points: chart.add(legend, points)
   return chart.render_to_png() # type: ignore
 
-BM_GRAPH = TinyMod.interactions(None, name="bm-graph", description="Graphs a benchmark", guild=GUILD) # type: ignore
-
-@BM_GRAPH.interactions
-async def stable_diffusion(client: Client, event,
-  system: Annotated[str, ["amd", "mac"], "system to graph"],
+@TinyMod.interactions(guild=GUILD) # type: ignore
+async def bm_graph(client: Client, event,
+  benchmark: Annotated[str, list(TRACKED_BENCHMARKS.keys()), "benchmark to graph"],
+  system: ("str", "system benchmark is run on"), # type: ignore
   last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
 ):
-  """Graphs the stable diffusion benchmark"""
+  """Graphs a benchmark"""
+  if system is None or system not in ALL_SYSTEMS: abort("invalid system.")
   message = yield "graphing..." # acknowledge the command
+  logging.info(f"graphing {benchmark} on {system} for last {last_n} runs")
 
-  points = regex_benchmark_to_points(REGEXES["sd"], "sd.txt", system, 3)
+  points = CachedBenchmarks.cache.get((benchmark, system), [])
   points = filter_points(points, last_n)
 
-  chart = points_to_graph(f"{system} Stable Diffusion", [("runtime", points)])
+  chart = points_to_graph(f"{benchmark} on {system}", [("runtime", points)])
   yield InteractionResponse("", file=("chart.png", chart), message=message)
 
-@BM_GRAPH.interactions
-async def llama(client: Client, event,
-  system: Annotated[str, ["amd", "mac"], "system to graph"],
-  jit: Annotated[str | bool, ["true", "false"], "jitted?"],
-  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
-):
-  """Graphs the llama benchmark"""
-  message = yield "graphing..." # acknowledge the command
-  jit = jit == "true"
+@bm_graph.autocomplete("system") # type: ignore
+async def autocomplete_bm_graph_system(event, value):
+  benchmark = event.interaction.get_value_of("benchmark")
+  if benchmark is None: return
 
-  points = regex_benchmark_to_points(REGEXES["llama"], "llama_jitted.txt" if jit else "llama_unjitted.txt", system, 3)
-  points = filter_points(points, last_n)
-
-  chart = points_to_graph(f"{system} Llama{' jitted' if jit else ''}", [("runtime", points)])
-  yield InteractionResponse("", file=("chart.png", chart), message=message)
-
-@BM_GRAPH.interactions
-async def gpt2(client: Client, event,
-  system: Annotated[str, ["amd", "mac", "nvidia"], "system to graph"],
-  jit: Annotated[str | bool, ["true", "false"], "jitted?"],
-  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
-):
-  """Graphs the gpt2 benchmark"""
-  message = yield "graphing..." # acknowledge the command
-  jit = jit == "true"
-
-  points = regex_benchmark_to_points(REGEXES["gpt2"], "gpt2_jitted.txt" if jit else "gpt2_unjitted.txt", system, 3)
-  points = filter_points(points, last_n)
-
-  chart = points_to_graph(f"{system} GPT2{' jitted' if jit else ''}", [("runtime", points)])
-  yield InteractionResponse("", file=("chart.png", chart), message=message)
-
-@BM_GRAPH.interactions
-async def gpt2_beam(client: Client, event,
-  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
-):
-  """Graphs the gpt2 benchmark on nvidia with beam and half"""
-  message = yield "graphing..." # acknowledge the command
-
-  points = regex_benchmark_to_points(REGEXES["gpt2"], "gpt2_half_beam.txt", "nvidia", 3)
-  points = filter_points(points, last_n)
-
-  chart = points_to_graph(f"nvidia GPT2 beam + half", [("runtime", points)])
-  yield InteractionResponse("", file=("chart.png", chart), message=message)
-
-@BM_GRAPH.interactions
-async def train_cifar_one_gpu(client: Client, event,
-  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
-):
-  """Graphs the cifar training step time on tinybox with one gpu"""
-  message = yield "graphing..."
-
-  points = regex_benchmark_to_points(REGEXES["cifar"], "train_cifar_one_gpu.txt", "amd-train", 3, 20)
-  points = filter_points(points, last_n)
-
-  chart = points_to_graph("tinybox cifar one gpu step time", [("runtime", points)])
-  yield InteractionResponse("", file=("chart.png", chart), message=message)
-
-@BM_GRAPH.interactions
-async def train_cifar_six_gpu(client: Client, event,
-  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
-):
-  """Graphs the cifar training step time on tinybox with six gpus"""
-  message = yield "graphing..."
-
-  points = regex_benchmark_to_points(REGEXES["cifar"], "train_cifar_six_gpu.txt", "amd-train", 3, 20)
-  points = filter_points(points, last_n)
-
-  chart = points_to_graph("tinybox cifar six gpu step time", [("runtime", points)])
-  yield InteractionResponse("", file=("chart.png", chart), message=message)
-
-@BM_GRAPH.interactions
-async def train_resnet_one_gpu(client: Client, event,
-  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
-):
-  """Graphs the resnet training step time on tinybox with one gpu"""
-  message = yield "graphing..."
-
-  points = regex_benchmark_to_points(REGEXES["resnet"], "train_resnet_one_gpu.txt", "amd-train", 3)
-  points = filter_points(points, last_n)
-
-  chart = points_to_graph("tinybox resnet one gpu step time", [("runtime", points)])
-  yield InteractionResponse("", file=("chart.png", chart), message=message)
-
-@BM_GRAPH.interactions
-async def train_resnet_six_gpu(client: Client, event,
-  last_n: Annotated[int | None, RANGE, "last n runs to graph"] = None,
-):
-  """Graphs the resnet training step time on tinybox with six gpus"""
-  message = yield "graphing..."
-
-  points = regex_benchmark_to_points(REGEXES["resnet"], "train_resnet.txt", "amd-train", 3)
-  points = filter_points(points, last_n)
-
-  chart = points_to_graph("tinybox resnet six gpu step time", [("runtime", points)])
-  yield InteractionResponse("", file=("chart.png", chart), message=message)
-
-# ***** Regression testing *****
-async def check_regression(client: Client, run_number: int, system: str):
-  pass
+  systems = TRACKED_BENCHMARKS[benchmark][1]
+  if value is None: return systems
+  return [system for system in systems if value.casefold() in system]

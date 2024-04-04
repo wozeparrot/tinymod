@@ -1,6 +1,6 @@
 from github import Github, Auth
 
-import zipfile, re, os
+import zipfile, re, os, logging, time
 from pathlib import Path
 from math import inf
 
@@ -20,10 +20,41 @@ def get_benchmarks(filename: str, system: str):
 REGEXES = {
   "sd": re.compile(r"step in (\d+\.\d+) ms"),
   "llama": re.compile(r"total[ ]+(\d+\.\d+) ms"),
+  "mixtral": re.compile(r"total[ ]+(\d+\.\d+) ms"),
   "gpt2": re.compile(r"ran model in[ ]+(\d+\.\d+) ms"),
   "cifar": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
   "resnet": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
 }
+
+# regex, systems, skip_count, max_count
+TRACKED_BENCHMARKS = {
+  # stable diffusion
+  "sd.txt": (REGEXES["sd"], ["amd"], 3, 0),
+  # llama
+  "llama_unjitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 3, 0),
+  "llama_jitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 3, 0),
+  "llama_beam.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 3, 0),
+  "llama_2_70B.txt": (REGEXES["llama"], ["amd"], 3, 0),
+  "llama_four_gpu.txt": (REGEXES["llama"], ["amd"], 3, 0),
+  "llama_six_gpu.txt": (REGEXES["llama"], ["amd"], 3, 0),
+  # mixtral
+  "mixtral.txt": (REGEXES["mixtral"], ["amd"], 3, 0),
+  # gpt2
+  "gpt2_unjitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 3, 0),
+  "gpt2_jitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 3, 0),
+  "gpt2_half.txt": (REGEXES["gpt2"], ["mac", "nvidia"], 3, 0),
+  "gpt2_half_beam.txt": (REGEXES["gpt2"], ["mac", "nvidia"], 3, 0),
+  # cifar
+  "train_cifar.txt": (REGEXES["cifar"], ["amd-train", "mac", "nvidia"], 3, 0),
+  "train_cifar_half.txt": (REGEXES["cifar"], ["amd-train", "mac", "nvidia"], 3, 0),
+  "train_cifar_bf16.txt": (REGEXES["cifar"], ["amd-train", "nvidia"], 3, 0),
+  "train_cifar_one_gpu.txt": (REGEXES["cifar"], ["amd-train", "nvidia"], 3, 20),
+  "train_cifar_six_gpu.txt": (REGEXES["cifar"], ["amd-train"], 3, 20),
+  # resnet
+  "train_resnet_one_gpu.txt": (REGEXES["resnet"], ["amd-train"], 3, 0),
+  "train_resnet.txt": (REGEXES["resnet"], ["amd-train"], 3, 0),
+}
+
 def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, max_count: int = 0) -> float:
   iter = regex.finditer(benchmark)
   try:
@@ -56,3 +87,32 @@ def filter_points(points: list[tuple[int, float]], last_n: int | None) -> list[t
   points = sorted(points, key=lambda x: x[0])
   if last_n is not None: points = points[-last_n:]
   return points
+
+class _CachedBenchmarks:
+  def __init__(self):
+    self.last_run = 0
+    self.cache, self.curr_commit = {}, ""
+    self._update_cache()
+
+  def _update_cache(self, force:bool=False):
+    logging.info("Updating cached benchmarks.")
+    if not force and (BENCHMARKS_DIR / "artifacts").stat().st_mtime <= self.last_run: return
+
+    # update cache
+    for file, (regex, systems, skip_count, max_count) in TRACKED_BENCHMARKS.items():
+      for system in systems:
+        points = regex_benchmark_to_points(regex, file, system, skip_count, max_count)
+        points = filter_points(points, None)
+        self.cache[(file, system)] = points
+
+    # update commit
+    workflow_runs = REPO.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
+    latest_run = int(max((BENCHMARKS_DIR / "artifacts").iterdir(), key=lambda x: int(x.name)).name)
+    for run in workflow_runs:
+      if run.run_number == latest_run:
+        self.curr_commit = run.head_sha
+        break
+
+    self.last_run = time.time()
+    logging.info(f"Cached benchmarks updated. Current commit: {self.curr_commit}")
+CachedBenchmarks = _CachedBenchmarks()
