@@ -13,6 +13,7 @@ class Api:
       ssl_context.load_cert_chain(os.environ["STATS_API_SSL_CERT_FILE"], os.environ["STATS_API_SSL_KEY_FILE"])
       self.ws = await WebSocketServer(get_event_loop(), "0.0.0.0", 10000, self.handler, extra_response_headers={"Access-Control-Allow-Origin": "*"}, ssl=ssl_context)
     else:
+      logging.warn("SSL is disabled due to running in DEV mode.")
       self.ws = await WebSocketServer(get_event_loop(), "0.0.0.0", 10000, self.handler, extra_response_headers={"Access-Control-Allow-Origin": "*"})
 
   async def handler(self, protocol):
