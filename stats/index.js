@@ -22,17 +22,11 @@ function main() {
   // const socket = new WebSocket("ws://localhost:10000");
   console.log("Connecting to websocket");
 
-  // charts
+  // state
   const charts = {};
+  var currCommit = "";
 
-  // last-n slider event listener
-  last_n_slider.addEventListener("input", (event) => {
-    if (event.target.value == 0) {
-      last_n.textContent = "All";
-    } else {
-      last_n.textContent = event.target.value;
-    }
-
+  function reload_charts() {
     for (const card of document.querySelectorAll(".stat-card")) {
       if (card.hasAttribute("data-charted")) {
         // const filename = card.getAttribute("data-filename");
@@ -45,19 +39,28 @@ function main() {
         card.removeAttribute("data-charted");
       }
     }
+  }
+
+  // last-n slider event listener
+  last_n_slider.addEventListener("input", (event) => {
+    if (event.target.value == 0) {
+      last_n.textContent = "All";
+    } else {
+      last_n.textContent = event.target.value;
+    }
+
+    reload_charts();
   });
 
   socket.onmessage = (event) => {
     // split event.data on first space
     // first part is status code
     // second part is data
-    const status = event.data[0];
-    const raw_data = event.data.slice(2);
-    if (status !== "0") {
-      console.error("Error: ", raw_data);
+    const data = JSON.parse(event.data);
+    if ("error" in data) {
+      console.error("ws api error: ", data.error);
       return;
     }
-    const data = JSON.parse(raw_data);
 
     if ("benchmarks" in data) {
       // generate integer only chart ticks for the x axis
@@ -92,10 +95,14 @@ function main() {
         },
       });
     } else if ("commit" in data) {
+      if (currCommit === data.commit) return;
       const commitElem = document.querySelector("#curr-commit");
       commitElem.textContent = data.commit.slice(0, 7);
       commitElem.href =
         `https://github.com/tinygrad/tinygrad/commit/${data.commit}`;
+      currCommit = data.commit;
+
+      reload_charts();
     }
   };
 
@@ -141,6 +148,9 @@ function main() {
   socket.onopen = () => {
     console.log("Connected to websocket");
     socket.send("get-commit");
+    setTimeout(() => {
+      socket.send("get-commit");
+    }, 10000);
     for (const card of document.querySelectorAll(".stat-card")) {
       observer.observe(card);
     }
