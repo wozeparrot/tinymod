@@ -6,6 +6,9 @@ import logging, json, ssl, os
 from common.helpers import getenv
 from common.benchmarks import CachedBenchmarks
 
+API_INVALID_ARGUMENT = json.dumps({"error": "Invalid argument."})
+API_INVALID_COMMAND = json.dumps({"error": "Invalid command."})
+
 class Api:
   async def start(self):
     if not getenv("DEV", False):
@@ -26,21 +29,21 @@ class Api:
         case "get-benchmark":
           try: filename, system, last_n = args
           except ValueError:
-            await protocol.send("1 Invalid argument.")
+            await protocol.send(API_INVALID_ARGUMENT)
             continue
           # ensure last_n is an integer
           try: last_n = int(last_n)
           except ValueError:
-            await protocol.send("1 Invalid argument.")
+            await protocol.send(API_INVALID_ARGUMENT)
             continue
           if last_n < 0:
-            await protocol.send("1 Invalid argument.")
+            await protocol.send(API_INVALID_ARGUMENT)
             continue
           logging.info(f"{protocol.remote_address} requested benchmarks for {filename} on {system} for last {last_n}.")
           benchmarks = CachedBenchmarks.cache.get((filename, system), [])[-last_n:]
           benchmarks = [{"x": x, "y": y} for x, y in benchmarks]
-          await protocol.send("0 " + json.dumps({"filename": filename, "system": system, "benchmarks": benchmarks}))
+          await protocol.send(json.dumps({"filename": filename, "system": system, "benchmarks": benchmarks}))
         case "get-commit":
-          await protocol.send("0 " + json.dumps({"commit": CachedBenchmarks.curr_commit}))
+          await protocol.send(json.dumps({"commit": CachedBenchmarks.curr_commit}))
         case _:
-          await protocol.send("1 Invalid command.")
+          await protocol.send(API_INVALID_COMMAND)
