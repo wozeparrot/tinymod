@@ -7,7 +7,7 @@ from pygal.style import NeonStyle
 
 import os, logging
 
-from common.benchmarks import REPO, BENCHMARKS_DIR, TRACKED_BENCHMARKS, CachedBenchmarks, filter_points, regex_benchmark_to_points
+from common.benchmarks import REPO, BENCHMARKS_DIR, TRACKED_BENCHMARKS, CachedBenchmarks, filter_points
 
 TinyMod: Client
 GUILD: Guild

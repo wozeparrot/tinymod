@@ -83,7 +83,7 @@ def filter_outliers_by_stddev(points: list[tuple[int, float]], stddev_multiplier
 
 def filter_points(points: list[tuple[int, float]], last_n: int | None) -> list[tuple[int, float]]:
   points = [point for point in points if point[1] != -inf]
-  points = filter_outliers_by_stddev(points) if len(points) > 10 else points
+  # points = filter_outliers_by_stddev(points) if len(points) > 10 else points
   points = sorted(points, key=lambda x: x[0])
   if last_n is not None: points = points[-last_n:]
   return points
