@@ -40,10 +40,10 @@ TRACKED_BENCHMARKS = {
   # mixtral
   "mixtral.txt": (REGEXES["mixtral"], ["amd"], 3, 0),
   # gpt2
-  "gpt2_unjitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 3, 0),
-  "gpt2_jitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 3, 0),
-  "gpt2_half.txt": (REGEXES["gpt2"], ["mac", "nvidia"], 3, 0),
-  "gpt2_half_beam.txt": (REGEXES["gpt2"], ["mac", "nvidia"], 3, 0),
+  "gpt2_unjitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 4, 0),
+  "gpt2_jitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 4, 0),
+  "gpt2_half.txt": (REGEXES["gpt2"], ["mac", "nvidia"], 4, 0),
+  "gpt2_half_beam.txt": (REGEXES["gpt2"], ["mac", "nvidia"], 4, 0),
   # cifar
   "train_cifar.txt": (REGEXES["cifar"], ["amd-train", "mac", "nvidia"], 3, 0),
   "train_cifar_half.txt": (REGEXES["cifar"], ["amd-train", "mac", "nvidia"], 3, 0),
