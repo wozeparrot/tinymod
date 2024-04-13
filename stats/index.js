@@ -43,10 +43,10 @@ function main() {
 
   // last-n slider event listener
   last_n_slider.addEventListener("input", (event) => {
-    if (event.target.value == 0) {
+    if (event.target.value == last_n_slider.max) {
       last_n.textContent = "All";
     } else {
-      last_n.textContent = event.target.value;
+      last_n.textContent = (Number(last_n_slider.value) + Number(last_n_slider.step));
     }
 
     reload_charts();
@@ -133,8 +133,14 @@ function main() {
               });
             }
           });
+
+          let last_n_v = Number(last_n_slider.value) + Number(last_n_slider.step);
+          if (last_n_v > Number(last_n_slider.max)) {
+            last_n_v = 0;
+          }
+
           socket.send(
-            `get-benchmark ${filename} ${system} ${last_n_slider.value}`,
+            `get-benchmark ${filename} ${system} ${last_n_v}`,
           );
 
           entry.target.setAttribute("data-charted", true);
