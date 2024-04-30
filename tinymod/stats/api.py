@@ -4,7 +4,7 @@ from scarletio.websocket import WebSocketServer
 import logging, json, ssl, os
 
 from common.helpers import getenv
-from common.benchmarks import CachedBenchmarks
+from common.benchmarks import CachedBenchmarks, ALL_SYSTEMS
 
 API_INVALID_ARGUMENT = json.dumps({"error": "Invalid argument."})
 API_INVALID_COMMAND = json.dumps({"error": "Invalid command."})
@@ -40,8 +40,10 @@ class Api:
             await protocol.send(API_INVALID_ARGUMENT)
             continue
           logging.info(f"{protocol.remote_address} requested benchmarks for {filename} on {system} for last {last_n}.")
-          benchmarks = CachedBenchmarks.cache.get((filename, system), [])[-last_n:]
-          benchmarks = [{"x": x, "y": y} for x, y in benchmarks]
+          benchmarks = [[], [], [], []]
+          systems = system.split("_")
+          for system_ in systems: benchmarks[ALL_SYSTEMS.index(system_)] = CachedBenchmarks.cache.get((filename, system_), [])[-last_n:]
+          benchmarks = [[{"x": x, "y": y} for x,y in benchmark] for benchmark in benchmarks]
           await protocol.send(json.dumps({"filename": filename, "system": system, "benchmarks": benchmarks}))
         case "get-commit":
           await protocol.send(json.dumps({"commit": CachedBenchmarks.curr_commit}))
