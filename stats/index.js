@@ -165,7 +165,7 @@ function main() {
     socket.send("get-commit");
     setTimeout(() => {
       socket.send("get-commit");
-    }, 10000);
+    }, 1000);
     for (const card of document.querySelectorAll(".stat-card")) {
       observer.observe(card);
     }
