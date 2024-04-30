@@ -113,3 +113,14 @@ button:active {
   text-decoration-thickness: 2px;
   color: inherit;
 }
+
+.flex-horizontal {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vertical-separator {
+  padding: 0 0.5rem;
+}

@@ -24,7 +24,8 @@ function main() {
 
   // state
   const charts = {};
-  var currCommit = "";
+  let currCommit = "";
+  let lastUpdateTime = Date.now()
 
   function reload_charts() {
     for (const card of document.querySelectorAll(".stat-card")) {
@@ -39,6 +40,7 @@ function main() {
         card.removeAttribute("data-charted");
       }
     }
+    lastUpdateTime = Date.now();
   }
 
   // last-n slider event listener
@@ -103,6 +105,8 @@ function main() {
         },
       });
     } else if ("commit" in data) {
+      const lastUpdated = document.querySelector("#last-updated");
+      lastUpdated.textContent = new Date(Date.now() - lastUpdateTime).toISOString().slice(11, 19);
       if (currCommit === data.commit) return;
       const commitElem = document.querySelector("#curr-commit");
       commitElem.textContent = data.commit.slice(0, 7);
@@ -163,9 +167,9 @@ function main() {
   socket.onopen = () => {
     console.log("Connected to websocket");
     socket.send("get-commit");
-    setTimeout(() => {
+    setInterval(() => {
       socket.send("get-commit");
-    }, 1000);
+    }, 2000);
     for (const card of document.querySelectorAll(".stat-card")) {
       observer.observe(card);
     }
