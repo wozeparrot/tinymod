@@ -26,6 +26,8 @@ REGEXES = {
   "resnet": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
 }
 
+ALL_SYSTEMS = ["amd", "amd-train", "nvidia", "mac"]
+
 # regex, systems, skip_count, max_count
 TRACKED_BENCHMARKS = {
   # stable diffusion

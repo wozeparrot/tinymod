@@ -7,7 +7,7 @@ from pygal.style import NeonStyle
 
 import os, logging
 
-from common.benchmarks import REPO, BENCHMARKS_DIR, TRACKED_BENCHMARKS, CachedBenchmarks, filter_points
+from common.benchmarks import REPO, BENCHMARKS_DIR, TRACKED_BENCHMARKS, ALL_SYSTEMS, CachedBenchmarks, filter_points
 
 TinyMod: Client
 GUILD: Guild
@@ -24,7 +24,6 @@ AZURE_HEADERS = {
 }
 CI_CHANNEL_ID = 1068993556905218128
 GITHUB_WEBHOOK_ID = 1068993579520884826
-ALL_SYSTEMS = ["amd", "amd-train", "mac", "nvidia"]
 RANGE = range(10, 100 + 1, 10)
 
 # ***** Downloading benchmarks *****
