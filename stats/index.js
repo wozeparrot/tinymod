@@ -18,8 +18,8 @@ function main() {
   });
 
   // connect to websocket
-  const socket = new WebSocket("wss://tinymod.dev:10000");
-  // const socket = new WebSocket("ws://localhost:10000");
+  // const socket = new WebSocket("wss://tinymod.dev:10000");
+  const socket = new WebSocket("ws://localhost:10000");
   console.log("Connecting to websocket");
 
   // state
@@ -46,7 +46,8 @@ function main() {
     if (event.target.value == last_n_slider.max) {
       last_n.textContent = "All";
     } else {
-      last_n.textContent = (Number(last_n_slider.value) + Number(last_n_slider.step));
+      last_n.textContent = Number(last_n_slider.value) +
+        Number(last_n_slider.step);
     }
 
     reload_charts();
@@ -63,35 +64,42 @@ function main() {
     }
 
     if ("benchmarks" in data) {
+      console.log(data);
       // generate integer only chart ticks for the x axis
       const x_ticks = [];
-      const low = Math.floor(data.benchmarks[0].x / 10) * 10;
-      const high =
-        Math.ceil(data.benchmarks[data.benchmarks.length - 1].x / 10) *
-        10;
+      let lowest_x = Infinity;
+      let highest_x = -Infinity;
+      for (const benchmark of data.benchmarks) {
+        if (benchmark.length == 0) continue;
+        if (benchmark[0].x < lowest_x) {
+          lowest_x = benchmark[0].x;
+        }
+        if (benchmark[benchmark.length - 1].x > highest_x) {
+          highest_x = benchmark[benchmark.length - 1].x;
+        }
+      }
+      const low = Math.floor(lowest_x / 10) * 10;
+      const high = Math.ceil(highest_x / 10) * 10;
       const divisor = (high - low) / 10;
       for (let i = low; i < high; i += divisor) {
         const i_10 = i;
-        if (
-          i_10 < data.benchmarks[0].x ||
-          i_10 > data.benchmarks[data.benchmarks.length - 1].x
-        ) continue;
+        if (i_10 < lowest_x || i_10 > highest_x) continue;
         x_ticks.push(i_10);
       }
 
       // update chart
       charts[`${data.filename}-${data.system}`].update({
-        series: [data.benchmarks],
+        series: data.benchmarks,
       }, {
-        showPoint: (data.benchmarks.length <= 100) ? true : false,
+        showPoint: (data.benchmarks[0].length <= 100) ? true : false,
         showLine: true,
         showArea: true,
         lineSmooth: false,
         axisX: {
           type: Chartist.FixedScaleAxis,
           ticks: x_ticks,
-          high: data.benchmarks[data.benchmarks.length - 1].x,
-          low: data.benchmarks[0].x,
+          high: highest_x,
+          low: lowest_x,
         },
       });
     } else if ("commit" in data) {
@@ -121,7 +129,7 @@ function main() {
             if (data.type === "line" || data.type === "area") {
               data.element.animate({
                 d: {
-                  begin: 2000 * data.index,
+                  begin: 0,
                   dur: 1000,
                   from: data.path.clone().scale(1, 0).translate(
                     0,
@@ -134,7 +142,8 @@ function main() {
             }
           });
 
-          let last_n_v = Number(last_n_slider.value) + Number(last_n_slider.step);
+          let last_n_v = Number(last_n_slider.value) +
+            Number(last_n_slider.step);
           if (last_n_v > Number(last_n_slider.max)) {
             last_n_v = 0;
           }

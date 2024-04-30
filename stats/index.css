@@ -1,9 +1,14 @@
 /* define colors */
+:root {
+  --primary-color: #a52e4d;
+  --secondary-color: #228039;
+
+  --red-color: #a52e4d;
+  --green-color: #228039;
+  --silver-color: #88808e;
+}
 @media(prefers-color-scheme: light) {
   :root {
-    --primary-color: #a52e4d;
-    --secondary-color: #228039;
-
     --primary-bg-color: #f0f0f0;
     --secondary-bg-color: #eeeeee;
     --foreground-color: #111111;
@@ -12,9 +17,6 @@
 }
 @media(prefers-color-scheme: dark) {
   :root {
-    --primary-color: #a52e4d;
-    --secondary-color: #228039;
-
     --primary-bg-color: #111111;
     --secondary-bg-color: #131313;
     --foreground-color: #f0f0f0;
@@ -96,11 +98,6 @@
   opacity: 0.2;
 }
 
-.ct-series-a .ct-line,
-.ct-series-a .ct-point {
-  stroke: var(--primary-color);
-}
-
 .ct-line {
   stroke-width: 2px;
 }
@@ -109,8 +106,37 @@
   stroke-width: 4px;
 }
 
+/* chartist series colors */
+.ct-series-a .ct-line,
+.ct-series-a .ct-point {
+  stroke: var(--red-color);
+}
 .ct-series-a .ct-area {
-  fill: var(--primary-color);
+  fill: var(--red-color);
+}
+
+.ct-series-b .ct-line,
+.ct-series-b .ct-point {
+  stroke: var(--red-color);
+}
+.ct-series-b .ct-area {
+  fill: var(--red-color);
+}
+
+.ct-series-c .ct-line,
+.ct-series-c .ct-point {
+  stroke: var(--green-color);
+}
+.ct-series-c .ct-area {
+  fill: var(--green-color);
+}
+
+.ct-series-d .ct-line,
+.ct-series-d .ct-point {
+  stroke: var(--silver-color);
+}
+.ct-series-d .ct-area {
+  fill: var(--silver-color);
 }
 
 /* fonts */
