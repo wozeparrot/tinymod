@@ -36,11 +36,11 @@ TRACKED_BENCHMARKS = {
   "llama_unjitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 3, 0),
   "llama_jitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 3, 0),
   "llama_beam.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 3, 0),
-  "llama_2_70B.txt": (REGEXES["llama"], ["amd"], 3, 0),
-  "llama_four_gpu.txt": (REGEXES["llama"], ["amd"], 3, 0),
-  "llama_six_gpu.txt": (REGEXES["llama"], ["amd"], 3, 0),
+  "llama_2_70B.txt": (REGEXES["llama"], ["amd", "nvidia"], 3, 0),
+  "llama_four_gpu.txt": (REGEXES["llama"], ["amd", "nvidia"], 3, 0),
+  "llama_six_gpu.txt": (REGEXES["llama"], ["amd", "nvidia"], 3, 0),
   # mixtral
-  "mixtral.txt": (REGEXES["mixtral"], ["amd"], 3, 0),
+  "mixtral.txt": (REGEXES["mixtral"], ["amd", "nvidia"], 3, 0),
   # gpt2
   "gpt2_unjitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 4, 0),
   "gpt2_jitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 4, 0),
@@ -51,10 +51,10 @@ TRACKED_BENCHMARKS = {
   "train_cifar_half.txt": (REGEXES["cifar"], ["amd-train", "mac", "nvidia"], 3, 0),
   "train_cifar_bf16.txt": (REGEXES["cifar"], ["amd-train", "nvidia"], 3, 0),
   "train_cifar_one_gpu.txt": (REGEXES["cifar"], ["amd-train", "nvidia"], 3, 20),
-  "train_cifar_six_gpu.txt": (REGEXES["cifar"], ["amd-train"], 3, 20),
+  "train_cifar_six_gpu.txt": (REGEXES["cifar"], ["amd-train", "nvidia"], 3, 20),
   # resnet
-  "train_resnet_one_gpu.txt": (REGEXES["resnet"], ["amd-train"], 3, 0),
-  "train_resnet.txt": (REGEXES["resnet"], ["amd-train"], 3, 0),
+  "train_resnet_one_gpu.txt": (REGEXES["resnet"], ["amd-train", "nvidia"], 3, 0),
+  "train_resnet.txt": (REGEXES["resnet"], ["amd-train", "nvidia"], 3, 0),
 }
 
 def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, max_count: int = 0) -> float:
