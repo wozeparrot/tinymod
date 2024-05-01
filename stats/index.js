@@ -129,22 +129,6 @@ function main() {
           charts[`${filename}-${system}`] = new Chartist.Line(
             `#chart-${filename.replace(/\.[^/.]+$/, "")}-${system}`,
           );
-          charts[`${filename}-${system}`].on("draw", (data) => {
-            if (data.type === "line" || data.type === "area") {
-              data.element.animate({
-                d: {
-                  begin: 0,
-                  dur: 1000,
-                  from: data.path.clone().scale(1, 0).translate(
-                    0,
-                    data.chartRect.height(),
-                  ).stringify(),
-                  to: data.path.clone().stringify(),
-                  easing: Chartist.Svg.Easing.easeOutQuint,
-                },
-              });
-            }
-          });
 
           let last_n_v = Number(last_n_slider.value) +
             Number(last_n_slider.step);
