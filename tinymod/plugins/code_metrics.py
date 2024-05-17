@@ -27,6 +27,9 @@ async def ensure_curr_repo():
     await git_cmd("fetch")
     await git_cmd("reset", "--hard", "origin/master")
 
+def is_docstring(t):
+  return t.type == token.STRING and t.string.startswith('"""') and t.line.strip().startswith('"""')
+
 TOKEN_WHITELIST = [token.OP, token.NAME, token.NUMBER, token.STRING]
 PATH_BLACKLIST = ["autogen"]
 async def get_curr_metrics():
@@ -36,9 +39,9 @@ async def get_curr_metrics():
   for path in (REPO_DIR / "tinygrad").rglob("*.py"):
     if any(blacklist in str(path) for blacklist in PATH_BLACKLIST): continue
     with path.open("r") as f:
-      tokens = [t for t in tokenize.generate_tokens(f.readline) if t.type in TOKEN_WHITELIST]
+      tokens = [t for t in tokenize.generate_tokens(f.readline) if t.type in TOKEN_WHITELIST and not is_docstring(t)]
     line_count = len(set([x for t in tokens for x in range(t.start[0], t.end[0]+1)]))
-    metrics[str(path.relative_to(REPO_DIR / "tinygrad"))] = {"line_count": line_count}
+    if line_count > 0: metrics[str(path.relative_to(REPO_DIR / "tinygrad"))] = {"line_count": line_count}
   return metrics
 
 @TinyMod.interactions(guild=GUILD) # type: ignore
