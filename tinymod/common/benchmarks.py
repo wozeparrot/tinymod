@@ -33,12 +33,12 @@ TRACKED_BENCHMARKS = {
   # stable diffusion
   "sd.txt": (REGEXES["sd"], ["amd"], 3, 0),
   # llama
-  "llama_unjitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 3, 0),
-  "llama_jitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 3, 0),
-  "llama_beam.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 3, 0),
-  "llama_2_70B.txt": (REGEXES["llama"], ["amd", "nvidia"], 3, 0),
-  "llama_four_gpu.txt": (REGEXES["llama"], ["amd", "nvidia"], 3, 0),
-  "llama_six_gpu.txt": (REGEXES["llama"], ["amd", "nvidia"], 3, 0),
+  "llama_unjitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 4, 0),
+  "llama_jitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 4, 0),
+  "llama_beam.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 4, 0),
+  "llama_2_70B.txt": (REGEXES["llama"], ["amd", "nvidia"], 4, 0),
+  "llama_four_gpu.txt": (REGEXES["llama"], ["amd", "nvidia"], 4, 0),
+  "llama_six_gpu.txt": (REGEXES["llama"], ["amd", "nvidia"], 4, 0),
   # mixtral
   "mixtral.txt": (REGEXES["mixtral"], ["amd", "nvidia"], 3, 0),
   # gpt2
