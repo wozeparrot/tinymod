@@ -42,6 +42,8 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
           artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (Mac)"]
         case "nvidia":
           artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (NVIDIA)"]
+        case "nvidia-train":
+          artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (NVIDIA Training)"]
         case _: return False
 
       if len(artifact) < 1: return False
@@ -179,6 +181,16 @@ async def bm_download_missing_for_all(client: Client, event):
     yield InteractionResponse(f"found {await anext(download)} runs for {system}", message=message)
     async for run_number in download:
       yield InteractionResponse(f"downloaded run {run_number} - {system}", message=message)
+  yield InteractionResponse("done", message=message)
+
+@TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True) # type: ignore
+async def bm_update_cache(client: Client, event,
+  force: Annotated[str, ["true", "false"], "force update the cache"],
+):
+  """Updates the cache"""
+  if not event.user.has_role(ADMIN_ROLE): return
+  message = yield "updating cache..." # acknowledge the command
+  CachedBenchmarks._update_cache(force=force == "true")
   yield InteractionResponse("done", message=message)
 
 # ***** Benchmark utilities *****

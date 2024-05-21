@@ -40,7 +40,7 @@ class Api:
             await protocol.send(API_INVALID_ARGUMENT)
             continue
           logging.info(f"{protocol.remote_address} requested benchmarks for {filename} on {system} for last {last_n}.")
-          benchmarks = [[], [], [], []]
+          benchmarks = [[] for _ in range(len(ALL_SYSTEMS))]
           systems = system.split("_")
           for system_ in systems: benchmarks[ALL_SYSTEMS.index(system_)] = CachedBenchmarks.cache.get((filename, system_), [])[-last_n:]
           benchmarks = [[{"x": x, "y": y} for x,y in benchmark] for benchmark in benchmarks]

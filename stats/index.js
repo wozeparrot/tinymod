@@ -5,17 +5,8 @@ function main() {
   if (last_n_slider.value == 0) {
     last_n.textContent = "All";
   } else {
-    last_n.textContent = last_n_slider.value;
+    last_n.textContent = Number(last_n_slider.value) + Number(last_n_slider.step);
   }
-
-  // back to top button
-  const back_to_top = document.querySelector(".back-to-top");
-  back_to_top.addEventListener("click", () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  });
 
   // connect to websocket
   const socket = new WebSocket("wss://tinymod.dev:10000");
@@ -25,7 +16,7 @@ function main() {
   // state
   const charts = {};
   let currCommit = "";
-  let lastUpdateTime = Date.now()
+  let lastUpdateTime = Date.now();
 
   function reload_charts() {
     for (const card of document.querySelectorAll(".stat-card")) {
@@ -106,7 +97,8 @@ function main() {
       });
     } else if ("commit" in data) {
       const lastUpdated = document.querySelector("#last-updated");
-      lastUpdated.textContent = new Date(Date.now() - lastUpdateTime).toISOString().slice(11, 19);
+      lastUpdated.textContent = new Date(Date.now() - lastUpdateTime)
+        .toISOString().slice(11, 19);
       if (currCommit === data.commit) return;
       const commitElem = document.querySelector("#curr-commit");
       commitElem.textContent = data.commit.slice(0, 7);

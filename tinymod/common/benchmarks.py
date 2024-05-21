@@ -8,14 +8,15 @@ GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
 REPO = GITHUB.get_repo("tinygrad/tinygrad")
 
 BENCHMARKS_DIR = Path("persist/benchmarks")
-def get_benchmarks(filename: str, system: str):
+def get_benchmarks(filename: str, system: str, start: int = 0):
   for path in (BENCHMARKS_DIR / "artifacts").iterdir():
+    if (run_number := int(path.name)) <= start: continue
     if not path.is_dir(): continue
     if not (path / f"{system}.zip").exists(): continue
     with zipfile.ZipFile(path / f"{system}.zip") as zip:
       if filename not in zip.namelist(): continue
       with zip.open(filename) as f:
-        yield int(path.name), f.read().decode()
+        yield run_number, f.read().decode()
 
 REGEXES = {
   "sd": re.compile(r"step in (\d+\.\d+) ms"),
@@ -26,12 +27,12 @@ REGEXES = {
   "resnet": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
 }
 
-ALL_SYSTEMS = ["amd", "amd-train", "nvidia", "mac"]
+ALL_SYSTEMS = ["amd", "amd-train", "nvidia", "nvidia-train", "mac"]
 
 # regex, systems, skip_count, max_count
 TRACKED_BENCHMARKS = {
   # stable diffusion
-  "sd.txt": (REGEXES["sd"], ["amd"], 3, 0),
+  "sd.txt": (REGEXES["sd"], ["amd", "nvidia"], 3, 0),
   # llama
   "llama_unjitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 4, 0),
   "llama_jitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 4, 0),
@@ -40,21 +41,21 @@ TRACKED_BENCHMARKS = {
   "llama_four_gpu.txt": (REGEXES["llama"], ["amd", "nvidia"], 4, 0),
   "llama_six_gpu.txt": (REGEXES["llama"], ["amd", "nvidia"], 4, 0),
   # mixtral
-  "mixtral.txt": (REGEXES["mixtral"], ["amd", "nvidia"], 3, 0),
+  "mixtral.txt": (REGEXES["mixtral"], ["amd"], 3, 0),
   # gpt2
   "gpt2_unjitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 4, 0),
   "gpt2_jitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 4, 0),
   "gpt2_half.txt": (REGEXES["gpt2"], ["mac", "nvidia"], 4, 0),
   "gpt2_half_beam.txt": (REGEXES["gpt2"], ["mac", "nvidia"], 4, 0),
   # cifar
-  "train_cifar.txt": (REGEXES["cifar"], ["amd-train", "mac", "nvidia"], 3, 0),
-  "train_cifar_half.txt": (REGEXES["cifar"], ["amd-train", "mac", "nvidia"], 3, 0),
-  "train_cifar_bf16.txt": (REGEXES["cifar"], ["amd-train", "nvidia"], 3, 0),
-  "train_cifar_one_gpu.txt": (REGEXES["cifar"], ["amd-train", "nvidia"], 3, 20),
-  "train_cifar_six_gpu.txt": (REGEXES["cifar"], ["amd-train", "nvidia"], 3, 20),
+  "train_cifar.txt": (REGEXES["cifar"], ["amd-train", "mac", "nvidia-train"], 3, 0),
+  "train_cifar_half.txt": (REGEXES["cifar"], ["amd-train", "mac", "nvidia-train"], 3, 0),
+  "train_cifar_bf16.txt": (REGEXES["cifar"], ["amd-train", "nvidia-train"], 3, 0),
+  "train_cifar_one_gpu.txt": (REGEXES["cifar"], ["amd-train", "nvidia-train"], 3, 20),
+  "train_cifar_six_gpu.txt": (REGEXES["cifar"], ["amd-train", "nvidia-train"], 3, 20),
   # resnet
-  "train_resnet_one_gpu.txt": (REGEXES["resnet"], ["amd-train", "nvidia"], 3, 0),
-  "train_resnet.txt": (REGEXES["resnet"], ["amd-train", "nvidia"], 3, 0),
+  "train_resnet_one_gpu.txt": (REGEXES["resnet"], ["amd-train", "nvidia-train"], 3, 0),
+  "train_resnet.txt": (REGEXES["resnet"], ["amd-train", "nvidia-train"], 3, 0),
 }
 
 def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, max_count: int = 0) -> float:
@@ -70,9 +71,9 @@ def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, 
   if counts == 0: return -inf
   return round(sums / counts, 2)
 
-def regex_benchmark_to_points(regex: re.Pattern, filename: str, system: str, skip_count: int, max_count: int = 0) -> list[tuple[int, float]]:
+def regex_benchmark_to_points(regex: re.Pattern, filename: str, system: str, skip_count: int, max_count: int = 0, start: int = 0) -> list[tuple[int, float]]:
   points = []
-  for run_number, benchmark in get_benchmarks(filename, system):
+  for run_number, benchmark in get_benchmarks(filename, system, start):
     runtime = regex_extract_benchmark(regex, benchmark, skip_count, max_count)
     points.append((run_number, runtime))
   return points
@@ -101,11 +102,19 @@ class _CachedBenchmarks:
     if not force and (BENCHMARKS_DIR / "artifacts").stat().st_mtime <= self.last_run: return
 
     # update cache
-    for file, (regex, systems, skip_count, max_count) in TRACKED_BENCHMARKS.items():
-      for system in systems:
-        points = regex_benchmark_to_points(regex, file, system, skip_count, max_count)
-        points = filter_points(points, None)
-        self.cache[(file, system)] = points
+    if len(self.cache) == 0 or force:
+      for file, (regex, systems, skip_count, max_count) in TRACKED_BENCHMARKS.items():
+        for system in systems:
+          points = regex_benchmark_to_points(regex, file, system, skip_count, max_count)
+          points = filter_points(points, None)
+          self.cache[(file, system)] = points
+    else: # only need to update the new runs
+      for file, (regex, systems, skip_count, max_count) in TRACKED_BENCHMARKS.items():
+        for system in systems:
+          last_run = max(self.cache[(file, system)], key=lambda x: x[0])[0] if (file, system) in self.cache else 0
+          points = regex_benchmark_to_points(regex, file, system, skip_count, max_count, last_run)
+          points = filter_points(points, None)
+          self.cache[(file, system)] += points
 
     # update commit
     workflow_runs = REPO.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
