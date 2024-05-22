@@ -32,7 +32,7 @@ ALL_SYSTEMS = ["amd", "amd-train", "nvidia", "nvidia-train", "mac"]
 # regex, systems, skip_count, max_count
 TRACKED_BENCHMARKS = {
   # stable diffusion
-  "sd.txt": (REGEXES["sd"], ["amd", "nvidia"], 3, 0),
+  "sd.txt": (REGEXES["sd"], ["amd", "mac", "nvidia"], 3, 0),
   # llama
   "llama_unjitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 4, 0),
   "llama_jitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 4, 0),
