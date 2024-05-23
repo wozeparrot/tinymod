@@ -102,19 +102,11 @@ class _CachedBenchmarks:
     if not force and (BENCHMARKS_DIR / "artifacts").stat().st_mtime <= self.last_run: return
 
     # update cache
-    if len(self.cache) == 0 or force:
-      for file, (regex, systems, skip_count, max_count) in TRACKED_BENCHMARKS.items():
-        for system in systems:
-          points = regex_benchmark_to_points(regex, file, system, skip_count, max_count)
-          points = filter_points(points, None)
-          self.cache[(file, system)] = points
-    else: # only need to update the new runs
-      for file, (regex, systems, skip_count, max_count) in TRACKED_BENCHMARKS.items():
-        for system in systems:
-          last_run = max(self.cache[(file, system)], key=lambda x: x[0])[0] if (file, system) in self.cache else 0
-          points = regex_benchmark_to_points(regex, file, system, skip_count, max_count, last_run)
-          points = filter_points(points, None)
-          self.cache[(file, system)] += points
+    for file, (regex, systems, skip_count, max_count) in TRACKED_BENCHMARKS.items():
+      for system in systems:
+        points = regex_benchmark_to_points(regex, file, system, skip_count, max_count)
+        points = filter_points(points, None)
+        self.cache[(file, system)] = points
 
     # update commit
     workflow_runs = REPO.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
