@@ -59,7 +59,10 @@ async def message_create(client: Client, message: Message):
   # check if the link is a merge commit
   elif "/commit/" in message.content:
     # try to pull out the pr number from the commit message
-    commit_message = GITHUB.get_repo("tinygrad/tinygrad").get_commit(message.content.split("/")[-1]).commit.message
+    try: commit_message = GITHUB.get_repo("tinygrad/tinygrad").get_commit(message.content.split("/")[-1][:40]).commit.message
+    except:
+      await client.message_create(dm_channel, "Please post the link to the PR instead.")
+      return await client.message_delete(message)
     pr_number = re.search(r"#(\d+)", commit_message)
     logging.info(f"PR number: {pr_number}")
     # check if the pr number was found
