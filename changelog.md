@@ -1,3 +1,241 @@
+## 1.3.57 *\[2024-05-31\]*
+
+### Improvements
+
+- Add `MessageReferenceType`.
+- Add `forward_message` parameter to `Client.message_create`.
+- Add `MessageSnapshot`.
+- Add `Message.snapshots`.
+- Add `Message.has_snapshots`.
+- Add `Message.iter_snapshots`.
+- Add `Message.snapshot`.
+
+### Bug fixes
+
+#### ext.slash
+- Fix an error when applying `allowed_mentions` set from command parameters. (from 1.3.56)
+
+### Renames, Deprecations & Removals
+
+- Rename `ReplyConfiguration` to `MessageReferenceConfiguration`.
+
+## 1.3.56 *\[2024-05-21\]*
+
+### Improvements
+
+- `ReactionMapping` is no longer `dict` sub-type, contains `dict` as `.lines` now. Constructors changed.
+- `ReactionMappingLine` is no longer `set` sub-type. Contains `set` as `.users` now. Constructors changed.
+- Add `UserClan`.
+- Add `UserBase.clan`.
+- Add `AuditLogEntryType.home_screen_create`.
+- Add `AuditLogEntryType.home_screen_update`.
+- Add `ButtonStyle.subscription`.
+- Add `ComponentMetadata.sku_id`.
+- Add `Component.sku_id`.
+- Add `BuilderBase.__eq__`.
+- Add `BuilderBase.__hash__`.
+- Add `BuilderBase.__repr__`.
+
+#### ext.slash
+
+- `InteractionResponse` now supports relaxed parameters.
+    (Causes `show_for_invoking_user_ony` response modifier to collision with the `silent` parameter.)
+- `abort` now supports relaxed parameters.
+- Commands now support relaxed value returning.
+
+### Renames, Deprecations & Removals
+
+- Deprecate and rename `ReactionMapping.keys` to `.iter_reactions`.
+- Deprecate and rename `ReactionMapping.values` to `.iter_lines`.
+- Deprecate and rename `ReactionMapping.items` to `.iter_items`.
+- Deprecate `id` parameters in `InteractionMetadataBase.__new__` and `InteractionMetadataBase.copy_with`.
+    Use `application_command_id` instead.
+- Deprecate `type_` parameters in `InteractionOption.__new__`. and `InteractionOption.copy_with`.
+    Use `option_type` instead.
+
+## 1.3.55 *\[2024-05-10\]*
+
+### Improvements
+
+- Add `Client.entitlement_consume`.
+- Add `RATE_LIMIT_GROUPS.entitlement_consume`.
+- Add `DiscordApiClient.entitlement_consume˙.
+- Add `RATE_LIMIT_GROUPS.guild_ban_add_multiple`.
+- Add `DiscordApiClient.guild_ban_add_multiple`.
+- Add `ERROR_CODES.failed_to_ban_users`.
+- `BanEntry` now supports rich attribute exceptions.
+- Add `BanEntry.from_data`.
+- Add `BanEntry.to_data`.
+- Add `BanEntry.__hash__`.
+- Add `BanEntry.copy`.
+- Add `BanEntry.copy_with`.
+- Add `BanEntry.__eq__`.
+- Add `BanAddMultipleResult`.
+- Add `Client.guild_ban_add_multiple`.
+- Add `hata scaffold ...` now creates a new `{project_name}/plugins/ping.py` example plugin file.
+- `Client.message_get_at_index` now returns `None` instead of raising `IndexError`.
+
+### Bug fixes
+
+- `Client.message_get_at_index` raised `IndexError` even when it should not have.
+
+## 1.3.54 *\[2024-04-28\]*
+
+### Improvements
+
+- Add `ERROR_CODES.max_published_product_listing`.
+- Add `ERROR_CODES.invalid_gift_redemption_incorrect_user`.
+- Add `ERROR_CODES.invalid_sku_attachment_no_archives`.
+- Add `ERROR_CODES.invalid_activity_launch_incorrect_guild_size`.
+- Add `ERROR_CODES.mfa_required_for_creator_monetization`.
+- Add `ERROR_CODES.phone_carrier_type_not_mobile`.
+- Add `ERROR_CODES.monetization_terms_not_accepted`.
+- Add `ERROR_CODES.mfa_not_enabled`.
+- Add `ERROR_CODES.guild_product_listing_cannot_publish_without_benefit`.
+- Add `ERROR_CODES.creator_monetization_payment_team_required`.
+- Add `ERROR_CODES.creator_monetization_payment_account_verification_required`.
+- Add `ERROR_CODES.user_limited_access_default`.
+- Add `ERROR_CODES.user_limited_access_friend_request`.
+- Add `ERROR_CODES.user_limited_access_max`.
+- Add `ERROR_CODES.guild_limited_access_default`.
+- Add `ERROR_CODES.guild_limited_access_upload`.
+- Add `ERROR_CODES.guild_limited_access_invite`.
+- Add `ERROR_CODES.guild_limited_access_max`.
+- Add `ERROR_CODES.partner_promotions_user_claimed_promotion`.
+- Add `ERROR_CODES.partner_promotions_max_claims`.
+- Add `ERROR_CODES.partner_promotions_gift_claimed`.
+- Add `ERROR_CODES.partner_promotions_previous_purchase_error`.
+- Add `ERROR_CODES.partner_promotions_new_subscription_required`.
+- Add `ERROR_CODES.partner_promotions_unknown_gift`.
+- Add `ERROR_CODES.dsa_rsl_report_not_found`.
+- Add `ERROR_CODES.dsa_rsl_already_requested`.
+- Add `ERROR_CODES.dsa_rsl_limited_time`.
+- Add `ERROR_CODES.dsa_rsl_report_ineligible`.
+- Add `ERROR_CODES.dsa_appeal_request_deflection`.
+- Add `ERROR_CODES.poll_voting_blocked`.
+- Add `ERROR_CODES.poll_expired`.
+- Add `ERROR_CODES.poll_creation_invalid_channel_type`.
+- Add `ERROR_CODES.cannot_edit_poll_message`.
+- Add `ERROR_CODES.cannot_use_emoji_included_within_poll`.
+- Add `ERROR_CODES.cannot_expire_non_poll_message`.
+- Add `ERROR_CODES.poll_finalized`.
+- Add `PollVoteAddEvent`.
+- Add `PollVoteDeleteEvent`.
+- Add `PollResult`.
+- `reconstruct_payload` now respects terminal width and has general overflow protection.
+- Add `PollLayout`.
+- Add new `create_emoji_from_exclusive_data`.
+- Add new `put_exclusive_emoji_data_into`.
+- Add `PollAnswer`.
+- Add `Poll`.
+- Add `PollChange`.
+- Add `PollUpdate`.
+- Add `Message.poll`.
+- Add `send_polls` `Permission`.
+- Add `guild_polls` `IntentFlag`.
+- Add `direct_polls` `IntentFlag`.
+- Add `EventHandlerManager.poll_vote_add`.
+- Add `EventHandlerManager.poll_vote_delete`.
+- Add `Message.has_poll`.
+- Handle `MESSAGE_POLL_VOTE_ADD` dispatch event.
+- Handle `MESSAGE_POLL_VOTE_REMOVE` dispatch event.
+- Add `poll` parameter to `Client.message_create`.
+- Add `Message.did_vote`.
+- Add `poll` parameter to `Client.webhook_message_create`.
+- Add `poll` parameter to `Client.interaction_response_message_create`.
+- Add `poll` parameter to `Client.interaction_followup_message_create`.
+- Add `Client.poll_finalize`.
+- Add `RATE_LIMIT_GROUPS.poll_finalize`.
+- Add `RateLimitProxy.is_limited_by_message`.
+- Add `DiscordApiClient.poll_finalize˙.
+- Add `RATE_LIMIT_GROUPS.poll_result_user_get_chunk`.
+- Add `RateLimitProxy.poll_result_user_get_chunk`.
+- Add `Client.poll_result_user_get_chunk`.
+- Add `Client.poll_result_user_get_all`.
+- Add `Client.poll_result_get_all`.
+
+#### ext.commands_v2
+
+- `Poll` now can be returned from commands.
+
+#### ext.slash
+
+- Add `poll` parameter to `abort`.
+- Add `poll` parameter to `InteractionResponse`.
+- `Poll` now can be returned from interactions.
+
+### Bug fixes
+
+- Fix `reconstruct_payload` failing for form datas. (since 1.3.51)
+- Fix `MESSAGE_REACTION_REMOVE` could not remove burst reactions.
+
+### Renames, Deprecations & Removals
+
+- Rename `ApplicationMonetizationEligibilityFlags.user_2fa_enabled` to `.user_mfa_enabled`.
+- Rename `create_emoji_from_exclusive_data` to `create_emoji_from_exclusive_inline_data`
+- Rename `put_exclusive_emoji_data_into` to `put_exclusive_emoji_inline_data_into`.
+
+## 1.3.53 *\[2024-03-31\]*
+
+### Improvements
+
+- Rename `alters` parameter to `aliases` in `register`.
+- Add `ConnectionType.bungie`.
+- `LocalAudio` now raises if the given `source` is not a file.
+- Add `enforce_nonce` parameter to `Client.message_create`.
+- Add `parse_signed_url`.
+- Add `ApplicationIntegrationType`.
+- Add `Application.integration_types`.
+- Add `ApplicationIntegrationTypeConfiguration`.
+- Add `Application.integration_types_configuration`.
+- Add `Application.has_integration_type`.
+- Add `Application.iter_integration_types`.
+- Add `Application.get_integration_type_configuration`.
+- Add `MessageInteraction.user_id` replacing old `.user`. Add `.user` property.
+- Add `MessageInteraction.response_message_id`.
+- Add `MessageInteraction.interacted_message_id`.
+- Add `MessageInteraction.authorizer_user_ids`.
+- Add `MessageInteraction.triggering_interaction`.
+- Add `MessageInteraction.get_authorizer_user_id`.
+- Add `MessageInteraction.get_authorizer_user`.
+- Add `ApplicationCommand.integration_types`.
+- Add `ApplicationCommand.has_integration_type`.
+- Add `ApplicationCommand.iter_integration_types`.
+- Add `ApplicationCommandIntegrationContextType`.
+- Add `ApplicationCommand.integration_context_types`.
+- Add `ApplicationCommand.has_integration_context_type`.
+- Add `ApplicationCommand.iter_integration_context_types`.
+
+#### ext.slash
+
+- Add `SlasherCommandError.__repr__`
+- Add `SlasherCommandError.__eq__`.
+- Add `SlashCommandParameterConversionError.__eq__`.
+- Add `HighlightGroup.__eq__`.
+- Add `SlasherCommandError.__hash__`.
+- Add `SlashCommandParameterConversionError.__hash__`.
+- Add `HighlightGroup.__hash__`.
+- Add `EvaluationError.text`.
+- Add `EvaluationError.__eq__`.
+- Add `EvaluationError.__hash__`.
+- Add `CommandBaseApplicationCommand.integration_context_types`.
+- Add `CommandBaseApplicationCommand.integration_types`.
+
+### Bug fixes
+
+#### ext.slash
+
+- Fix evaluating `10(20)` pointed its error location at wrong position(s).
+- `ApplicationCommand.to_data` had `include_internals` as `True` by default (instead of `False`) 
+    resulting bigger payloads.
+
+### Renames, Deprecations & Removals
+
+- Deprecate `MessageInteraction.__new__`'s `user` parameter. Use `.user_id` instead.
+- Deprecate `MessageInteraction.copy_with`'s `user` parameter. Use `.user_id` instead.
+- Deprecate `ApplicationCommand.allow_in_dm`.
+- Remove `CommandBaseApplicationCommand.allow_in_dm` and deprecate it where accepted as parameter.
+
 ## 1.3.52 *\[2024-03-18\]*
 
 ### Bug fixes

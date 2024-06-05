@@ -14,11 +14,12 @@ from ...field_parsers import (
     preinstanced_parser_factory
 )
 from ...field_putters import (
-    bool_optional_putter_factory, entity_id_putter_factory, flag_optional_putter_factory,
-    nullable_date_time_optional_putter_factory, nullable_entity_array_putter_factory,
-    nullable_entity_optional_putter_factory, nullable_functional_array_optional_putter_factory,
-    nullable_object_array_optional_putter_factory, nullable_string_optional_putter_factory,
-    optional_entity_id_array_optional_putter_factory, preinstanced_putter_factory, url_optional_putter_factory
+    bool_optional_putter_factory, entity_id_optional_putter_factory, entity_id_putter_factory,
+    flag_optional_putter_factory, nullable_date_time_optional_putter_factory,
+    nullable_entity_array_optional_putter_factory, nullable_entity_optional_putter_factory,
+    nullable_functional_array_optional_putter_factory, nullable_object_array_optional_putter_factory,
+    nullable_string_optional_putter_factory, optional_entity_id_array_optional_putter_factory,
+    preinstanced_putter_factory, url_optional_putter_factory
 )
 from ...field_validators import (
     bool_validator_factory, default_entity_validator_factory, entity_id_array_validator_factory,
@@ -26,6 +27,7 @@ from ...field_validators import (
     nullable_entity_array_validator_factory, nullable_entity_validator_factory, nullable_object_array_validator_factory,
     nullable_string_validator_factory, preinstanced_validator_factory
 )
+from ...poll import Poll
 from ...role import Role
 from ...sticker import Sticker, create_partial_sticker_data, create_partial_sticker_from_partial_data
 from ...user import ClientUserBase, User, UserBase, ZEROUSER
@@ -37,6 +39,8 @@ from ..message_application import MessageApplication
 from ..message_call import MessageCall
 from ..message_interaction import MessageInteraction
 from ..message_role_subscription import MessageRoleSubscription
+from ..poll_change import PollChange
+from ..poll_update import PollUpdate
 
 from .constants import CONTENT_LENGTH_MAX, NONCE_LENGTH_MAX
 from .flags import MessageFlag
@@ -101,7 +105,7 @@ validate_application_id = entity_id_validator_factory('application_id', Applicat
 # attachments
 
 parse_attachments = nullable_entity_array_parser_factory('attachments', Attachment)
-put_attachments_into = nullable_entity_array_putter_factory('attachments', Attachment)
+put_attachments_into = nullable_entity_array_optional_putter_factory('attachments', Attachment)
 validate_attachments = nullable_entity_array_validator_factory('attachments', Attachment)
 
 # author
@@ -231,7 +235,7 @@ validate_flags = flag_validator_factory('flags', MessageFlag)
 # guild_id
 
 parse_guild_id = entity_id_parser_factory('guild_id')
-put_guild_id_into = entity_id_putter_factory('guild_id')
+put_guild_id_into = entity_id_optional_putter_factory('guild_id')
 validate_guild_id = entity_id_validator_factory('guild_id', NotImplemented, include = 'Guild')
 
 # id
@@ -242,52 +246,32 @@ validate_id = entity_id_validator_factory('message_id')
 
 # interaction
 
-def parse_interaction(data, guild_id = 0):
+# Old messages use `interaction` instead of `interaction_metadata`.
+def parse_interaction(data):
     """
-    Parses the message's interaction from its data.
+    Parses message interaction from the given data.
     
     Parameters
     ----------
-    data : `dict` of (`str`, `object`) items
-        Message data.
-    guild_id : `int` = `0`, Optional
-        The guild's id where the message was created at.
+    data : `dict<str, object>`
+        Data to parse from.
     
     Returns
     -------
-    interaction : `None`, ``MessageInteraction``
+    interaction : `None | MessageInteraction`
     """
-    message_interaction_data = data.get('interaction', None)
-    if (message_interaction_data is not None):
-        return MessageInteraction.from_data(message_interaction_data, guild_id)
+    try:
+        interaction_data = data['interaction_metadata']
+    except KeyError:
+        interaction_data = data.get('interaction', None)
+    
+    if (interaction_data is not None):
+        return MessageInteraction.from_data(interaction_data)
 
 
-def put_interaction_into(interaction, data, defaults, *, guild_id = 0):
-    """
-    Puts the message interaction's data into the given `data` json serializable object.
-    
-    Parameters
-    ----------
-    interaction : `None`, ``MessageInteraction``
-        Message interaction.
-    data : `dict` of (`str`, `object`) items
-        Json serializable dictionary.
-    defaults : `bool`
-        Whether default values should be included as well.
-    guild_id : `int` = `0`, Optional (Keyword only)
-        The guild's id where the message was created at.
-    
-    Returns
-    -------
-    data : `dict` of (`str`, `object`) items
-    """
-    if (interaction is not None):
-        data['interaction'] = interaction.to_data(defaults = defaults, include_internals = True, guild_id = guild_id)
-    elif defaults:
-        data['interaction'] = None
-    
-    return data
-
+put_interaction_into = nullable_entity_optional_putter_factory(
+    'interaction_metadata', MessageInteraction, force_include_internals = True
+)
 validate_interaction = nullable_entity_validator_factory('interaction', MessageInteraction)
 
 # mentioned_channels_cross_guild
@@ -448,6 +432,80 @@ parse_pinned = bool_parser_factory('pinned', False)
 put_pinned_into = bool_optional_putter_factory('pinned', False)
 validate_pinned = bool_validator_factory('pinned', False)
 
+
+# poll
+
+def parse_poll(data, old_poll = None):
+    """
+    Parses the message's polls.
+    
+    Parameters
+    ----------
+    data : `dict<str, object>`
+        Data to parse from.
+    old_poll : `None | Poll` = `None`, Optional
+        The old poll of the message.
+    
+    Returns
+    -------
+    poll : `Non | Poll`
+    """
+    poll_data = data.get('poll', None)
+    if poll_data is None:
+        poll = None
+    else:
+        if old_poll is None:
+            poll = Poll.from_data(poll_data)
+        else:
+            poll = old_poll
+            old_poll._update_attributes(poll_data)
+            
+    return poll
+
+
+def parse_poll_and_change(data, old_poll):
+    """
+    Parses the poll and returns the difference.
+    
+    Parameters
+    ----------
+    data : `dict<str, object>`
+        Data to parse from.
+    old_poll : `None | Poll` = `None`, Optional
+        The old poll of the message.
+    
+    Returns
+    -------
+    poll : `Non | Poll`
+    change : `None | PollChange`
+    """
+    poll_data = data.get('poll', None)
+    if poll_data is None:
+        if old_poll is None:
+            poll = None
+            change = None
+        else:
+            poll = None
+            change = PollChange.from_fields(None, None, old_poll)
+    else:
+        if old_poll is None:
+            poll = Poll.from_data(poll_data)
+            change = PollChange.from_fields(poll, None, None)
+        
+        else:
+            poll = old_poll
+            old_attributes = poll._difference_update_attributes(poll_data)
+            if old_attributes:
+                change = PollChange.from_fields(None, PollUpdate.from_fields(poll, old_attributes), None)
+            else:
+                change = None
+    
+    return poll, change
+
+
+put_poll_into = nullable_entity_optional_putter_factory('poll', Poll)
+validate_poll = nullable_entity_validator_factory('poll', Poll)
+
 # reactions
 
 def parse_reactions(data, old_reactions = None):
@@ -471,7 +529,7 @@ def parse_reactions(data, old_reactions = None):
     else:
         new_reactions = ReactionMapping.from_data(reactions_data)
     
-    return merge_update_reaction_mapping(old_reactions, new_reactions)
+    return merge_update_reaction_mapping(new_reactions, old_reactions)
 
 
 def put_reactions_into(reactions, data, defaults):
@@ -523,7 +581,7 @@ def validate_reactions(reactions):
     if isinstance(reactions, ReactionMapping):
         return reactions
     
-    return ReactionMapping(reactions)
+    return ReactionMapping(lines = reactions)
 
 # referenced_message
 
@@ -662,6 +720,12 @@ put_role_subscription_into = nullable_entity_optional_putter_factory(
     'role_subscription_data', MessageRoleSubscription
 )
 validate_role_subscription = nullable_entity_validator_factory('role_subscription', MessageRoleSubscription)
+
+# snapshots
+
+parse_snapshots = nullable_object_array_parser_factory('message_snapshots', NotImplemented, include = 'MessageSnapshot')
+put_snapshots_into = nullable_object_array_optional_putter_factory('message_snapshots')
+validate_snapshots = nullable_object_array_validator_factory('snapshots', NotImplemented, include = 'MessageSnapshot')
 
 # stickers
 

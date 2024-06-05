@@ -1,6 +1,6 @@
 __all__ = ()
 
-import warnings
+from warnings import warn
 
 from scarletio import Compound
 from scarletio.web_common import FormData
@@ -9,7 +9,7 @@ from ...application import Application
 from ...bases import maybe_snowflake
 from ...builder.serialization import create_serializer
 from ...builder.serialization_configuration import SerializationConfiguration
-from ...component import InteractionForm
+from ...component import ButtonStyle, InteractionForm
 from ...http import DiscordApiClient
 from ...interaction import InteractionEvent, InteractionResponseContext, InteractionResponseType, InteractionType
 from ...message import Message, MessageFlag
@@ -34,6 +34,7 @@ MESSAGE_SERIALIZER_INTERACTION_FOLLOWUP_CREATE = create_serializer(
             MessageBuilderInteractionFollowupCreate.content,
             MessageBuilderInteractionFollowupCreate.embeds,
             MessageBuilderInteractionFollowupCreate.flags,
+            MessageBuilderInteractionFollowupCreate.poll,
             MessageBuilderInteractionFollowupCreate.show_for_invoking_user_only,
             MessageBuilderInteractionFollowupCreate.tts,
         ],
@@ -80,6 +81,7 @@ MESSAGE_SERIALIZER_INTERACTION_RESPONSE_CREATE = create_serializer(
             MessageBuilderInteractionResponseCreate.content,
             MessageBuilderInteractionResponseCreate.embeds,
             MessageBuilderInteractionResponseCreate.flags,
+            MessageBuilderInteractionResponseCreate.poll,
             MessageBuilderInteractionResponseCreate.tts,
         ],
         True,
@@ -314,7 +316,7 @@ class ClientCompoundInteractionEndpoints(Compound):
         assert _assert__interaction_event_type(interaction_event)
         
         if not interaction_event.is_unanswered():
-            warnings.warn(
+            warn(
                 (
                     f'`{type(self).__name__}.interaction_response_form` called on an interaction already '
                     f'acknowledged / answered: {interaction_event!r}. Returning `None`.'
@@ -333,7 +335,7 @@ class ClientCompoundInteractionEndpoints(Compound):
         ):
             raise RuntimeError(
                 f'Only `application_command` and `message_component` interactions can be answered with '
-                f'form, got `{interaction_event.type.name}`; {interaction_event!r}; form={form!r}.'
+                f'form, got `{interaction_event.type.name}`; {interaction_event!r}; form = {form!r}.'
             )
         
         # Build payload
@@ -394,6 +396,9 @@ class ClientCompoundInteractionEndpoints(Compound):
         
         flags : `int`, ``MessageFlag`, Optional
             The message's flags.
+        
+        poll : `None`, ``Poll``, Optional
+            The message's poll.
         
         show_for_invoking_user_only : `bool` = `False`, Optional (Keyword only)
             Whether the sent message should only be shown to the invoking user.
@@ -767,6 +772,11 @@ class ClientCompoundInteractionEndpoints(Compound):
         content : `None`, `str`, Optional
             The message's content if given.
         
+        poll : `None`, ``Poll``, Optional
+            The message's poll.
+            
+            > Response message must be created or else discord will ignore the `poll` field.
+        
         embed : `None`, `Embed`, Optional
             Alternative for `embeds`.
         
@@ -1049,6 +1059,16 @@ class ClientCompoundInteractionEndpoints(Compound):
         DiscordException
             If any exception was received from the Discord API.
         """
+        if not interaction_event.is_unanswered():
+            warn(
+                (
+                    f'`{type(self).__name__}.interaction_require_subscription` is deprecated. '
+                    f'Please use a component with `{ButtonStyle.__name__}.subscription` instead.'
+                ),
+                FutureWarning,
+                stacklevel = 2,
+            )
+        
         _assert__interaction_event_type(interaction_event)
         
         application_id = self.application.id

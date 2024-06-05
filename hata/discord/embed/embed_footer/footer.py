@@ -99,7 +99,7 @@ class EmbedFooter(EmbedFieldBase):
         if text is not None:
             field_added = True
             repr_parts.append(' text = ')
-            repr_parts.append(repr(self.text))
+            repr_parts.append(repr(text))
         
         icon_url = self.icon_url
         if icon_url is not None:
@@ -137,7 +137,6 @@ class EmbedFooter(EmbedFieldBase):
         if self.text != other.text:
             return False
         
-
         return True
     
     
@@ -239,7 +238,7 @@ class EmbedFooter(EmbedFieldBase):
         """
         warnings.warn(
             (
-                f'`{type(self).__text__}.proxy_icon_url` is deprecated and will be removed in 2023 august. '
+                f'`{type(self).__name__}.proxy_icon_url` is deprecated and will be removed in 2023 august. '
                 f'Please use `.icon_proxy_url` instead.'
             ),
             FutureWarning,

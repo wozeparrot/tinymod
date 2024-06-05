@@ -40,9 +40,11 @@ MESSAGE_SERIALIZER_CREATE = create_serializer(
             MessageBuilderCreate.components,
             MessageBuilderCreate.content,
             MessageBuilderCreate.embeds,
+            MessageBuilderCreate.enforce_nonce,
             MessageBuilderCreate.flags,
+            MessageBuilderCreate.message_reference_configuration,
             MessageBuilderCreate.nonce,
-            MessageBuilderCreate.reply_configuration,
+            MessageBuilderCreate.poll,
             MessageBuilderCreate.sticker_ids,
             MessageBuilderCreate.tts,
         ],
@@ -177,27 +179,25 @@ class ClientCompoundMessageEndpoints(Compound):
         Raises
         ------
         TypeError
-            If `channel` was not given neither as ``Channel`` nor `int`.
+            - If a parameter's type is incorrect.
+        ValueError
+            - If a parameter's value is incorrect.
         ConnectionError
             No internet connection.
         DiscordException
             If any exception was received from the Discord API.
-        AssertionError
-            - If `limit` was not given as `int`.
-            - If `limit` is out of range [1:100].
         """
         channel, channel_id = get_channel_and_id(channel, Channel.is_in_group_textual)
         
-        if __debug__:
-            if not isinstance(limit, int):
-                raise AssertionError(
-                    f'`limit` can be `int`, got {limit.__class__.__name__}; {limit!r}.'
-                )
-            
-            if (limit < 1) or (limit > 100):
-                raise AssertionError(
-                    f'`limit` is out from the expected [1:100] range, got {limit!r}.'
-                )
+        if not isinstance(limit, int):
+            raise TypeError(
+                f'`limit` can be `int`, got {limit.__class__.__name__}; {limit!r}.'
+            )
+        
+        if (limit < 1) or (limit > 100):
+            raise ValueError(
+                f'`limit` is out from the expected [1:100] range, got {limit!r}.'
+            )
         
         # Set some collection delay.
         if (channel is not None):
@@ -318,6 +318,9 @@ class ClientCompoundMessageEndpoints(Compound):
         embeds : `None`, `list<Embed>`, Optional
             The new embedded content of the message.
         
+        enforce_nonce : `bool`, Optional (Keyword only)
+            Whether Discord should return the same message for the same nonce.
+        
         file : `None`, `object`, Optional (Keyword only)
             Alternative for `attachments`.
         
@@ -327,8 +330,16 @@ class ClientCompoundMessageEndpoints(Compound):
         flags : `int`, ``MessageFlag`, Optional
             The message's flags.
         
+        forward_message : `int`, ``Message``, Optional (Keyword only)
+            
+        
         nonce : `None`, `str`, Optional (Keyword only)
-            Used for optimistic message sending.
+            Used for optimistic message sending. The sent nonce with be present as `Message.nonce`,
+            but be careful, if the message is requested later nonce wnt show up on it, so it cannot be used
+            store information on the message.
+        
+        poll : `None`, ``Poll``, Optional
+            The message's poll.
         
         reply_fail_fallback : `bool`, Optional (Keyword only)
             Whether normal message should be sent if the referenced message is deleted.
@@ -1670,30 +1681,28 @@ class ClientCompoundMessageEndpoints(Compound):
         
         Returns
         -------
-        message : ``Message`` object
+        message : `None`, ``Message``
         
         Raises
         ------
         TypeError
-            If `channel` was not given neither as ``Channel`` nor `int`.
+            - If a parameter's type is incorrect.
+        ValueError
+            - If a parameter's value is incorrect.
         ConnectionError
             No internet connection.
         DiscordException
             If any exception was received from the Discord API.
-        AssertionError
-            - If `index` was not given as `int`.
-            - If `index` is out of range [0:].
         """
-        if __debug__:
-            if not isinstance(index, int):
-                raise AssertionError(
-                    f'`index` can be `int`, got {index.__class__.__name__}; {index!r}.'
-                )
-            
-            if index < 0:
-                raise AssertionError(
-                    f'`index` is out from the expected [0:] range, got {index!r}.'
-                )
+        if not isinstance(index, int):
+            raise TypeError(
+                f'`index` can be `int`, got {index.__class__.__name__}; {index!r}.'
+            )
+        
+        if index < 0:
+            raise ValueError(
+                f'`index` is out from the expected [0:] range, got {index!r}.'
+            )
         
         channel, channel_id = get_channel_and_id(channel, Channel.is_in_group_textual)
         if channel is None:
@@ -1702,24 +1711,27 @@ class ClientCompoundMessageEndpoints(Compound):
             if messages:
                 channel = messages[0].channel
             else:
-                raise IndexError(index)
+                return None
         
         messages = channel.messages
         if (messages is not None) and (index < len(messages)):
-            raise IndexError(index)
+            return messages[index]
         
         if channel.message_history_reached_end:
-            raise IndexError(index)
+            return None
         
         if await self._load_messages_till(channel, index):
-            raise IndexError(index)
+            return None
         
         # access it again, because it might be modified
         messages = channel.messages
         if messages is None:
-            raise IndexError(index)
+            return None
         
-        return messages[index]
+        if index < len(messages):
+            return messages[index]
+        
+        return None
     
     
     async def message_get_all_in_range(self, channel, start = 0, end = 100):

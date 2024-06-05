@@ -6,8 +6,9 @@ from ....channel import Channel, ChannelType, create_partial_channel_data
 from ....component import Component, ComponentType
 from ....core import BUILTIN_EMOJIS
 from ....embed import Embed
-from ....emoji import ReactionMapping
+from ....emoji import Reaction, ReactionMapping, ReactionMappingLine, ReactionType
 from ....interaction import Resolved
+from ....poll import Poll
 from ....sticker import Sticker, create_partial_sticker_data
 from ....user import User
 from ....utils import datetime_to_timestamp
@@ -18,6 +19,9 @@ from ...message_application import MessageApplication
 from ...message_call import MessageCall
 from ...message_interaction import MessageInteraction
 from ...message_role_subscription import MessageRoleSubscription
+from ...message_snapshot import MessageSnapshot
+from ...poll_change import PollChange
+from ...poll_update import PollUpdate
 
 from ..flags import MessageFlag
 from ..message import Message
@@ -66,12 +70,19 @@ def test__Message__from_data__all_fields():
     message_type = MessageType.call
     nonce = 'Sakuya'
     pinned = True
-    reactions = ReactionMapping({
-        BUILTIN_EMOJIS['x']: [None, None],
-    })
+    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    reactions = ReactionMapping(
+        lines = {
+            Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
+        },
+    )
     referenced_message = Message.precreate(202305030051, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110008)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    snapshots = [
+        MessageSnapshot(content = 'Kazami'),
+        MessageSnapshot(content = 'Yuuka'),
+    ]
     stickers = [
         Sticker.precreate(202305030052, name = 'Kirisame'),
         Sticker.precreate(202305030053, name = 'Marisa'),
@@ -95,17 +106,19 @@ def test__Message__from_data__all_fields():
         'application_id': str(application_id),
         'call': call.to_data(),
         'edited_timestamp': datetime_to_timestamp(edited_at),
-        'interaction': interaction.to_data(include_internals = True),
+        'interaction_metadata': interaction.to_data(include_internals = True),
         'mention_channels': [create_partial_channel_data(channel) for channel in mentioned_channels_cross_guild],
         'mention_everyone': mentioned_everyone,
         'mention_roles': [str(role_id) for role_id in mentioned_role_ids],
         'mentions': [user.to_data(include_internals = True) for user in mentioned_users],
         'pinned': pinned,
+        'poll': poll.to_data(include_internals = True),
         'reactions': reactions.to_data(),
         'referenced_message': referenced_message.to_data(include_internals = True, recursive = False),
         'message_reference': referenced_message.to_message_reference_data(),
         'resolved': resolved.to_data(),
         'role_subscription_data': role_subscription.to_data(),
+        'message_snapshots': [snapshot.to_data() for snapshot in snapshots],
         'sticker_items': [create_partial_sticker_data(sticker) for sticker in stickers],
         'thread': thread.to_data(include_internals = True),
         
@@ -139,10 +152,12 @@ def test__Message__from_data__all_fields():
     vampytest.assert_eq(message.mentioned_users, tuple(mentioned_users))
     vampytest.assert_eq(message.nonce, nonce)
     vampytest.assert_eq(message.pinned, pinned)
+    vampytest.assert_eq(message.poll, poll)
     vampytest.assert_eq(message.reactions, reactions)
     vampytest.assert_eq(message.referenced_message, referenced_message)
     vampytest.assert_eq(message.resolved, resolved)
     vampytest.assert_eq(message.role_subscription, role_subscription)
+    vampytest.assert_eq(message.snapshots, tuple(snapshots))
     vampytest.assert_eq(message.stickers, tuple(stickers))
     vampytest.assert_eq(message.thread, thread)
     vampytest.assert_eq(message.tts, tts)
@@ -256,12 +271,19 @@ def test__Message__to_data():
     message_type = MessageType.inline_reply
     nonce = 'Sakuya'
     pinned = True
-    reactions = ReactionMapping({
-        BUILTIN_EMOJIS['x']: [None, None],
-    })
+    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    reactions = ReactionMapping(
+        lines = {
+            Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
+        },
+    )
     referenced_message = Message.precreate(202310110022, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110023)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    snapshots = [
+        MessageSnapshot(content = 'Kazami'),
+        MessageSnapshot(content = 'Yuuka'),
+    ]
     stickers = [
         Sticker.precreate(202310110024, name = 'Kirisame'),
         Sticker.precreate(202310110025, name = 'Marisa'),
@@ -286,17 +308,19 @@ def test__Message__to_data():
         'call': call.to_data(defaults = True),
         'channel_id': str(channel_id),
         'edited_timestamp': datetime_to_timestamp(edited_at),
-        'interaction': interaction.to_data(defaults = True, include_internals = True),
+        'interaction_metadata': interaction.to_data(defaults = True, include_internals = True),
         'mention_channels': [create_partial_channel_data(channel) for channel in mentioned_channels_cross_guild],
         'mention_everyone': mentioned_everyone,
         'mention_roles': [str(role_id) for role_id in mentioned_role_ids],
         'mentions': [user.to_data(defaults = True, include_internals = True) for user in mentioned_users],
         'pinned': pinned,
+        'poll': poll.to_data(defaults = True, include_internals = True),
         'reactions': reactions.to_data(),
         'referenced_message': referenced_message.to_data(defaults = True, include_internals = True, recursive = False),
         'message_reference': referenced_message.to_message_reference_data(),
         'resolved': resolved.to_data(defaults = True),
         'role_subscription_data': role_subscription.to_data(defaults = True),
+        'message_snapshots': [snapshots.to_data(defaults = True) for snapshots in snapshots],
         'sticker_items': [create_partial_sticker_data(sticker) for sticker in stickers],
         'thread': thread.to_data(defaults = True, include_internals = True),
         'type': message_type.value,
@@ -333,10 +357,12 @@ def test__Message__to_data():
         message_type = message_type,
         nonce = nonce,
         pinned = pinned,
+        poll = poll,
         reactions = reactions,
         referenced_message = referenced_message,
         resolved = resolved,
         role_subscription = role_subscription,
+        snapshots = snapshots,
         stickers = stickers,
         thread = thread,
         tts = tts,
@@ -604,7 +630,7 @@ def test__message__late_init__not_loading_but_receiving_interaction():
     input_data = {
         'id': str(message_id),
         'call': call.to_data(),
-        'interaction': interaction.to_data(include_internals = True),
+        'interaction_metadata': interaction.to_data(include_internals = True),
     }
     
     message._late_init(input_data)
@@ -646,6 +672,7 @@ def test__Message__difference_update_attributes():
         User.precreate(202305030088, name = 'Izaoyi'),
     ]
     old_pinned = True
+    old_poll = Poll(expires_at = DateTime(2016, 5, 14))
     old_resolved = Resolved(attachments = [Attachment.precreate(202310140050)])
     
     new_attachments = [
@@ -675,6 +702,7 @@ def test__Message__difference_update_attributes():
         User.precreate(202305030096, name = 'Lapislazuli'),
     ]
     new_pinned = False
+    new_poll = Poll(expires_at = DateTime(2016, 5, 15))
     new_resolved = Resolved(attachments = [Attachment.precreate(202310140051)])
     
     
@@ -694,6 +722,7 @@ def test__Message__difference_update_attributes():
         mentioned_role_ids = old_mentioned_role_ids,
         mentioned_users = old_mentioned_users,
         pinned = old_pinned,
+        poll = old_poll,
         resolved = old_resolved,
     )
     
@@ -706,6 +735,7 @@ def test__Message__difference_update_attributes():
         'embeds': [embed.to_data() for embed in new_embeds],
         'flags': int(new_flags),
         'pinned': new_pinned,
+        'poll': new_poll.to_data(include_internals = True),
         'mention_channels': [create_partial_channel_data(channel) for channel in new_mentioned_channels_cross_guild],
         'mention_everyone': new_mentioned_everyone,
         'mention_roles': [str(role_id) for role_id in new_mentioned_role_ids],
@@ -727,6 +757,7 @@ def test__Message__difference_update_attributes():
     vampytest.assert_eq(message.mentioned_role_ids, tuple(new_mentioned_role_ids))
     vampytest.assert_eq(message.mentioned_users, tuple(new_mentioned_users))
     vampytest.assert_eq(message.pinned, new_pinned)
+    vampytest.assert_eq(message.poll, new_poll)
     vampytest.assert_eq(message.resolved, new_resolved)
     
     expected_output = {
@@ -742,6 +773,7 @@ def test__Message__difference_update_attributes():
         'mentioned_role_ids': tuple(old_mentioned_role_ids),
         'mentioned_users': tuple(old_mentioned_users),
         'pinned': old_pinned,
+        'poll': PollChange.from_fields(None, PollUpdate.from_fields(new_poll, {'expires_at': DateTime(2016, 5, 14)}), None),
         'resolved': old_resolved,
     }
     
@@ -809,6 +841,7 @@ def test__Message__update_attributes():
         User.precreate(202305030105, name = 'Izaoyi'),
     ]
     old_pinned = True
+    old_poll = Poll(expires_at = DateTime(2016, 5, 14))
     old_resolved = Resolved(attachments = [Attachment.precreate(202310140052)])
     
     new_attachments = [
@@ -838,6 +871,7 @@ def test__Message__update_attributes():
         User.precreate(202305030113, name = 'Lapislazuli'),
     ]
     new_pinned = False
+    new_poll = Poll(expires_at = DateTime(2016, 5, 15))
     new_resolved = Resolved(attachments = [Attachment.precreate(202310140053)])
     
     
@@ -857,6 +891,7 @@ def test__Message__update_attributes():
         mentioned_role_ids = old_mentioned_role_ids,
         mentioned_users = old_mentioned_users,
         pinned = old_pinned,
+        poll = old_poll,
         resolved = old_resolved,
     )
     
@@ -869,6 +904,7 @@ def test__Message__update_attributes():
         'embeds': [embed.to_data() for embed in new_embeds],
         'flags': int(new_flags),
         'pinned': new_pinned,
+        'poll': new_poll.to_data(include_internals = True),
         'mention_channels': [create_partial_channel_data(channel) for channel in new_mentioned_channels_cross_guild],
         'mention_everyone': new_mentioned_everyone,
         'mention_roles': [str(role_id) for role_id in new_mentioned_role_ids],
@@ -890,6 +926,7 @@ def test__Message__update_attributes():
     vampytest.assert_eq(message.mentioned_role_ids, tuple(new_mentioned_role_ids))
     vampytest.assert_eq(message.mentioned_users, tuple(new_mentioned_users))
     vampytest.assert_eq(message.pinned, new_pinned)
+    vampytest.assert_eq(message.poll, new_poll)
     vampytest.assert_eq(message.resolved, new_resolved)
     
 
@@ -940,6 +977,7 @@ def test__Message__update_content_fields():
         Embed('Yakumo'),
         Embed('Yukari'),
     ]
+    old_poll = Poll(expires_at = DateTime(2016, 5, 14))
     
     new_attachments = [
         Attachment.precreate(202305030123, name = 'Yuuka'),
@@ -954,6 +992,7 @@ def test__Message__update_content_fields():
         Embed('Kokoro'),
         Embed('Keine'),
     ]
+    new_poll = Poll(expires_at = DateTime(2016, 5, 15))
     
     
     message_id = 202305030125
@@ -964,6 +1003,7 @@ def test__Message__update_content_fields():
         components = old_components,
         content = old_content,
         embeds = old_embeds,
+        poll = old_poll,
     )
     
     input_data = {
@@ -971,6 +1011,7 @@ def test__Message__update_content_fields():
         'components': [component.to_data() for component in new_components],
         'content': new_content,
         'embeds': [embed.to_data() for embed in new_embeds],
+        'poll': new_poll.to_data(include_internals = True),
     }
     
     message._update_content_fields(input_data)
@@ -979,6 +1020,7 @@ def test__Message__update_content_fields():
     vampytest.assert_eq(message.components, tuple(new_components))
     vampytest.assert_eq(message.content, new_content)
     vampytest.assert_eq(message.embeds, tuple(new_embeds))
+    vampytest.assert_eq(message.poll, new_poll)
     
 
 def test__Message__update_content_fields__caching():

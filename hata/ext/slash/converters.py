@@ -9,11 +9,13 @@ from ...discord.application_command import (
     ApplicationCommandOption, ApplicationCommandOptionChoice, ApplicationCommandOptionType
 )
 from ...discord.application_command.application_command.constants import (
-    APPLICATION_COMMAND_DESCRIPTION_LENGTH_MAX, APPLICATION_COMMAND_DESCRIPTION_LENGTH_MIN,
-    APPLICATION_COMMAND_OPTIONS_MAX
+    DESCRIPTION_LENGTH_MAX as APPLICATION_COMMAND_DESCRIPTION_LENGTH_MAX,
+    DESCRIPTION_LENGTH_MIN as APPLICATION_COMMAND_DESCRIPTION_LENGTH_MIN,
+    OPTIONS_MAX as APPLICATION_COMMAND_OPTIONS_MAX
 )
 from ...discord.application_command.application_command_option_metadata.constants import (
-    APPLICATION_COMMAND_OPTION_MAX_LENGTH_DEFAULT, APPLICATION_COMMAND_OPTION_MIN_LENGTH_DEFAULT
+    MAX_LENGTH_DEFAULT as APPLICATION_COMMAND_OPTION_MAX_LENGTH_DEFAULT,
+    MIN_LENGTH_DEFAULT as APPLICATION_COMMAND_OPTION_MIN_LENGTH_DEFAULT
 )
 from ...discord.application_command.application_command_option_metadata.fields import (
     validate_max_length, validate_min_length
@@ -2953,7 +2955,7 @@ class SlashCommandParameterConverter(ParameterConverter):
             self.name,
             value,
             ANNOTATION_TYPE_TO_REPRESENTATION.get(self.type, '???'),
-            None if choices is None else list(choices.keys()),
+            None if choices is None else [*choices.keys()],
         )
     
     @copy_docs(ParameterConverter.__repr__)

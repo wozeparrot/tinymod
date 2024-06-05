@@ -513,8 +513,9 @@ def preinstanced_array_validator_factory(field_name, preinstanced_type, *, inclu
         
         if getattr(preinstanced_array, '__iter__', None) is None:
             raise TypeError(
-                f'{field_name} can be `None` or `iterable`, got '
-                f'{preinstanced_array.__class__.__name__}; {preinstanced_array!r}.'
+                f'`{field_name}` can be `None`, `{preinstanced_type.__name__}`, '
+                f'`{preinstanced_type.VALUE_TYPE.__name__}`, or `iterable`, got '
+                f'{type(preinstanced_array).__name__}; {preinstanced_array!r}.'
             )
         
         unique_elements = None
@@ -530,7 +531,7 @@ def preinstanced_array_validator_factory(field_name, preinstanced_type, *, inclu
                 raise TypeError(
                     f'`{field_name}` elements can be `{preinstanced_type.__name__}`, '
                     f'`{preinstanced_type.VALUE_TYPE.__name__}`, '
-                    f'got {preinstanced.__class__.__name__}; {preinstanced!r}.'
+                    f'got {type(preinstanced).__name__}; {preinstanced!r}.'
                 )
             
             if unique_elements is None:
@@ -1477,7 +1478,7 @@ def nullable_entity_set_validator_factory(field_name, entity_type, *, include = 
             if not isinstance(entity, entity_type):
                 raise TypeError(
                     f'`{field_name}` can contain `{entity_type.__name__}` elements, got '
-                    f'{entity.__class__.__name__}; {entity!r}; entity_array = {entity_array!r}.'
+                    f'{entity.__class__.__name__}; {entity!r}; {field_name!s} = {entity_array!r}.'
                 )
             
             if (entity_set_processed is None):

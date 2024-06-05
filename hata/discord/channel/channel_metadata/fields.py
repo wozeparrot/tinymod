@@ -3,7 +3,7 @@ __all__ = ()
 from scarletio import include
 
 from ...bases import maybe_snowflake
-from ...emoji import Emoji, create_emoji_from_exclusive_data, put_exclusive_emoji_data_into
+from ...emoji import Emoji, create_emoji_from_exclusive_inline_data, put_exclusive_emoji_inline_data_into
 from ...field_parsers import (
     bool_parser_factory, entity_id_array_parser_factory, entity_id_parser_factory, flag_parser_factory,
     force_string_parser_factory, int_parser_factory, int_postprocess_parser_factory,
@@ -65,9 +65,8 @@ def parse_archived(data):
     -------
     archived : `bool`
     """
-    try:
-        sub_data = data['thread_metadata']
-    except KeyError:
+    sub_data = data.get('thread_metadata', None)
+    if sub_data is None:
         archived = False
     else:
         archived = sub_data.get('archived', False)
@@ -121,9 +120,8 @@ def parse_archived_at(data):
     -------
     archived_at : `int`
     """
-    try:
-        sub_data = data['thread_metadata']
-    except KeyError:
+    sub_data = data.get('thread_metadata', None)
+    if sub_data is None:
         archived_at = None
     else:
         archived_at_timestamp = sub_data.get('archive_timestamp', None)
@@ -186,9 +184,8 @@ def parse_auto_archive_after(data):
     -------
     auto_archive_after : `int`
     """
-    try:
-        sub_data = data['thread_metadata']
-    except KeyError:
+    sub_data = data.get('thread_metadata', None)
+    if sub_data is None:
         auto_archive_after = AUTO_ARCHIVE_DEFAULT
     else:
         auto_archive_after = sub_data.get('auto_archive_duration', None)
@@ -269,9 +266,8 @@ def parse_created_at(data):
     -------
     created_at : `int`
     """
-    try:
-        sub_data = data['thread_metadata']
-    except KeyError:
+    sub_data = data.get('thread_metadata', None)
+    if sub_data is None:
         created_at = None
     else:
         created_at_timestamp = sub_data.get('create_timestamp', None)
@@ -366,7 +362,7 @@ def parse_default_thread_reaction_emoji(data):
     if (default_thread_reaction_emoji_data is None):
         default_thread_reaction_emoji = None
     else:
-        default_thread_reaction_emoji = create_emoji_from_exclusive_data(default_thread_reaction_emoji_data)
+        default_thread_reaction_emoji = create_emoji_from_exclusive_inline_data(default_thread_reaction_emoji_data)
     
     return default_thread_reaction_emoji
 
@@ -392,7 +388,7 @@ def put_default_thread_reaction_emoji_into(default_thread_reaction_emoji, data, 
         if default_thread_reaction_emoji is None:
             emoji_data = None
         else:
-            emoji_data = put_exclusive_emoji_data_into(default_thread_reaction_emoji, {})
+            emoji_data = put_exclusive_emoji_inline_data_into(default_thread_reaction_emoji, {})
         
         data['default_reaction_emoji'] = emoji_data
     
@@ -439,9 +435,8 @@ def parse_invitable(data):
     -------
     invitable : `bool`
     """
-    try:
-        sub_data = data['thread_metadata']
-    except KeyError:
+    sub_data = data.get('thread_metadata', None)
+    if sub_data is None:
         invitable = True
     else:
         invitable = sub_data.get('invitable', True)
@@ -513,9 +508,8 @@ def parse_open(data):
     -------
     open_ : `bool`
     """
-    try:
-        sub_data = data['thread_metadata']
-    except KeyError:
+    sub_data = data.get('thread_metadata', None)
+    if sub_data is None:
         open_ = True
     else:
         open_ = not sub_data.get('locked', False)
@@ -784,7 +778,7 @@ def validate_users(users):
     
     Parameters
     ----------
-    users : `iterable` of (``ClientUserBase``, `int`)
+    users : `iterable` of (``ClientUserBase`` | `int`)
         The users in the channel.
     
     Returns
@@ -796,10 +790,13 @@ def validate_users(users):
     TypeError
         - If `users` is not `list` of (``ClientUserBase``, `int`).
     """
+    if users is None:
+        return []
+    
     if (getattr(users, '__iter__', None) is None):
         raise TypeError(
-            f'`users` can be `None`, `iterable` of (`int`, `{ClientUserBase.__name__}`), '
-            f'got {users.__class__.__name__}; {users!r}.'
+            f'`users` can be `None`, `iterable` of (`int` | `{ClientUserBase.__name__}`), '
+            f'got {type(users).__name__}; {users!r}.'
         )
     
     users_processed = set()
@@ -810,7 +807,7 @@ def validate_users(users):
             if user_id is None:
                 raise TypeError(
                     f'`users` can contain `int`, `{ClientUserBase.__name__}` elements, got '
-                    f'{user.__class__.__name__}; {user!r}; users={users!r}.'
+                    f'{type(user).__name__}; {user!r}; users = {users!r}.'
                 )
             
             user = create_partial_user_from_id(user_id)

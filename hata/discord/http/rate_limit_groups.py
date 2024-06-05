@@ -118,6 +118,12 @@ Shared Groups
     - Limit : `5`
     - Resets after : `5.0`
 
+- GROUP_ENTITLEMENT_ACTION
+    - Used by : `entitlement_create`, `entitlement_delete`, `entitlement_consume``
+    - Limiter : `GLOBAL`
+    - Limit : `6`
+    - Resets after : `5.0`
+
 Group Details
 -----------
 - oauth2_token
@@ -253,19 +259,27 @@ Group Details
 
 - entitlement_create
     - Endpoint : `/applications/{application_id}/entitlements`
-    - Method : `PUT`
+    - Method : `POST`
     - Required auth : `bot`
     - Limiter : `GLOBAL`
-    - Limit : `UN`
-    - Resets after : `UN`
+    - Limit : `6`
+    - Resets after : `5.0`
 
 - entitlement_delete
     - Endpoint : `/applications/{application_id}/entitlements/{entitlement_id}`
     - Method : `DELETE`
     - Required auth : `bot`
     - Limiter : `GLOBAL`
-    - Limit : `UN`
-    - Resets after : `UN`
+    - Limit : `6`
+    - Resets after : `5.0`
+
+- entitlement_consume
+    - Endpoint : `/applications/{application_id}/entitlements/{entitlement_id}/consume`
+    - Method : `POST`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `6`
+    - Resets after : `5.0`
 
 - application_command_guild_get_all
     - Endpoint : `/applications/{application_id}/guilds/{guild_id}/commands`
@@ -414,14 +428,6 @@ Group Details
     - Limit : `OPT`
     - Resets after : `OPT`
     - Notes : Untested.
-
-- channel_edit_status
-    - Endpoint : `/channels/{channel_id}/voice-status`
-    - Method : `PUT`
-    - Required auth : `bot`
-    - Limiter : `UNLIMITED`
-    - Limit : `N/A`
-    - Resets after : `N/A`
 
 - channel_directory_counts
     - Endpoint : `/channels/{channel_id}/directory-entries/counts`
@@ -679,6 +685,23 @@ Group Details
     - Limit : `5`
     - Resets after : `4`
 
+- poll_result_user_get_chunk
+    - Endpoint : `/channels/{channel_id}/polls/{message_id}/answers/{answer_id}`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : `UNLIMITED`
+    - Limit : `N/A`
+    - Resets after : `N/A`
+
+- poll_finalize
+    - Endpoint : `/channels/{channel_id}/polls/{message_id}/expire`
+    - Method : `POST`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `1000`
+    - Resets after : `1.0`
+    - Notes : Assumably global.
+
 - channel_group_user_get_all
     - Endpoint : `/channels/{channel_id}/recipients/`
     - Method : `GET`
@@ -833,6 +856,14 @@ Group Details
 - channel_thread_get_chunk_self_archived
     - Endpoint : `/channels/{channel_id}/users/@me/threads/archived/private`
     - Method : `POST`
+    - Required auth : `bot`
+    - Limiter : `UNLIMITED`
+    - Limit : `N/A`
+    - Resets after : `N/A`
+
+- channel_edit_status
+    - Endpoint : `/channels/{channel_id}/voice-status`
+    - Method : `PUT`
     - Required auth : `bot`
     - Limiter : `UNLIMITED`
     - Limit : `N/A`
@@ -1006,25 +1037,36 @@ Group Details
     - Endpoint : `/guilds/{guild_id}/bans/{user_id}`
     - Method : `DELETE`
     - Required auth : `bot`
-    - Limiter : `guild_id`
-    - Limit : `OPT`
-    - Resets after : `OPT`
+    - Limiter : `GLOBAL`
+    - Limit : `1000`
+    - Resets after : `1.0`
+    - Notes : Assumably global.
 
 - guild_ban_get
     - Endpoint : `/guilds/{guild_id}/bans/{user_id}`
     - Method : `GET`
     - Required auth : `bot`
-    - Limiter : `guild_id`
-    - Limit : `OPT`
-    - Resets after : `OPT`
+    - Limiter : `GLOBAL`
+    - Limit : `1000`
+    - Resets after : `1.0`
+    - Notes : Assumably global.
 
 - guild_ban_add
     - Endpoint : `/guilds/{guild_id}/bans/{user_id}`
     - Method : `PUT`
     - Required auth : `bot`
-    - Limiter : `guild_id`
-    - Limit : `OPT`
-    - Resets after : `OPT`
+    - Limiter : `GLOBAL`
+    - Limit : `1000`
+    - Resets after : `1.0`
+    - Notes : Assumably global.
+
+- guild_ban_add_multiple
+    - Endpoint : `/guilds/{guild_id}/bulk-ban`
+    - Method : `POST`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `1`
+    - Resets after : `5.0`
 
 - guild_channel_get_all
     - Endpoint : `/guilds/{guild_id}/channels`
@@ -2094,6 +2136,7 @@ GROUP_APPLICATION_COMMAND_EDIT = RateLimitGroup()
 GROUP_PERMISSION_OVERWRITE_MODIFY = RateLimitGroup(LIMITER_CHANNEL)
 GROUP_THREAD_CREATE = RateLimitGroup()
 GROUP_THREAD_ACTION = RateLimitGroup()
+GROUP_ENTITLEMENT_ACTION = RateLimitGroup()
 
 oauth2_token = RateLimitGroup(optimistic = True)
 application_get = RateLimitGroup().unlimited()
@@ -2111,8 +2154,9 @@ application_command_global_update_multiple = RateLimitGroup()
 application_command_global_get = RateLimitGroup.unlimited()
 application_command_global_edit = RateLimitGroup()
 entitlement_get_chunk = RateLimitGroup.unlimited()
-entitlement_create = RateLimitGroup.unlimited()
-entitlement_delete = RateLimitGroup.unlimited()
+entitlement_create = GROUP_ENTITLEMENT_ACTION
+entitlement_delete = GROUP_ENTITLEMENT_ACTION
+entitlement_consume = GROUP_ENTITLEMENT_ACTION
 application_command_guild_get_all = RateLimitGroup.unlimited()
 application_command_guild_update_multiple = RateLimitGroup(LIMITER_GUILD)
 application_command_permission_get_all_guild = RateLimitGroup.unlimited()
@@ -2131,7 +2175,6 @@ channel_delete = RateLimitGroup.unlimited()
 channel_group_leave = RateLimitGroup.unlimited() # untested; same as channel_delete?
 channel_edit = RateLimitGroup(LIMITER_CHANNEL)
 channel_group_edit = RateLimitGroup(LIMITER_CHANNEL, optimistic = True) # untested; same as channel_edit?
-channel_edit_status = RateLimitGroup.unlimited()
 channel_directory_counts = RateLimitGroup(LIMITER_CHANNEL, optimistic = True) # untested; same as channel_edit?
 channel_directory_get_all = RateLimitGroup(LIMITER_CHANNEL, optimistic = True) # untested; same as channel_edit?
 channel_directory_search = RateLimitGroup(LIMITER_CHANNEL, optimistic = True) # untested; same as channel_edit?
@@ -2163,6 +2206,8 @@ channel_pin_get_all = RateLimitGroup()
 channel_pin_ack = RateLimitGroup(optimistic = True) # untested
 message_unpin = GROUP_PIN_MODIFY
 message_pin = GROUP_PIN_MODIFY
+poll_result_user_get_chunk = RateLimitGroup.unlimited()
+poll_finalize = RateLimitGroup()
 channel_group_user_get_all = RateLimitGroup(LIMITER_CHANNEL, optimistic = True) # untested
 channel_group_user_delete = RateLimitGroup(LIMITER_CHANNEL, optimistic = True) # untested
 channel_group_user_add = RateLimitGroup(LIMITER_CHANNEL, optimistic = True) # untested
@@ -2182,6 +2227,7 @@ channel_thread_get_chunk_active = RateLimitGroup.unlimited()
 channel_thread_get_chunk_archived_private = RateLimitGroup.unlimited()
 channel_thread_get_chunk_archived_public = RateLimitGroup.unlimited()
 channel_thread_get_chunk_self_archived = RateLimitGroup.unlimited()
+channel_edit_status = RateLimitGroup.unlimited()
 webhook_get_all_channel = RateLimitGroup(LIMITER_CHANNEL, optimistic = True)
 webhook_create = RateLimitGroup(LIMITER_CHANNEL, optimistic = True)
 discovery_category_get_all = RateLimitGroup()
@@ -2202,9 +2248,10 @@ auto_moderation_rule_get = RateLimitGroup()
 auto_moderation_rule_delete = RateLimitGroup()
 auto_moderation_rule_edit = RateLimitGroup()
 guild_ban_get_chunk = RateLimitGroup(LIMITER_GUILD)
-guild_ban_delete = RateLimitGroup(LIMITER_GUILD, optimistic = True)
-guild_ban_get = RateLimitGroup(LIMITER_GUILD, optimistic = True)
-guild_ban_add = RateLimitGroup(LIMITER_GUILD, optimistic = True)
+guild_ban_delete = RateLimitGroup()
+guild_ban_get = RateLimitGroup()
+guild_ban_add = RateLimitGroup()
+guild_ban_add_multiple = RateLimitGroup()
 guild_channel_get_all = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 channel_move = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 channel_create = RateLimitGroup(LIMITER_GUILD, optimistic = True)

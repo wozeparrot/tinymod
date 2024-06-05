@@ -2,14 +2,13 @@ __all__ = ('Slasher', )
 
 import warnings
 from datetime import datetime, timedelta
-from functools import partial as partial_func
 
 from scarletio import (
     RichAttributeErrorBaseType, Task, TaskGroup, WeakKeyDictionary, WeakReferer, copy_docs, export, run_coroutine
 )
 
 from ...discord.application_command import (
-    APPLICATION_COMMAND_CONTEXT_TARGET_TYPES, ApplicationCommand, ApplicationCommandTargetType
+    ApplicationCommand, ApplicationCommandTargetType, CONTEXT_TARGET_TYPES as APPLICATION_COMMAND_CONTEXT_TARGET_TYPES
 )
 from ...discord.client import Client
 from ...discord.client.request_helpers import get_guild_id

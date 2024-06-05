@@ -1,8 +1,6 @@
 __all__ = ('AuditLogEntryType', 'AuditLogEntryTargetType')
 
-from warnings import warn
-
-from scarletio import class_property, copy_docs, export
+from scarletio import copy_docs, export
 
 from ...bases import Preinstance as P, PreinstancedBase
 
@@ -495,9 +493,13 @@ class AuditLogEntryType(PreinstancedBase):
     +---------------------------------------+---------------------------------------+-------+-----------------------------------+
     | onboarding_screen_update              | onboarding screen update              | 167   | onboarding_screen                 |
     +---------------------------------------+---------------------------------------+-------+-----------------------------------+
-    | home_feature_item                     | home_feature_item                     | 171   | none                              |
+    | home_feature_item                     | home feature item                     | 171   | none                              |
     +---------------------------------------+---------------------------------------+-------+-----------------------------------+
-    | home_remove_item                      | home_remove_item                      | 172   | none                              |
+    | home_remove_item                      | home remove item                      | 172   | none                              |
+    +---------------------------------------+---------------------------------------+-------+-----------------------------------+
+    | home_screen_create                    | home screen create                    | 190   | none                              |
+    +---------------------------------------+---------------------------------------+-------+-----------------------------------+
+    | home_screen_update                    | home screen update                    | 191   | none                              |
     +---------------------------------------+---------------------------------------+-------+-----------------------------------+
     | channel_status_update                 | channel status update                 | 192   | channel                           |
     +---------------------------------------+---------------------------------------+-------+-----------------------------------+
@@ -624,9 +626,11 @@ class AuditLogEntryType(PreinstancedBase):
     onboarding_screen_create =  P(166,'onboarding screen create', AuditLogEntryTargetType.onboarding_screen)
     onboarding_screen_update =  P(167, 'onboarding screen update', AuditLogEntryTargetType.onboarding_screen)
     
-    home_feature_item = P(171, 'home_feature_item', AuditLogEntryTargetType.none)
-    home_remove_item = P(172, 'home_remove_item', AuditLogEntryTargetType.none)
+    home_feature_item = P(171, 'home feature item', AuditLogEntryTargetType.none)
+    home_remove_item = P(172, 'home remove item', AuditLogEntryTargetType.none)
     
+    home_screen_create = P(190, 'home screen create', AuditLogEntryTargetType.none)
+    home_screen_update = P(191, 'home screen update', AuditLogEntryTargetType.none)
     channel_status_update = P(192, 'channel status update', AuditLogEntryTargetType.channel)
     channel_status_delete = P(193, 'channel status delete', AuditLogEntryTargetType.channel)
     
@@ -670,145 +674,9 @@ class AuditLogEntryType(PreinstancedBase):
     @copy_docs(PreinstancedBase.__repr__)
     def __repr__(self):
         return (
-            f'<{self.__class__.__name__} '
+            f'{type(self).__name__} '
             f'name = {self.name!r}, '
             f'value = {self.value!r}, '
             f'target_type = {self.target_type.name!r}'
             '>'
         )
-    
-    
-    @class_property
-    def member_kick(cls):
-        """
-        Deprecated and will be removed in 2023 August. Please use `.member_kick` instead.
-        """
-        warn(
-            (
-                f'`{cls.__name__}.member_kick` is deprecated and will be removed in 2024 March. '
-                f'Please use `.user_kick` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 3,
-        )
-        
-        return cls.user_kick
-    
-    
-    @class_property
-    def member_prune(cls):
-        """
-        Deprecated and will be removed in 2023 August. Please use `.member_prune` instead.
-        """
-        warn(
-            (
-                f'`{cls.__name__}.member_prune` is deprecated and will be removed in 2024 March. '
-                f'Please use `.user_prune` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 3,
-        )
-        
-        return cls.user_prune
-
-
-    @class_property
-    def member_ban_add(cls):
-        """
-        Deprecated and will be removed in 2023 August. Please use `.member_ban_add` instead.
-        """
-        warn(
-            (
-                f'`{cls.__name__}.member_ban_add` is deprecated and will be removed in 2024 March. '
-                f'Please use `.user_ban_add` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 3,
-        )
-        
-        return cls.user_ban_add
-
-
-    @class_property
-    def member_ban_remove(cls):
-        """
-        Deprecated and will be removed in 2023 August. Please use `.member_ban_remove` instead.
-        """
-        warn(
-            (
-                f'`{cls.__name__}.member_ban_remove` is deprecated and will be removed in 2024 March. '
-                f'Please use `.user_ban_remove` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 3,
-        )
-        
-        return cls.user_ban_remove
-
-
-    @class_property
-    def member_update(cls):
-        """
-        Deprecated and will be removed in 2023 August. Please use `.member_update` instead.
-        """
-        warn(
-            (
-                f'`{cls.__name__}.member_update` is deprecated and will be removed in 2024 March. '
-                f'Please use `.user_update` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 3,
-        )
-        
-        return cls.user_update
-
-
-    @class_property
-    def member_role_update(cls):
-        """
-        Deprecated and will be removed in 2023 August. Please use `.member_role_update` instead.
-        """
-        warn(
-            (
-                f'`{cls.__name__}.member_role_update` is deprecated and will be removed in 2024 March. '
-                f'Please use `.user_role_update` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 3,
-        )
-        
-        return cls.user_role_update
-
-
-    @class_property
-    def member_move(cls):
-        """
-        Deprecated and will be removed in 2023 August. Please use `.member_move` instead.
-        """
-        warn(
-            (
-                f'`{cls.__name__}.member_move` is deprecated and will be removed in 2024 March. '
-                f'Please use `.user_move` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 3,
-        )
-        
-        return cls.user_move
-
-
-    @class_property
-    def member_disconnect(cls):
-        """
-        Deprecated and will be removed in 2023 August. Please use `.user_disconnect` instead.
-        """
-        warn(
-            (
-                f'`{cls.__name__}.member_disconnect` is deprecated and will be removed in 2024 March. '
-                f'Please use `.user_disconnect` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 3,
-        )
-        
-        return cls.user_disconnect
