@@ -5,9 +5,10 @@ import vampytest
 from ....channel import Channel, ChannelType
 from ....component import Component, ComponentType
 from ....core import BUILTIN_EMOJIS
-from ....embed import Embed
-from ....emoji import ReactionMapping
+from ....embed import EmbedAuthor, Embed, EmbedField, EmbedFooter, EmbedProvider
+from ....emoji import Reaction, ReactionMapping, ReactionMappingLine, ReactionType
 from ....interaction import Resolved
+from ....poll import Poll, PollAnswer, PollQuestion
 from ....sticker import Sticker
 from ....user import User
 
@@ -17,6 +18,7 @@ from ...message_application import MessageApplication
 from ...message_call import MessageCall
 from ...message_interaction import MessageInteraction
 from ...message_role_subscription import MessageRoleSubscription
+from ...message_snapshot import MessageSnapshot
 
 from ..flags import MessageFlag
 from ..message import Message
@@ -61,12 +63,19 @@ def test__Message__repr():
     message_type = MessageType.call
     nonce = 'Sakuya'
     pinned = True
-    reactions = ReactionMapping({
-        BUILTIN_EMOJIS['x']: [None, None],
-    })
+    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    reactions = ReactionMapping(
+        lines = {
+            Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
+        },
+    )
     referenced_message = Message.precreate(202305040032, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110030)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    snapshots = [
+        MessageSnapshot(content = 'Kazami'),
+        MessageSnapshot(content = 'Yuuka'),
+    ]
     stickers = [
         Sticker.precreate(202305040033, name = 'Kirisame'),
         Sticker.precreate(202305040034, name = 'Marisa'),
@@ -94,10 +103,12 @@ def test__Message__repr():
         'message_type': message_type,
         'nonce': nonce,
         'pinned': pinned,
+        'poll': poll,
         'reactions': reactions,
         'referenced_message': referenced_message,
         'resolved': resolved,
         'role_subscription': role_subscription,
+        'snapshots': snapshots,
         'stickers': stickers,
         'thread': thread,
         'tts': tts,
@@ -161,12 +172,19 @@ def test__Message__hash():
     message_type = MessageType.call
     nonce = 'Sakuya'
     pinned = True
-    reactions = ReactionMapping({
-        BUILTIN_EMOJIS['x']: [None, None],
-    })
+    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    reactions = ReactionMapping(
+        lines = {
+            Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
+        },
+    )
     referenced_message = Message.precreate(202305040050, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110031)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    snapshots = [
+        MessageSnapshot(content = 'Kazami'),
+        MessageSnapshot(content = 'Yuuka'),
+    ]
     stickers = [
         Sticker.precreate(202305040051, name = 'Kirisame'),
         Sticker.precreate(202305040052, name = 'Marisa'),
@@ -194,10 +212,12 @@ def test__Message__hash():
         'message_type': message_type,
         'nonce': nonce,
         'pinned': pinned,
+        'poll': poll,
         'reactions': reactions,
         'referenced_message': referenced_message,
         'resolved': resolved,
         'role_subscription': role_subscription,
+        'snapshots': snapshots,
         'stickers': stickers,
         'thread': thread,
         'tts': tts,
@@ -245,161 +265,13 @@ def test__Message__format():
         format(message, 'pepe')
 
 
-def test__Message__eq():
+def test__Message__eq__same():
     """
     Tests whether ``Message.__eq__`` works as intended.
+    
+    Case: same.
     """
-    old_activity = MessageActivity(party_id = 'Remilia')
-    old_application = MessageApplication.precreate(202305040060, name = 'Flandre')
-    old_application_id = 202305040061
-    old_attachments = [
-        Attachment.precreate(202305040062, name = 'Koishi'),
-        Attachment.precreate(202305040063, name = 'Komeiji'),
-    ]
-    old_author = User.precreate(202305040064, name = 'Orin')
-    old_call = MessageCall(ended_at = DateTime(2045, 3, 4))
-    old_components = [
-        Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
-        Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
-    ]
-    old_content = 'Satori'
-    old_edited_at = DateTime(2016, 5, 14)
-    old_embeds = [
-        Embed('Yakumo'),
-        Embed('Yukari'),
-    ]
-    old_flags = MessageFlag(15)
-    old_interaction = MessageInteraction.precreate(202305040065, name = 'Ran')
-    old_mentioned_channels_cross_guild = [
-        Channel.precreate(202305040066, channel_type = ChannelType.guild_text, name = 'Chen'),
-        Channel.precreate(202305040067, channel_type = ChannelType.guild_text, name = 'Yuugi'),
-    ]
-    old_mentioned_everyone = True
-    old_mentioned_role_ids = [202305040068, 202305040069]
-    old_mentioned_users = [
-        User.precreate(202305040070, name = 'Scarlet'),
-        User.precreate(202305040071, name = 'Izaoyi'),
-    ]
-    old_message_type = MessageType.call
-    old_nonce = 'Sakuya'
-    old_pinned = True
-    old_reactions = ReactionMapping({
-        BUILTIN_EMOJIS['x']: [None, None],
-    })
-    old_referenced_message = Message.precreate(202305040072, content = 'Patchouli')
-    old_resolved = Resolved(attachments = [Attachment.precreate(202310110032)])
-    old_role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
-    old_stickers = [
-        Sticker.precreate(202305040073, name = 'Kirisame'),
-        Sticker.precreate(202305040074, name = 'Marisa'),
-    ]
-    old_thread = Channel.precreate(202305040075, channel_type = ChannelType.guild_thread_private, name = 'Yuyuko')
-    old_tts = True
-    
-    new_activity = MessageActivity(party_id = 'Best girl')
-    new_application = MessageApplication.precreate(202305040076, name = 'Christmas tree')
-    new_application_id = 202305040077
-    new_attachments = [
-        Attachment.precreate(202305040078, name = 'Closed eye'),
-        Attachment.precreate(202305040079, name = 'Satoris'),
-    ]
-    new_author = User.precreate(202305040080, name = 'Dancing')
-    new_call = MessageCall(ended_at = DateTime(2045, 5, 4))
-    new_components = [
-        Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Nuclear bird')]),
-        Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Green hell')]),
-    ]
-    new_content = 'Open eye'
-    new_edited_at = DateTime(2016, 6, 14)
-    new_embeds = [
-        Embed('Old hag and pets'),
-        Embed('Old hag'),
-    ]
-    new_flags = MessageFlag(12)
-    new_interaction = MessageInteraction.precreate(202305040081, name = 'Old pet')
-    new_mentioned_channels_cross_guild = [
-        Channel.precreate(202305040082, channel_type = ChannelType.guild_text, name = 'Cat'),
-        Channel.precreate(202305040083, channel_type = ChannelType.guild_text, name = 'One horned'),
-    ]
-    new_mentioned_everyone = False
-    new_mentioned_role_ids = [202305040084, 202305040085]
-    new_mentioned_users = [
-        User.precreate(202305040086, name = 'Vampires'),
-        User.precreate(202305040087, name = 'Love shop'),
-    ]
-    new_message_type = MessageType.user_add
-    new_nonce = 'Maid'
-    new_pinned = False
-    new_reactions = ReactionMapping({
-        BUILTIN_EMOJIS['heart']: [None],
-    })
-    new_referenced_message = Message.precreate(202305040088, content = 'Book')
-    new_resolved = Resolved(attachments = [Attachment.precreate(202310110033)])
-    new_role_subscription = MessageRoleSubscription(tier_name = 'Big brain')
-    new_stickers = [
-        Sticker.precreate(202305040089, name = 'Magic'),
-        Sticker.precreate(202305040090, name = 'Witch'),
-    ]
-    new_thread = Channel.precreate(202305040091, channel_type = ChannelType.guild_thread_private, name = 'Hungry')
-    new_tts = False
-    
-    keyword_parameters = {
-        'activity': old_activity,
-        'application': old_application,
-        'application_id': old_application_id,
-        'attachments': old_attachments,
-        'author': old_author,
-        'call': old_call,
-        'components': old_components,
-        'content': old_content,
-        'edited_at': old_edited_at,
-        'embeds': old_embeds,
-        'flags': old_flags,
-        'interaction': old_interaction,
-        'mentioned_channels_cross_guild': old_mentioned_channels_cross_guild,
-        'mentioned_everyone': old_mentioned_everyone,
-        'mentioned_role_ids': old_mentioned_role_ids,
-        'mentioned_users': old_mentioned_users,
-        'message_type': old_message_type,
-        'nonce': old_nonce,
-        'pinned': old_pinned,
-        'reactions': old_reactions,
-        'referenced_message': old_referenced_message,
-        'resolved': old_resolved,
-        'role_subscription': old_role_subscription,
-        'stickers': old_stickers,
-        'thread': old_thread,
-        'tts': old_tts,
-    }
-    
-    new_fields = (
-        ('activity', new_activity),
-        ('application', new_application),
-        ('application_id', new_application_id),
-        ('attachments', new_attachments),
-        ('author', new_author),
-        ('call', new_call),
-        ('components', new_components),
-        ('content', new_content),
-        ('edited_at', new_edited_at),
-        ('embeds', new_embeds),
-        ('flags', new_flags),
-        ('interaction', new_interaction),
-        ('mentioned_channels_cross_guild', new_mentioned_channels_cross_guild),
-        ('mentioned_everyone', new_mentioned_everyone),
-        ('mentioned_role_ids', new_mentioned_role_ids),
-        ('mentioned_users', new_mentioned_users),
-        ('message_type', new_message_type),
-        ('nonce', new_nonce),
-        ('pinned', new_pinned),
-        ('reactions', new_reactions),
-        ('referenced_message', new_referenced_message),
-        ('resolved', new_resolved),
-        ('role_subscription', new_role_subscription),
-        ('stickers', new_stickers),
-        ('thread', new_thread),
-        ('tts', new_tts),
-    )
+    content = 'miau'
     
     message_id = 202305040092
     channel_id = 202305040093
@@ -409,16 +281,523 @@ def test__Message__eq():
         message_id,
         channel_id = channel_id,
         guild_id = guild_id,
-        **keyword_parameters,
+        content = content,
     )
     
-    vampytest.assert_eq(message, message)
-    vampytest.assert_ne(message, object())
+    output = message == message
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, True)
+
+
+def test__Message__eq__partial_comparison():
+    """
+    Tests whether ``Message.__eq__`` works as intended.
     
-    test_message = Message(**keyword_parameters)
+    Case: partial comparison.
+    """
+    content = 'miau'
     
-    vampytest.assert_eq(message, test_message)
+    message_id = 202305040200
+    channel_id = 202305040202
+    guild_id = 2023050402003
     
-    for field_name, field_value in new_fields:
-        test_message = Message(**{**keyword_parameters, field_name: field_value})
-        vampytest.assert_ne(message, test_message)
+    message_0 = Message.precreate(
+        message_id,
+        channel_id = channel_id,
+        guild_id = guild_id,
+        content = content,
+    )
+    
+    message_1 = Message(
+        content = content,
+    )
+    
+    output = message_0 == message_1
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, True)
+
+
+def _iter_options__eq__different_type():
+    yield object(), False
+
+
+@vampytest._(vampytest.call_from(_iter_options__eq__different_type()).returning_last())
+def test__Message__eq__different_type(other):
+    """
+    Tests whether ``Message.__eq__`` works as intended.
+    
+    Case: different type.
+    
+    Parameters
+    ----------
+    other : `object`
+        Other object to compare to.
+    
+    Returns
+    -------
+    output : `bool`
+    """
+    message = Message()
+    output = message == other
+    vampytest.assert_instance(output, bool)
+    return output
+
+
+def _iter_options__eq__same_type():
+    activity = MessageActivity(party_id = 'Remilia')
+    application = MessageApplication.precreate(202305040060, name = 'Flandre')
+    application_id = 202305040061
+    attachments = [
+        Attachment.precreate(202305040062, name = 'Koishi'),
+        Attachment.precreate(202305040063, name = 'Komeiji'),
+    ]
+    author = User.precreate(202305040064, name = 'Orin')
+    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    components = [
+        Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
+        Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
+    ]
+    content = 'Satori'
+    edited_at = DateTime(2016, 5, 14)
+    embeds = [
+        Embed('Yakumo'),
+        Embed('Yukari'),
+    ]
+    flags = MessageFlag(15)
+    interaction = MessageInteraction.precreate(202305040065, name = 'Ran')
+    mentioned_channels_cross_guild = [
+        Channel.precreate(202305040066, channel_type = ChannelType.guild_text, name = 'Chen'),
+        Channel.precreate(202305040067, channel_type = ChannelType.guild_text, name = 'Yuugi'),
+    ]
+    mentioned_everyone = True
+    mentioned_role_ids = [202305040068, 202305040069]
+    mentioned_users = [
+        User.precreate(202305040070, name = 'Scarlet'),
+        User.precreate(202305040071, name = 'Izaoyi'),
+    ]
+    message_type = MessageType.call
+    nonce = 'Sakuya'
+    pinned = True
+    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    reactions = ReactionMapping(
+        lines = {
+            Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
+        },
+    )
+    referenced_message = Message.precreate(202305040072, content = 'Patchouli')
+    resolved = Resolved(attachments = [Attachment.precreate(202310110032)])
+    role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    snapshots = [
+        MessageSnapshot(content = 'Kazami'),
+        MessageSnapshot(content = 'Yuuka'),
+    ]
+    stickers = [
+        Sticker.precreate(202305040073, name = 'Kirisame'),
+        Sticker.precreate(202305040074, name = 'Marisa'),
+    ]
+    thread = Channel.precreate(202305040075, channel_type = ChannelType.guild_thread_private, name = 'Yuyuko')
+    tts = True
+    
+    keyword_parameters = {
+        'activity': activity,
+        'application': application,
+        'application_id': application_id,
+        'attachments': attachments,
+        'author': author,
+        'call': call,
+        'components': components,
+        'content': content,
+        'edited_at': edited_at,
+        'embeds': embeds,
+        'flags': flags,
+        'interaction': interaction,
+        'mentioned_channels_cross_guild': mentioned_channels_cross_guild,
+        'mentioned_everyone': mentioned_everyone,
+        'mentioned_role_ids': mentioned_role_ids,
+        'mentioned_users': mentioned_users,
+        'message_type': message_type,
+        'nonce': nonce,
+        'pinned': pinned,
+        'poll': poll,
+        'reactions': reactions,
+        'referenced_message': referenced_message,
+        'resolved': resolved,
+        'role_subscription': role_subscription,
+        'snapshots': snapshots,
+        'stickers': stickers,
+        'thread': thread,
+        'tts': tts,
+    }
+    
+    yield (
+        keyword_parameters,
+        keyword_parameters,
+        True,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'activity': MessageActivity(party_id = 'Best girl'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'application': MessageApplication.precreate(202305040076, name = 'Christmas tree'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'application_id': 202305040077,
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'attachments': [
+                Attachment.precreate(202305040078, name = 'Closed eye'),
+                Attachment.precreate(202305040079, name = 'Satoris'),
+            ],
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'author': User.precreate(202305040080, name = 'Dancing'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'call': MessageCall(ended_at = DateTime(2045, 5, 4)),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'components': [
+                Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Nuclear bird')]),
+                Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Green hell')]),
+            ],
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'content': 'Open eye',
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'edited_at': DateTime(2016, 6, 14),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'embeds': [
+                Embed('Old hag and pets'),
+                Embed('Old hag'),
+            ],
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'flags': MessageFlag(12),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'interaction': MessageInteraction.precreate(202305040081, name = 'Old pet'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'mentioned_channels_cross_guild': [
+                Channel.precreate(202305040082, channel_type = ChannelType.guild_text, name = 'Cat'),
+                Channel.precreate(202305040083, channel_type = ChannelType.guild_text, name = 'One horned'),
+            ],
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'mentioned_everyone': False,
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'mentioned_role_ids': [202305040084, 202305040085],
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'mentioned_users': [
+                User.precreate(202305040086, name = 'Vampires'),
+                User.precreate(202305040087, name = 'Love shop'),
+            ],
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'message_type': MessageType.user_add,
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'nonce': 'Maid',
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'pinned': False,
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'poll': Poll(expires_at = DateTime(2016, 5, 15)),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'reactions': ReactionMapping(
+                lines = {
+                    Reaction.from_fields(BUILTIN_EMOJIS['heart'], ReactionType.standard): ReactionMappingLine(count = 1),
+                },
+            ),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'referenced_message': Message.precreate(202305040088, content = 'Book'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'resolved': Resolved(attachments = [Attachment.precreate(202310110033)]),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'role_subscription': MessageRoleSubscription(tier_name = 'Big brain'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'snapshots': [
+                MessageSnapshot(content = 'Mushroom'),
+                MessageSnapshot(content = 'Soup'),
+            ]
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'stickers': [
+                Sticker.precreate(202305040089, name = 'Magic'),
+                Sticker.precreate(202305040090, name = 'Witch'),
+            ],
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'thread': Channel.precreate(202305040091, channel_type = ChannelType.guild_thread_private, name = 'Hungry'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'tts': False,
+        },
+        False,
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__eq__same_type()).returning_last())
+def test__Message__eq__same_type(keyword_parameters_0, keyword_parameters_1):
+    """
+    Tests whether ``Message.__eq__`` works as intended.
+    
+    Case: same type.
+    
+    Parameters
+    ----------
+    keyword_parameters_0 : `dict<str, object>`
+        Keyword parameters to create instance from.
+    keyword_parameters_1 : `dict<str, object>`
+        Keyword parameters to create instance from.
+    
+    Returns
+    -------
+    output : `bool`
+    """
+    message_0 = Message(**keyword_parameters_0)
+    message_1 = Message(**keyword_parameters_1)
+    output = message_0 == message_1
+    vampytest.assert_instance(output, bool)
+    return output
+
+
+def test__Message__len__all_contents():
+    """
+    Tests whether ``Message.__len__`` works as intended.
+    
+    Case: All contents.
+    """
+    message_content = 'okuu'
+    embed_0_title = 'orin'
+    embed_0_author_name = 'riverside'
+    embed_0_description = 'relief'
+    embed_0_field_0_name = 'shiki'
+    embed_0_field_0_value = 'yukari'
+    embed_0_field_1_name = 'ran'
+    embed_0_field_1_value = 'chen'
+    embed_0_footer_text = 'okina'
+    embed_0_provider_name = 'hecatia'
+    embed_1_title = 'reimu'
+    poll_question_text = 'marisa'
+    poll_answer_0_text = 'junko'
+    poll_answer_1_text = 'clown'
+    
+    embed_0 = Embed(title = embed_0_title, description = embed_0_description)
+    embed_0.author = EmbedAuthor(embed_0_author_name)
+    embed_0.fields = [
+        EmbedField(embed_0_field_0_name, embed_0_field_0_value),
+        EmbedField(embed_0_field_1_name, embed_0_field_1_value),
+    ]
+    embed_0.footer = EmbedFooter(embed_0_footer_text)
+    embed_0.provider = EmbedProvider(embed_0_provider_name)
+    
+    embed_1 = Embed(title = embed_1_title)
+    
+    poll = Poll(
+        answers = [PollAnswer(text = poll_answer_0_text), PollAnswer(text = poll_answer_1_text)],
+        question = PollQuestion(text = poll_question_text),
+    )
+    
+    message = Message(content = message_content, embeds = [embed_0, embed_1], poll = poll)
+    
+    length = sum(
+        len(value) for value in (
+            embed_0_title, embed_0_author_name, embed_0_description, embed_0_field_0_name, embed_0_field_0_value,
+            embed_0_field_1_name, embed_0_field_1_value, embed_0_footer_text, embed_0_provider_name,
+            message_content, embed_1_title, poll_question_text, poll_answer_0_text, poll_answer_1_text
+        )
+    )
+    
+    output = len(message)
+    vampytest.assert_instance(output, int)
+    vampytest.assert_eq(output, length)
+
+
+def test__Message__len__no_contents():
+    """
+    Tests whether ``Message.__len__`` works as intended.
+    
+    Case: No contents.
+    """
+    message = Message()
+    
+    output = len(message)
+    vampytest.assert_instance(output, int)
+    vampytest.assert_eq(output, 0)

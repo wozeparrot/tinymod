@@ -91,7 +91,7 @@ def _get_event_deprecation_state(name):
     # if name == 'stuff':
     #    warnings.warn(
     #        (
-    #            '`Client.events.stuff` is deprecated and will be removed in 2222 yay.\n'
+    #            '`Client.events.stuff` is deprecated and will be removed in 2022 jan.\n'
     #            'Please use `Client.events.stiff(client, event)` instead.'
     #        ),
     #        FutureWarning,
@@ -371,29 +371,31 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         
         Every item in `old_attributes` is optional and it's items can be any of the following:
         
-        +---------------------------+---------------------------------------------------+
-        | Keys                      | Values                                            |
-        +===========================+===================================================+
-        | description               | `None`, `str`                                     |
-        +---------------------------+---------------------------------------------------+
-        | description_localizations | `None`, `dict` of (``Locale``, `str`) items       |
-        +---------------------------+---------------------------------------------------+
-        | allow_in_dm               | `bool`                                            |
-        +---------------------------+---------------------------------------------------+
-        | name                      | `str`                                             |
-        +---------------------------+---------------------------------------------------+
-        | name_localizations        | `None`, `dict` of (``Locale``, `str`) items       |
-        +---------------------------+---------------------------------------------------+
-        | nsfw                      | `bool`                                            |
-        +---------------------------+---------------------------------------------------+
-        | options                   | `None`, `list` of ``ApplicationCommandOption``    |
-        +---------------------------+---------------------------------------------------+
-        | required_permissions      | ``Permission``                                    |
-        +---------------------------+---------------------------------------------------+
-        | target_type               | ``ApplicationCommandTargetType``                  |
-        +---------------------------+---------------------------------------------------+
-        | version                   | `int`                                             |
-        +---------------------------+---------------------------------------------------+
+        +---------------------------+-------------------------------------------------------------------+
+        | Keys                      | Values                                                            |
+        +===========================+===================================================================+
+        | description               | `None`, `str`                                                     |
+        +---------------------------+-------------------------------------------------------------------+
+        | description_localizations | `None`, `dict` of (``Locale``, `str`) items                       |
+        +---------------------------+-------------------------------------------------------------------+
+        | integration_context_types | `None`, `tuple` of ``ApplicationCommandIntegrationContextType``   |
+        +---------------------------+-------------------------------------------------------------------+
+        | integration_types         | `None`, `tuple` of ``ApplicationIntegrationType``                 |
+        +---------------------------+-------------------------------------------------------------------+
+        | name                      | `str`                                                             |
+        +---------------------------+-------------------------------------------------------------------+
+        | name_localizations        | `None`, `dict` of (``Locale``, `str`) items                       |
+        +---------------------------+-------------------------------------------------------------------+
+        | nsfw                      | `bool`                                                            |
+        +---------------------------+-------------------------------------------------------------------+
+        | options                   | `None`, `list` of ``ApplicationCommandOption``                    |
+        +---------------------------+-------------------------------------------------------------------+
+        | required_permissions      | ``Permission``                                                    |
+        +---------------------------+-------------------------------------------------------------------+
+        | target_type               | ``ApplicationCommandTargetType``                                  |
+        +---------------------------+-------------------------------------------------------------------+
+        | version                   | `int`                                                             |
+        +---------------------------+-------------------------------------------------------------------+
     
     audit_log_entry_create(client: ``Client``, audit_log_entry : ``AuditLogEntry``)
         Called when an audit log entry is created inside of a guild.
@@ -542,6 +544,8 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         | banner                | ``Icon``                      |
         +-----------------------+-------------------------------+
         | banner_color          | `None`, ``Color``             |
+        +-----------------------+-------------------------------+
+        | clan                  | `None`, ``UserClan``          |
         +-----------------------+-------------------------------+
         | discriminator         | `int`                         |
         +-----------------------+-------------------------------+
@@ -909,6 +913,8 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-----------------------------------+-----------------------------------------------------------------------+
         | pinned                            | `bool`                                                                |
         +-----------------------------------+-----------------------------------------------------------------------+
+        | poll                              | ``PollChange``                                                        |
+        +-----------------------------------+-----------------------------------------------------------------------+
         | resolved                          | `None`, ``Resolved``                                                  |
         +-----------------------------------+-----------------------------------------------------------------------+
         
@@ -917,6 +923,12 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         `old_attributes` might contain also `embeds`.
         
         > If the message is partial (usually when it is not cached), `old_attributes` is passed as `None`.
+    
+    poll_vote_add(client : ``Client``, event : ``PollVoteAddEvent``):
+        Called when a user votes on a poll.
+    
+    poll_vote_delete(client : ``Client``, event : ``PollVoteDeleteEvent``):
+        Called when a user removes their vote from a poll.
     
     reaction_add(client: ``Client``, event: ``ReactionAddEvent``):
         Called when a user reacts on a message with the given emoji.
@@ -1165,6 +1177,8 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         | banner                | ``Icon``                      |
         +-----------------------+-------------------------------+
         | banner_color          | `None`, ``Color``             |
+        +-----------------------+-------------------------------+
+        | clan                  | `None`, ``UserClan``          |
         +-----------------------+-------------------------------+
         | discriminator         | `int`                         |
         +-----------------------+-------------------------------+
