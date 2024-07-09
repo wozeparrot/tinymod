@@ -4,3 +4,4 @@ __pycache__/
 .direnv/
 .venv/
 persist/
+*.zip
