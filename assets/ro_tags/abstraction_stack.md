@@ -1,1 +1,1 @@
-Take a look at the abstraction stack documentation: <https://github.com/tinygrad/tinygrad/blob/master/docs/abstractions.py>
+Take a look at the abstraction stack documentation: <https://github.com/tinygrad/tinygrad/blob/master/docs/abstractions3.py> or <https://github.com/tinygrad/tinygrad/blob/master/docs/abstractions2.py>
