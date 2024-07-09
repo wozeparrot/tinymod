@@ -45,7 +45,9 @@ class Api:
           for system_ in systems: benchmarks[ALL_SYSTEMS.index(system_)] = CachedBenchmarks.cache.get((filename, system_), [])[-last_n:]
           benchmarks = [[{"x": x, "y": y} for x,y in benchmark] for benchmark in benchmarks]
           await protocol.send(json.dumps({"filename": filename, "system": system, "benchmarks": benchmarks}))
-        case "get-commit":
-          await protocol.send(json.dumps({"commit": CachedBenchmarks.curr_commit}))
+        case "get-curr-commit":
+          await protocol.send(json.dumps({"curr-commit": CachedBenchmarks.curr_commit}))
+        case "get-run-commit-map":
+          await protocol.send(json.dumps({"run-commit-map": CachedBenchmarks.commit_cache}))
         case _:
           await protocol.send(API_INVALID_COMMAND)

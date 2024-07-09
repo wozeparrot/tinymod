@@ -98,7 +98,7 @@ def filter_points(points: list[tuple[int, float]], last_n: int | None) -> list[t
 class _CachedBenchmarks:
   def __init__(self):
     self.last_run = 0
-    self.cache, self.curr_commit = {}, ""
+    self.cache, self.commit_cache, self.curr_commit = {}, {}, ""
     self._update_cache()
 
   def _update_cache(self, force:bool=False):
@@ -112,13 +112,13 @@ class _CachedBenchmarks:
         points = filter_points(points, None)
         self.cache[(file, system)] = points
 
-    # update commit
+    # tie recent 300 benchmark run numbers to a commit
     workflow_runs = REPO.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
     latest_run = int(max((BENCHMARKS_DIR / "artifacts").iterdir(), key=lambda x: int(x.name)).name)
     for run in workflow_runs:
-      if run.run_number == latest_run:
-        self.curr_commit = run.head_sha
-        break
+      if run.run_number not in self.commit_cache and run.run_number <= latest_run:
+        self.commit_cache[run.run_number] = run.head_sha
+      if run.run_number == latest_run: self.curr_commit = run.head_sha
 
     self.last_run = time.time()
     logging.info(f"Cached benchmarks updated. Current commit: {self.curr_commit}")
