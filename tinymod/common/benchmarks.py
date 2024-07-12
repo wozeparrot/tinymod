@@ -83,17 +83,17 @@ def regex_benchmark_to_points(regex: re.Pattern, filename: str, system: str, ski
     points.append((run_number, runtime))
   return points
 
-def filter_outliers_by_stddev(points: list[tuple[int, float]], stddev_multiplier: float = 3) -> list[tuple[int, float]]:
+def filter_outliers_by_var(points: list[tuple[int, float]], stddev_multiplier: float = 2) -> list[tuple[int, float]]:
   points = sorted(points, key=lambda x: x[1])
   avg = sum(point[1] for point in points) / len(points)
-  std = (sum((point[1] - avg) ** 2 for point in points) / len(points)) ** 0.5
+  std = (sum((point[1] - avg) ** 2 for point in points) / len(points))
   return [point for point in points if abs(point[1] - avg) < stddev_multiplier * std]
 
 def filter_points(points: list[tuple[int, float]], last_n: int | None) -> list[tuple[int, float]]:
   points = [point for point in points if point[1] != -inf]
   points = sorted(points, key=lambda x: x[0])
   if len(points) > 10:
-    points = filter_outliers_by_stddev(points[:-5]) + points[-5:]
+    points = filter_outliers_by_var(points[:-5]) + points[-5:]
   points = sorted(points, key=lambda x: x[0])
   if last_n is not None: points = points[-last_n:]
   return points
