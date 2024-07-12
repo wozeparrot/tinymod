@@ -93,7 +93,7 @@ def filter_points_slower_than_latest(points: list[tuple[int, float]], multiplier
   if len(points) == 0: return points
   points = sorted(points, key=lambda x: x[0])
   latest = points[-1][1]
-  return [point for point in points if point[1] > latest * multiplier]
+  return [point for point in points if point[1] < latest * multiplier]
 
 def filter_points(points: list[tuple[int, float]], last_n: int | None) -> list[tuple[int, float]]:
   points = [point for point in points if point[1] != -inf]
