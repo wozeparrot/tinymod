@@ -33,6 +33,7 @@ ALL_SYSTEMS = ["amd", "amd-train", "nvidia", "nvidia-train", "mac"]
 TRACKED_BENCHMARKS = {
   # stable diffusion
   "sd.txt": (REGEXES["sd"], ["amd", "mac", "nvidia"], 3, 0),
+  "sdxl.txt": (REGEXES["sd"], ["amd", "mac", "nvidia"], 3, 0),
   # llama
   "llama_unjitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 4, 0),
   "llama_jitted.txt": (REGEXES["llama"], ["amd", "mac", "nvidia"], 4, 0),
@@ -90,7 +91,8 @@ def filter_outliers_by_stddev(points: list[tuple[int, float]], stddev_multiplier
 
 def filter_points(points: list[tuple[int, float]], last_n: int | None) -> list[tuple[int, float]]:
   points = [point for point in points if point[1] != -inf]
-  # points = filter_outliers_by_stddev(points) if len(points) > 10 else points
+  if len(points) > 10:
+    points[:-5] = filter_outliers_by_stddev(points[:-5])
   points = sorted(points, key=lambda x: x[0])
   if last_n is not None: points = points[-last_n:]
   return points
