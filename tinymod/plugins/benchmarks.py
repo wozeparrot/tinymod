@@ -44,6 +44,8 @@ async def download_benchmark(client: Client, run_number: int, artifacts_url: str
           artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (NVIDIA)"]
         case "nvidia-train":
           artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (NVIDIA Training)"]
+        case "comma":
+          artifact = [artifact["archive_download_url"] for artifact in artifacts if artifact["name"] == "Speed (comma)"]
         case _: return False
 
       if len(artifact) < 1: return False

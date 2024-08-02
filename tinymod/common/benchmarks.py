@@ -27,7 +27,7 @@ REGEXES = {
   "resnet": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
 }
 
-ALL_SYSTEMS = ["amd", "amd-train", "nvidia", "nvidia-train", "mac"]
+ALL_SYSTEMS = ["amd", "amd-train", "nvidia", "nvidia-train", "mac", "comma"]
 
 # regex, systems, skip_count, max_count
 TRACKED_BENCHMARKS = {
