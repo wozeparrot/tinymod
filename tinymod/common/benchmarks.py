@@ -26,7 +26,7 @@ REGEXES = {
   "cifar": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
   "resnet": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
   "openpilot_compile": re.compile(r"s/[ ]+(\d+\.\d+)ms"),
-  "openpilot": re.compile(r"$jitted:[ ]+(\d+\.\d+) ms"),
+  "openpilot": re.compile(r"jitted:[ ]+(\d+\.\d+) ms"),
 }
 
 ALL_SYSTEMS = ["amd", "amd-train", "nvidia", "nvidia-train", "mac", "comma"]
@@ -66,10 +66,10 @@ TRACKED_BENCHMARKS = {
   # openpilot
   "openpilot_compile_0_9_4.txt": (REGEXES["openpilot_compile"], ["comma"], 0, -1),
   "openpilot_compile_0_9_7.txt": (REGEXES["openpilot_compile"], ["comma"], 0, -1),
-  "openpilot_0_9_4.txt": (REGEXES["openpilot"], ["comma"], 3, 0),
-  "openpilot_0_9_7.txt": (REGEXES["openpilot"], ["comma"], 3, 0),
-  "openpilot_image_0_9_4.txt": (REGEXES["openpilot"], ["comma"], 3, 0),
-  "openpilot_image_0_9_7.txt": (REGEXES["openpilot"], ["comma"], 3, 0),
+  "openpilot_0_9_4.txt": (REGEXES["openpilot"], ["comma"], 8, 0),
+  "openpilot_0_9_7.txt": (REGEXES["openpilot"], ["comma"], 8, 0),
+  "openpilot_image_0_9_4.txt": (REGEXES["openpilot"], ["comma"], 8, 0),
+  "openpilot_image_0_9_7.txt": (REGEXES["openpilot"], ["comma"], 8, 0),
 }
 
 def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, max_count: int = 0) -> float:
