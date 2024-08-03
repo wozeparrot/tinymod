@@ -26,7 +26,7 @@ REGEXES = {
   "cifar": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
   "resnet": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
   "openpilot_compile": re.compile(r"s/[ ]+(\d+\.\d+)ms"),
-  "openpilot": re.compile(r"^jitted:[ ]+(\d+\.\d+) ms"),
+  "openpilot": re.compile(r"$jitted:[ ]+(\d+\.\d+) ms"),
 }
 
 ALL_SYSTEMS = ["amd", "amd-train", "nvidia", "nvidia-train", "mac", "comma"]
