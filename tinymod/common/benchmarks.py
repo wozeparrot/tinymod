@@ -83,7 +83,7 @@ def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, 
     counts += 1
     if max_count > 0 and counts >= max_count: break
   if counts == 0: return -inf
-  if max_count == -1: return round(match.group(1), 2)
+  if max_count == -1: return round(float(match.group(1)), 2)
   return round(sums / counts, 2)
 
 def regex_benchmark_to_points(regex: re.Pattern, filename: str, system: str, skip_count: int, max_count: int = 0, start: int = 0) -> list[tuple[int, float]]:
