@@ -25,6 +25,8 @@ REGEXES = {
   "gpt2": re.compile(r"ran model in[ ]+(\d+\.\d+) ms"),
   "cifar": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
   "resnet": re.compile(r"\d+[ ]+(\d+\.\d+) ms run,"),
+  "openpilot_compile": re.compile(r"s/[ ]+(\d+\.\d+) ms"),
+  "openpilot": re.compile(r"^jitted: (\d+\.\d+) ms"),
 }
 
 ALL_SYSTEMS = ["amd", "amd-train", "nvidia", "nvidia-train", "mac", "comma"]
@@ -61,6 +63,9 @@ TRACKED_BENCHMARKS = {
   # resnet
   "train_resnet_one_gpu.txt": (REGEXES["resnet"], ["amd-train", "nvidia-train"], 3, 0),
   "train_resnet.txt": (REGEXES["resnet"], ["amd-train", "nvidia-train"], 3, 0),
+  # openpilot
+  "openpilot_compile_0_9_4.txt": (REGEXES["openpilot_compile"], ["comma"], 0, -1),
+  "openpilot_compile_0_9_7.txt": (REGEXES["openpilot_compile"], ["comma"], 0, -1),
 }
 
 def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, max_count: int = 0) -> float:
@@ -74,6 +79,7 @@ def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, 
     counts += 1
     if max_count > 0 and counts >= max_count: break
   if counts == 0: return -inf
+  if max_count == -1: return round(match.group(1), 2)
   return round(sums / counts, 2)
 
 def regex_benchmark_to_points(regex: re.Pattern, filename: str, system: str, skip_count: int, max_count: int = 0, start: int = 0) -> list[tuple[int, float]]:
