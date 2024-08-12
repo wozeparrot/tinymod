@@ -48,7 +48,7 @@ TRACKED_BENCHMARKS = {
   "llama3_four_gpu.txt": (REGEXES["llama"], ["amd", "nvidia"], 4, 0),
   "llama3_six_gpu.txt": (REGEXES["llama"], ["amd", "nvidia"], 4, 0),
   # mixtral
-  "mixtral.txt": (REGEXES["mixtral"], ["amd"], 3, 0),
+  "mixtral.txt": (REGEXES["mixtral"], ["amd", "nvidia"], 3, 0),
   # gpt2
   "gpt2_unjitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 4, 0),
   "gpt2_jitted.txt": (REGEXES["gpt2"], ["amd", "mac", "nvidia"], 4, 0),
