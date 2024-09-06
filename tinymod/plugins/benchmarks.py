@@ -115,7 +115,7 @@ async def post_auto_download(client: Client, message: Message, embed: Embed):
   await client.reaction_add(message, "✅")
 
   # update the cache
-  CachedBenchmarks._update_cache()
+  await CachedBenchmarks()._update_cache()
 
 @TinyMod.events # type: ignore
 async def message_create(client: Client, message: Message):
@@ -192,7 +192,7 @@ async def bm_update_cache(client: Client, event,
   """Updates the cache"""
   if not event.user.has_role(ADMIN_ROLE): return
   message = yield "updating cache..." # acknowledge the command
-  CachedBenchmarks._update_cache(force=force == "true")
+  await CachedBenchmarks()._update_cache(force=force == "true")
   yield InteractionResponse("done", message=message)
 
 # ***** Benchmark utilities *****
@@ -238,7 +238,7 @@ async def bm_graph(client: Client, event,
   message = yield "graphing..." # acknowledge the command
   logging.info(f"graphing {benchmark} on {system} for last {last_n} runs")
 
-  points = CachedBenchmarks.cache.get((benchmark, system), [])
+  points = CachedBenchmarks().cache.get((benchmark, system), [])
   points = filter_points(points, last_n)
 
   chart = points_to_graph(f"{benchmark} on {system}", [("runtime", points)])

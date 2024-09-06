@@ -1,11 +1,19 @@
 from github import Github, Auth
+from hata.ext import asyncio
+import aiosqlite
+import scarletio
 
-import zipfile, re, os, logging, time
+import zipfile, re, os, logging, time, json
 from pathlib import Path
 from math import inf
 
+from common.helpers import Singleton
+
 GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
 REPO = GITHUB.get_repo("tinygrad/tinygrad")
+
+DATABASE = Path("persist") / "tinymod.db"
+CACHE_VERSION = 1
 
 BENCHMARKS_DIR = Path("persist/benchmarks")
 def get_benchmarks(filename: str, system: str, start: int = 0):
@@ -115,24 +123,47 @@ def filter_points(points: list[tuple[int, float]], last_n: int | None) -> list[t
   if last_n is not None: points = points[-last_n:]
   return points
 
-class _CachedBenchmarks:
+class CachedBenchmarks(Singleton):
   def __init__(self):
     self.last_run = 0
     self.cache, self.commit_cache, self.curr_commit = {}, {}, ""
-    self._update_cache()
+    self.init_db = False
 
-  def _update_cache(self, force:bool=False):
+  async def _update_cache(self, force:bool=False):
+    if not self.init_db:
+      logging.info("Initializing database.")
+      async with aiosqlite.connect(DATABASE) as db:
+        await db.execute(f"CREATE TABLE IF NOT EXISTS cache_benchmarks_{CACHE_VERSION} (id TEXT PRIMARY KEY, points_json TEXT)")
+        await db.commit()
+      self.init_db = True
+
     logging.info("Updating cached benchmarks.")
     if not force and (BENCHMARKS_DIR / "artifacts").stat().st_mtime <= self.last_run: return
 
     # update cache
-    for file, (regex, systems, skip_count, max_count) in TRACKED_BENCHMARKS.items():
-      for system in systems:
-        points = regex_benchmark_to_points(regex, file, system, skip_count, max_count)
-        points = filter_points(points, None)
-        self.cache[(file, system)] = points
+    db_hits, db_misses, st = 0, 0, time.perf_counter()
+    # check sqlite cache
+    async with aiosqlite.connect(DATABASE) as db:
+      for file, (regex, systems, skip_count, max_count) in TRACKED_BENCHMARKS.items():
+        for system in systems:
+          cursor = await db.execute(f"SELECT points_json FROM cache_benchmarks_{CACHE_VERSION} WHERE id = ?", (f"{file}-{system}",))
+          if (row := await cursor.fetchone()) is not None:
+            points = json.loads(row[0])
+            db_hits += 1
+          else:
+            points = regex_benchmark_to_points(regex, file, system, skip_count, max_count)
+            points = filter_points(points, None)
 
-    # tie recent 300 benchmark run numbers to a commit
+            # update sqlite cache
+            await db.execute(f"INSERT OR REPLACE INTO cache_benchmarks_{CACHE_VERSION} (id, points_json) VALUES (?, ?)", (f"{file}-{system}", json.dumps(points)))
+            db_misses += 1
+
+          # update in-memory cache
+          self.cache[(file, system)] = points
+      await db.commit()
+    logging.info(f"Cache updated. DB hits: {db_hits}, DB misses: {db_misses}, Total: {db_hits + db_misses}, Rate: {db_hits / (db_hits + db_misses) * 100:.2f}%, Time: {time.perf_counter() - st:.2f}s")
+
+    # tie benchmark run numbers to a commit
     workflow_runs = REPO.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
     latest_run = int(max((BENCHMARKS_DIR / "artifacts").iterdir(), key=lambda x: int(x.name)).name)
     for run in workflow_runs:
@@ -142,4 +173,3 @@ class _CachedBenchmarks:
 
     self.last_run = time.time()
     logging.info(f"Cached benchmarks updated. Current commit: {self.curr_commit}")
-CachedBenchmarks = _CachedBenchmarks()

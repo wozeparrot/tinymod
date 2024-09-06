@@ -18,6 +18,7 @@ class Api:
     else:
       logging.warn("SSL is disabled due to running in DEV mode.")
       self.ws = await WebSocketServer(get_event_loop(), "0.0.0.0", 10000, self.handler, extra_response_headers={"Access-Control-Allow-Origin": "*"})
+    await CachedBenchmarks()._update_cache()
 
   async def handler(self, protocol):
     logging.info(f"New connection from {protocol.remote_address}.")
@@ -42,12 +43,12 @@ class Api:
           logging.info(f"{protocol.remote_address} requested benchmarks for {filename} on {system} for last {last_n}.")
           benchmarks = [[] for _ in range(len(ALL_SYSTEMS))]
           systems = system.split("_")
-          for system_ in systems: benchmarks[ALL_SYSTEMS.index(system_)] = CachedBenchmarks.cache.get((filename, system_), [])[-last_n:]
+          for system_ in systems: benchmarks[ALL_SYSTEMS.index(system_)] = CachedBenchmarks().cache.get((filename, system_), [])[-last_n:]
           benchmarks = [[{"x": x, "y": y} for x,y in benchmark] for benchmark in benchmarks]
           await protocol.send(json.dumps({"filename": filename, "system": system, "benchmarks": benchmarks}))
         case "get-curr-commit":
-          await protocol.send(json.dumps({"curr-commit": CachedBenchmarks.curr_commit}))
+          await protocol.send(json.dumps({"curr-commit": CachedBenchmarks().curr_commit}))
         case "get-run-commit-map":
-          await protocol.send(json.dumps({"run-commit-map": CachedBenchmarks.commit_cache}))
+          await protocol.send(json.dumps({"run-commit-map": CachedBenchmarks().commit_cache}))
         case _:
           await protocol.send(API_INVALID_COMMAND)
