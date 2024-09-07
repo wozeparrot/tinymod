@@ -1,7 +1,7 @@
 import sys, os, logging
 sys.path.insert(0, "./deps/hata")
 sys.path.insert(0, "./deps/scarletio")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] <%(filename)s:%(funcName)s> %(message)s")
+logging.basicConfig(level=logging.DEBUG if os.getenv("DEBUG") else logging.INFO, format="%(asctime)s [%(levelname)s] <%(filename)s:%(funcName)s> %(message)s")
 
 from dotenv import load_dotenv
 load_dotenv()
