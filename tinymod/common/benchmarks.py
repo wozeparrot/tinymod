@@ -1,3 +1,4 @@
+from random import betavariate
 from github import Github, Auth
 from hata.ext import asyncio
 import aiosqlite
@@ -13,9 +14,13 @@ GITHUB = Github(auth=Auth.Token(os.environ["GH_TOKEN"]))
 REPO = GITHUB.get_repo("tinygrad/tinygrad")
 
 DATABASE = Path("persist") / "tinymod.db"
-CACHE_VERSION = 1
+CACHE_VERSION = 4
 
 BENCHMARKS_DIR = Path("persist/benchmarks")
+def get_benchmark(run_number: int, filename: str, system: str) -> str:
+  with zipfile.ZipFile(BENCHMARKS_DIR / "artifacts" / str(run_number) / f"{system}.zip") as zip:
+    with zip.open(filename) as f:
+      return f.read().decode()
 def get_benchmarks(filename: str, system: str, start: int = 0):
   for path in (BENCHMARKS_DIR / "artifacts").iterdir():
     if (run_number := int(path.name)) <= start: continue
@@ -23,8 +28,7 @@ def get_benchmarks(filename: str, system: str, start: int = 0):
     if not (path / f"{system}.zip").exists(): continue
     with zipfile.ZipFile(path / f"{system}.zip") as zip:
       if filename not in zip.namelist(): continue
-      with zip.open(filename) as f:
-        yield run_number, f.read().decode()
+      yield run_number
 
 REGEXES = {
   "sd": re.compile(r"step in (\d+\.\d+) ms"),
@@ -94,12 +98,19 @@ def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, 
   if max_count == -1: return round(float(match.group(1)), 2)
   return round(sums / counts, 2)
 
-def regex_benchmark_to_points(regex: re.Pattern, filename: str, system: str, skip_count: int, max_count: int = 0, start: int = 0) -> list[tuple[int, float]]:
+async def regex_benchmark_to_points(db, cache, regex: re.Pattern, filename: str, system: str, skip_count: int, max_count: int = 0, start: int = 0) -> tuple[list[tuple[int, float]], int, int]:
   points = []
-  for run_number, benchmark in get_benchmarks(filename, system, start):
-    runtime = regex_extract_benchmark(regex, benchmark, skip_count, max_count)
+  db_hits, db_misses = 0, 0
+  for run_number in get_benchmarks(filename, system, start):
+    if (runtime:=cache.get((filename, system, run_number))) is not None:
+      db_hits += 1
+    else:
+      benchmark = get_benchmark(run_number, filename, system)
+      runtime = regex_extract_benchmark(regex, benchmark, skip_count, max_count)
+      await db.execute(f"INSERT OR REPLACE INTO cache_benchmarks_{CACHE_VERSION} (file, system, run, point) VALUES (?, ?, ?, ?)", (filename, system, run_number, runtime))
+      db_misses += 1
     points.append((run_number, runtime))
-  return points
+  return points, db_hits, db_misses
 
 # def filter_outliers_by_var(points: list[tuple[int, float]], stddev_multiplier: float = 2) -> list[tuple[int, float]]:
 #   points = sorted(points, key=lambda x: x[1])
@@ -133,7 +144,7 @@ class CachedBenchmarks(Singleton):
     if not self.init_db:
       logging.info("Initializing database.")
       async with aiosqlite.connect(DATABASE) as db:
-        await db.execute(f"CREATE TABLE IF NOT EXISTS cache_benchmarks_{CACHE_VERSION} (id TEXT PRIMARY KEY, points_json TEXT)")
+        await db.execute(f"CREATE TABLE IF NOT EXISTS cache_benchmarks_{CACHE_VERSION} (file TEXT, system TEXT, run INT, point FLOAT, PRIMARY KEY (file, system, run) ON CONFLICT REPLACE)")
         await db.commit()
       self.init_db = True
 
@@ -146,20 +157,21 @@ class CachedBenchmarks(Singleton):
     async with aiosqlite.connect(DATABASE) as db:
       for file, (regex, systems, skip_count, max_count) in TRACKED_BENCHMARKS.items():
         for system in systems:
-          cursor = await db.execute(f"SELECT points_json FROM cache_benchmarks_{CACHE_VERSION} WHERE id = ?", (f"{file}-{system}",))
-          if (row := await cursor.fetchone()) is not None:
-            points = json.loads(row[0])
-            db_hits += 1
-          else:
-            points = regex_benchmark_to_points(regex, file, system, skip_count, max_count)
-            points = filter_points(points, None)
+          # select all points from db that match the file and system as the in memory fast cache
+          async with db.execute(f"SELECT run, point FROM cache_benchmarks_{CACHE_VERSION} WHERE file = ? AND system = ?", (file, system)) as cursor:
+            points = await cursor.fetchall()
+            cache = {(file, system, run): point for run, point in points}
 
-            # update sqlite cache
-            await db.execute(f"INSERT OR REPLACE INTO cache_benchmarks_{CACHE_VERSION} (id, points_json) VALUES (?, ?)", (f"{file}-{system}", json.dumps(points)))
-            db_misses += 1
+          # get points
+          points, _hits, _misses = await regex_benchmark_to_points(db, cache, regex, file, system, skip_count, max_count)
+          points = filter_points(points, None)
 
           # update in-memory cache
           self.cache[(file, system)] = points
+
+          # update db metrics
+          db_hits += _hits
+          db_misses += _misses
       await db.commit()
     logging.info(f"Cache updated. DB hits: {db_hits}, DB misses: {db_misses}, Total: {db_hits + db_misses}, Rate: {db_hits / (db_hits + db_misses) * 100:.2f}%, Time: {time.perf_counter() - st:.2f}s")
 
