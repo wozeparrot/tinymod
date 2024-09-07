@@ -134,7 +134,7 @@ def filter_points(points: list[tuple[int, float]], last_n: int | None) -> list[t
   if last_n is not None: points = points[-last_n:]
   return points
 
-class CachedBenchmarks(Singleton):
+class CachedBenchmarks(metaclass=Singleton):
   def __init__(self):
     self.last_run = 0
     self.cache, self.commit_cache, self.curr_commit = {}, {}, ""
