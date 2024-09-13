@@ -43,8 +43,15 @@ class Api:
           logging.info(f"{protocol.remote_address} requested benchmarks for {filename} on {system} for last {last_n}.")
           benchmarks = [[] for _ in range(len(ALL_SYSTEMS))]
           systems = system.split("_")
-          for system_ in systems: benchmarks[ALL_SYSTEMS.index(system_)] = CachedBenchmarks().cache.get((filename, system_), [])[-last_n:]
-          benchmarks = [[{"x": x, "y": y} for x,y in benchmark] for benchmark in benchmarks]
+
+          # special handling
+          if filename == "benchmarks.usage":
+            benchmarks = [[{"x": x, "y": y} for x,y in CachedBenchmarks().benchmarks_usage]]
+          elif filename == "unittests.usage":
+            benchmarks = [[{"x": x, "y": y} for x,y in CachedBenchmarks().unittests_usage]]
+          else:
+            for system_ in systems: benchmarks[ALL_SYSTEMS.index(system_)] = CachedBenchmarks().cache.get((filename, system_), [])[-last_n:]
+            benchmarks = [[{"x": x, "y": y} for x,y in benchmark] for benchmark in benchmarks]
           await protocol.send(json.dumps({"filename": filename, "system": system, "benchmarks": benchmarks}))
         case "get-curr-commit":
           await protocol.send(json.dumps({"curr-commit": CachedBenchmarks().curr_commit}))

@@ -138,6 +138,7 @@ class CachedBenchmarks(metaclass=Singleton):
   def __init__(self):
     self.last_run = 0
     self.cache, self.commit_cache, self.curr_commit = {}, {}, ""
+    self.benchmarks_usage, self.unittests_usage = [], []
     self.init_db = False
 
   async def _update_cache(self, force:bool=False):
@@ -145,6 +146,8 @@ class CachedBenchmarks(metaclass=Singleton):
       logging.info("Initializing database.")
       async with aiosqlite.connect(DATABASE) as db:
         await db.execute(f"CREATE TABLE IF NOT EXISTS cache_benchmarks_{CACHE_VERSION} (file TEXT, system TEXT, run INT, point FLOAT, PRIMARY KEY (file, system, run) ON CONFLICT REPLACE)")
+        await db.execute(f"CREATE TABLE IF NOT EXISTS cache_benchmarks_usage_{CACHE_VERSION} (run_number INT, runtime FLOAT, PRIMARY KEY (run_number) ON CONFLICT REPLACE)")
+        await db.execute(f"CREATE TABLE IF NOT EXISTS cache_benchmarks_unittest_usage_{CACHE_VERSION} (run_number INT, runtime FLOAT, PRIMARY KEY (run_number) ON CONFLICT REPLACE)")
         await db.commit()
       self.init_db = True
 
@@ -175,13 +178,48 @@ class CachedBenchmarks(metaclass=Singleton):
       await db.commit()
     logging.info(f"Cache updated. DB hits: {db_hits}, DB misses: {db_misses}, Total: {db_hits + db_misses}, Rate: {db_hits / (db_hits + db_misses) * 100:.2f}%, Time: {time.perf_counter() - st:.2f}s")
 
-    # tie benchmark run numbers to a commit
-    workflow_runs = REPO.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
-    latest_run = int(max((BENCHMARKS_DIR / "artifacts").iterdir(), key=lambda x: int(x.name)).name)
-    for run in workflow_runs:
-      if run.run_number not in self.commit_cache and run.run_number <= latest_run:
-        self.commit_cache[run.run_number] = run.head_sha
-      if run.run_number == latest_run: self.curr_commit = run.head_sha
+    # tie benchmark run numbers to a commit and grab new usage
+    async with aiosqlite.connect(DATABASE) as db:
+      workflow_runs = REPO.get_workflow("benchmark.yml").get_runs(branch="master", status="success", event="push")
+      latest_run = int(max((BENCHMARKS_DIR / "artifacts").iterdir(), key=lambda x: int(x.name)).name)
+      for i,run in enumerate(workflow_runs):
+        if run.run_number not in self.commit_cache and run.run_number <= latest_run:
+          self.commit_cache[run.run_number] = run.head_sha
+        if run.run_number == latest_run: self.curr_commit = run.head_sha
+        if i > 300: break
+
+        # fetch usage if first 5 runs
+        if i < 5:
+          # if run is already in the db don't fetch it
+          if (await (await db.execute(f"SELECT runtime FROM cache_benchmarks_usage_{CACHE_VERSION} WHERE run_number = ?", (run.run_number,))).fetchone()) is not None: continue
+          # grab run usage from the api
+          timing = run.timing().run_duration_ms
+          await db.execute(f"INSERT OR REPLACE INTO cache_benchmarks_usage_{CACHE_VERSION} (run_number, runtime) VALUES (?, ?)", (run.run_number, timing))
+
+      # grab new usage for unittests
+      workflow_runs = REPO.get_workflow("test.yml").get_runs(branch="master", status="success", event="push")
+      for i,run in enumerate(workflow_runs):
+        # fetch usage if first 5 runs
+        if i < 5:
+          # if run is already in the db don't fetch it
+          if (await (await db.execute(f"SELECT runtime FROM cache_benchmarks_unittest_usage_{CACHE_VERSION} WHERE run_number = ?", (run.run_number,))).fetchone()) is not None: continue
+          # grab run usage from the api
+          timing = run.timing().run_duration_ms
+          await db.execute(f"INSERT OR REPLACE INTO cache_benchmarks_unittest_usage_{CACHE_VERSION} (run_number, runtime) VALUES (?, ?)", (run.run_number, timing))
+        else: break
+      await db.commit()
+
+    # update usage cache
+    async with aiosqlite.connect(DATABASE) as db:
+      # get all usage from db
+      async with db.execute(f"SELECT run_number, runtime FROM cache_benchmarks_usage_{CACHE_VERSION}") as cursor:
+        self.benchmarks_usage = [(run_number, runtime / 1000) for run_number, runtime in await cursor.fetchall()]
+      async with db.execute(f"SELECT run_number, runtime FROM cache_benchmarks_unittest_usage_{CACHE_VERSION}") as cursor:
+        self.unittests_usage = [(run_number, runtime / 1000) for run_number, runtime in await cursor.fetchall()]
+
+    # sort
+    self.benchmarks_usage.sort(key=lambda x: x[0])
+    self.unittests_usage.sort(key=lambda x: x[0])
 
     self.last_run = time.time()
     logging.info(f"Cached benchmarks updated. Current commit: {self.curr_commit}")
