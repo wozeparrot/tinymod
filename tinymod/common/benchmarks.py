@@ -78,10 +78,10 @@ TRACKED_BENCHMARKS = {
   # openpilot
   "openpilot_compile_0_9_4.txt": (REGEXES["openpilot_compile"], ["comma"], 0, -1),
   "openpilot_compile_0_9_7.txt": (REGEXES["openpilot_compile"], ["comma"], 0, -1),
-  "openpilot_0_9_4.txt": (REGEXES["openpilot"], ["comma"], 8, 0),
-  "openpilot_0_9_7.txt": (REGEXES["openpilot"], ["comma"], 8, 0),
-  "openpilot_image_0_9_4.txt": (REGEXES["openpilot"], ["comma"], 8, 0),
-  "openpilot_image_0_9_7.txt": (REGEXES["openpilot"], ["comma"], 8, 0),
+  "openpilot_0_9_4.txt": (REGEXES["openpilot"], ["comma"], 13, 0),
+  "openpilot_0_9_7.txt": (REGEXES["openpilot"], ["comma"], 13, 0),
+  "openpilot_image_0_9_4.txt": (REGEXES["openpilot"], ["comma"], 13, 0),
+  "openpilot_image_0_9_7.txt": (REGEXES["openpilot"], ["comma"], 13, 0),
 }
 
 def regex_extract_benchmark(regex: re.Pattern, benchmark: str, skip_count: int, max_count: int = 0) -> float:
