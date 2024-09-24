@@ -4,7 +4,7 @@ from scarletio import get_event_loop
 import prettytable
 from prettytable import MARKDOWN
 
-import token, tokenize, logging
+import token, tokenize, logging, re
 from pathlib import Path
 
 TinyMod: Client
@@ -44,6 +44,16 @@ async def get_curr_metrics():
     if line_count > 0: metrics[str(path.relative_to(REPO_DIR / "tinygrad"))] = {"line_count": line_count}
   return metrics
 
+MAX_LINE_REGEX = re.compile(r"MAX_LINE_COUNT=(\d+)")
+async def get_curr_max_lines():
+  await ensure_curr_repo()
+
+  with (REPO_DIR / ".github" / "workflows" / "test.yml").open("r") as f:
+    for line in f:
+      match = MAX_LINE_REGEX.search(line)
+      if match is not None: return int(match.group(1))
+  return 0
+
 @TinyMod.interactions(guild=GUILD) # type: ignore
 async def line_count(client: Client, event):
   """Displays the total line count and the line count per file."""
@@ -69,7 +79,11 @@ async def update_line_count(client: Client, event):
 
   metrics = await get_curr_metrics()
   total_line_count = sum(m["line_count"] for m in metrics.values())
-  await client.channel_edit(LINE_COUNT_CHANNEL, topic=f"Current line count: {total_line_count}")
+  max_line_count = await get_curr_max_lines()
+  free_lines = max_line_count - total_line_count
+
+  # update the topic
+  await client.channel_edit(LINE_COUNT_CHANNEL, topic=f"Current line count: {total_line_count} <= {max_line_count} ({free_lines} free)")
 
   yield InteractionResponse(content=f"Updated line count: {total_line_count}", message=message)
 
