@@ -105,5 +105,10 @@ async def message_create(client: Client, message: Message):
   logging.info("Updating line count topic...")
   metrics = await get_curr_metrics()
   total_line_count = sum(m["line_count"] for m in metrics.values())
-  await client.channel_edit(LINE_COUNT_CHANNEL, topic=f"Current line count: {total_line_count}")
+  max_line_count = await get_curr_max_lines()
+  free_lines = max_line_count - total_line_count
+
+  # update the topic
+  await client.channel_edit(LINE_COUNT_CHANNEL, topic=f"Current line count: {total_line_count} <= {max_line_count} ({free_lines} free)")
+
   logging.info("Updated line count topic.")
