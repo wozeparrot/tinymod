@@ -7,7 +7,10 @@ from scarletio import BaseMethodDescriptor, export
 
 from ...bases import DiscordEntity, ICON_TYPE_NONE, IconSlot
 from ...core import APPLICATIONS, APPLICATION_ID_TO_CLIENT, GUILDS
-from ...http import urls as module_urls
+from ...http.urls import (
+    build_application_cover_url, build_application_cover_url_as, build_application_icon_url,
+    build_application_icon_url_as
+)
 from ...precreate_helpers import process_precreate_parameters_and_raise_extra
 from ...user import ZEROUSER
 
@@ -19,55 +22,57 @@ from .constants import (
     OVERLAY_DEFAULT
 )
 from .fields import (
-    parse_aliases, parse_approximate_guild_count, parse_bot_public, parse_bot_requires_code_grant,
+    parse_aliases, parse_approximate_guild_count, parse_approximate_user_authorization_count,
+    parse_approximate_user_install_count, parse_bot_public, parse_bot_requires_code_grant,
     parse_creator_monetization_state, parse_custom_install_url, parse_deeplink_url, parse_description, parse_developers,
     parse_discoverability_state, parse_discovery_eligibility_flags, parse_embedded_activity_configuration,
-    parse_eula_id, parse_executables, parse_explicit_content_filter_level, parse_flags, parse_guild_id, parse_hook,
-    parse_id, parse_install_parameters, parse_integration_public, parse_integration_requires_code_grant,
-    parse_integration_types, parse_integration_types_configuration, parse_interaction_endpoint_url,
-    parse_interaction_event_types, parse_interaction_version, parse_internal_guild_restriction, parse_max_participants,
+    parse_eula_id, parse_event_webhook_event_types, parse_event_webhook_state, parse_event_webhook_url,
+    parse_executables, parse_explicit_content_filter_level, parse_flags, parse_guild_id, parse_hook, parse_id,
+    parse_install_parameters, parse_integration_public, parse_integration_requires_code_grant, parse_integration_types,
+    parse_integration_types_configuration, parse_interaction_endpoint_url, parse_interaction_event_types,
+    parse_interaction_version, parse_internal_guild_restriction, parse_max_participants,
     parse_monetization_eligibility_flags, parse_monetization_state, parse_monetized, parse_name, parse_overlay,
     parse_overlay_compatibility_hook, parse_overlay_method_flags, parse_owner, parse_primary_sku_id,
     parse_privacy_policy_url, parse_publishers, parse_redirect_urls, parse_role_connection_verification_url,
     parse_rpc_origins, parse_rpc_state, parse_slug, parse_store_state, parse_tags, parse_terms_of_service_url,
-    parse_third_party_skus, parse_type, parse_verification_state, parse_verify_key, put_aliases_into,
-    put_approximate_guild_count_into, put_bot_public_into, put_bot_requires_code_grant_into,
-    put_creator_monetization_state_into, put_custom_install_url_into, put_deeplink_url_into, put_description_into,
-    put_developers_into, put_discoverability_state_into, put_discovery_eligibility_flags_into,
-    put_embedded_activity_configuration_into, put_eula_id_into, put_executables_into,
-    put_explicit_content_filter_level_into, put_flags_into, put_guild_id_into, put_hook_into, put_id_into,
-    put_install_parameters_into, put_integration_public_into, put_integration_requires_code_grant_into,
-    put_integration_types_configuration_into, put_integration_types_into, put_interaction_endpoint_url_into,
-    put_interaction_event_types_into, put_interaction_version_into, put_internal_guild_restriction_into,
-    put_max_participants_into, put_monetization_eligibility_flags_into, put_monetization_state_into, put_monetized_into,
-    put_name_into, put_overlay_compatibility_hook_into, put_overlay_into, put_overlay_method_flags_into, put_owner_into,
-    put_primary_sku_id_into, put_privacy_policy_url_into, put_publishers_into, put_redirect_urls_into,
-    put_role_connection_verification_url_into, put_rpc_origins_into, put_rpc_state_into, put_slug_into,
-    put_store_state_into, put_tags_into, put_terms_of_service_url_into, put_third_party_skus_into, put_type_into,
-    put_verification_state_into, put_verify_key_into, validate_aliases, validate_approximate_guild_count,
-    validate_bot_public, validate_bot_requires_code_grant, validate_creator_monetization_state,
-    validate_custom_install_url, validate_deeplink_url, validate_description, validate_developers,
-    validate_discoverability_state, validate_discovery_eligibility_flags, validate_embedded_activity_configuration,
-    validate_eula_id, validate_executables, validate_explicit_content_filter_level, validate_flags, validate_guild_id,
-    validate_hook, validate_id, validate_install_parameters, validate_integration_public,
-    validate_integration_requires_code_grant, validate_integration_types, validate_integration_types_configuration,
-    validate_interaction_endpoint_url, validate_interaction_event_types, validate_interaction_version,
-    validate_internal_guild_restriction, validate_max_participants, validate_monetization_eligibility_flags,
-    validate_monetization_state, validate_monetized, validate_name, validate_overlay,
-    validate_overlay_compatibility_hook, validate_overlay_method_flags, validate_owner, validate_primary_sku_id,
-    validate_privacy_policy_url, validate_publishers, validate_redirect_urls, validate_role_connection_verification_url,
-    validate_rpc_origins, validate_rpc_state, validate_slug, validate_store_state, validate_tags,
-    validate_terms_of_service_url, validate_third_party_skus, validate_type, validate_verification_state,
-    validate_verify_key
+    parse_themes, parse_third_party_skus, parse_type, parse_verification_state, parse_verify_key, put_aliases,
+    put_approximate_guild_count, put_approximate_user_authorization_count, put_approximate_user_install_count,
+    put_bot_public, put_bot_requires_code_grant, put_creator_monetization_state, put_custom_install_url,
+    put_deeplink_url, put_description, put_developers, put_discoverability_state, put_discovery_eligibility_flags,
+    put_embedded_activity_configuration, put_eula_id, put_event_webhook_event_types, put_event_webhook_state,
+    put_event_webhook_url, put_executables, put_explicit_content_filter_level, put_flags, put_guild_id, put_hook,
+    put_id, put_install_parameters, put_integration_public, put_integration_requires_code_grant, put_integration_types,
+    put_integration_types_configuration, put_interaction_endpoint_url, put_interaction_event_types,
+    put_interaction_version, put_internal_guild_restriction, put_max_participants, put_monetization_eligibility_flags,
+    put_monetization_state, put_monetized, put_name, put_overlay, put_overlay_compatibility_hook,
+    put_overlay_method_flags, put_owner, put_primary_sku_id, put_privacy_policy_url, put_publishers, put_redirect_urls,
+    put_role_connection_verification_url, put_rpc_origins, put_rpc_state, put_slug, put_store_state, put_tags,
+    put_terms_of_service_url, put_themes, put_third_party_skus, put_type, put_verification_state, put_verify_key,
+    validate_aliases, validate_approximate_guild_count, validate_approximate_user_authorization_count,
+    validate_approximate_user_install_count, validate_bot_public, validate_bot_requires_code_grant,
+    validate_creator_monetization_state, validate_custom_install_url, validate_deeplink_url, validate_description,
+    validate_developers, validate_discoverability_state, validate_discovery_eligibility_flags,
+    validate_embedded_activity_configuration, validate_eula_id, validate_event_webhook_event_types,
+    validate_event_webhook_state, validate_event_webhook_url, validate_executables,
+    validate_explicit_content_filter_level, validate_flags, validate_guild_id, validate_hook, validate_id,
+    validate_install_parameters, validate_integration_public, validate_integration_requires_code_grant,
+    validate_integration_types, validate_integration_types_configuration, validate_interaction_endpoint_url,
+    validate_interaction_event_types, validate_interaction_version, validate_internal_guild_restriction,
+    validate_max_participants, validate_monetization_eligibility_flags, validate_monetization_state, validate_monetized,
+    validate_name, validate_overlay, validate_overlay_compatibility_hook, validate_overlay_method_flags, validate_owner,
+    validate_primary_sku_id, validate_privacy_policy_url, validate_publishers, validate_redirect_urls,
+    validate_role_connection_verification_url, validate_rpc_origins, validate_rpc_state, validate_slug,
+    validate_store_state, validate_tags, validate_terms_of_service_url, validate_themes, validate_third_party_skus,
+    validate_type, validate_verification_state, validate_verify_key
 )
 from .flags import (
     ApplicationDiscoveryEligibilityFlags, ApplicationFlag, ApplicationMonetizationEligibilityFlags,
     ApplicationOverlayMethodFlags
 )
 from .preinstanced import (
-    ApplicationDiscoverabilityState, ApplicationExplicitContentFilterLevel, ApplicationInteractionVersion,
-    ApplicationInternalGuildRestriction, ApplicationMonetizationState, ApplicationRPCState, ApplicationStoreState,
-    ApplicationType, ApplicationVerificationState
+    ApplicationDiscoverabilityState, ApplicationEventWebhookState, ApplicationExplicitContentFilterLevel,
+    ApplicationInteractionVersion, ApplicationInternalGuildRestriction, ApplicationMonetizationState,
+    ApplicationRPCState, ApplicationStoreState, ApplicationType, ApplicationVerificationState
 )
 
 # Invite application fields
@@ -96,6 +101,8 @@ from .preinstanced import (
 # Own application fields
 #
 # - approximate_guild_count
+# - approximate_user_authorization_count
+# - approximate_user_install_count
 # - bot_public
 # - bot_requires_code_grant
 # - creator_monetization_state
@@ -110,6 +117,7 @@ from .preinstanced import (
 # - hook
 # - icon
 # - id
+# - install_params
 # - integration_public
 # - integration_requires_code_grant
 # - integration_types
@@ -135,6 +143,7 @@ from .preinstanced import (
 # - summary (deprecated)
 # - tags
 # - team
+# - terms_of_service_url
 # - type
 # - verification_state
 # - verify_key
@@ -142,9 +151,10 @@ from .preinstanced import (
 # Extra from docs
 #
 # - guild -> this one is documented, but never received
-# - terms_of_service_url
 # - cover_image
-# - install_parameters
+# - event_webhooks_types
+# - event_webhook_state
+# - event_webhook_url
 #
 # Detectable application fields:
 # The ones with `X` were already missing on last update. Omit them on next if they will be still missing.
@@ -176,175 +186,164 @@ from .preinstanced import (
 # - summary (deprecated) - X
 # - tags - X
 # - terms_of_service_url - X
+# - themes
 # - third_party_skus - X
 # - type - X
 # - verify_key - X
 #
+# Cache fields for other use
+# - _cache_emojis
+#
 # Table format:
 #
-# +-------------------------------------+-----------+-----------+---------------+
-# | Name                                | Own       | Invite    | Detectable    |
-# +=====================================+===========+===========+===============+
-# | aliases                             | NO        | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | approximate_guild_count             | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | bot_public                          | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | bot_requires_code_grant             | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | cover_image                         | PROBABLY  | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | creator_monetization_state          | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | custom_install_url                  | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | deeplink_uri                        | NO        | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | description                         | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | developers                          | YES       | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | discoverability_state               | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | discovery_eligibility_flags         | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | embedded_activity_configuration     | NO        | YES       | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | eula_id                             | NO        | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | executables                         | NO        | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | explicit_content_filter_level       | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | flags                               | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | guild_id                            | YES       | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | hook                                | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | icon                                | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | id                                  | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | install_parameters                  | PROBABLY  | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | integration_public                  | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | integration_requires_code_grant     | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | integration_types                   | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | integration_types_configuration     | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | interaction_endpoint_url            | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | interaction_event_types             | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | interaction_version                 | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | internal_guild_restriction          | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | max_participants                    | NO        | YES       | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | monetization_eligibility_flags      | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | monetization_state                  | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | monetized                           | YES       | YES       | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | name                                | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | overlay                             | NO        | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | overlay_compatibility_hook          | NO        | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | overlay_method_flags                | NO        | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | owner                               | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | primary_sku_id                      | YES       | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | privacy_policy_url                  | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | publishers                          | YES       | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | redirect_urls                       | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | role_connection_verification_url    | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | rpc_origins                         | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | rpc_state                           | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | slug                                | YES       | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | splash                              | PROBABLY  | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | store_state                         | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | summary                             | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | tags                                | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | team                                | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | terms_of_service_url                | PROBABLY  | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | third_party_skus                    | NO        | NO        | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | type                                | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
-# | verification_state                  | YES       | NO        | NO            |
-# +-------------------------------------+-----------+-----------+---------------+
-# | verify_key                          | YES       | YES       | YES           |
-# +-------------------------------------+-----------+-----------+---------------+
+# +-----------------------------------------+-----------+-----------+---------------+
+# | Name                                    | Own       | Invite    | Detectable    |
+# +=========================================+===========+===========+===============+
+# | aliases                                 | NO        | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | approximate_guild_count                 | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | approximate_user_authorization_count    | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | approximate_user_install_count          | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | bot_public                              | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | bot_requires_code_grant                 | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | cover_image                             | PROBABLY  | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | creator_monetization_state              | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | custom_install_url                      | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | deeplink_uri                            | NO        | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | description                             | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | developers                              | YES       | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | discoverability_state                   | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | discovery_eligibility_flags             | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | embedded_activity_configuration         | NO        | YES       | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | eula_id                                 | NO        | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | event_webhooks_types                    | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | event_webhooks_status                   | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | event_webhooks_url                      | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | executables                             | NO        | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | explicit_content_filter_level           | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | flags                                   | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | guild_id                                | YES       | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | hook                                    | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | icon                                    | YES       | YES       | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | icon_hash                               | NO        | NO        | YES            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | id                                      | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | install_parameters                      | PROBABLY  | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | integration_public                      | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | integration_requires_code_grant         | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | integration_types                       | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | integration_types_configuration         | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | interaction_endpoint_url                | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | interaction_event_types                 | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | interaction_version                     | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | internal_guild_restriction              | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | max_participants                        | NO        | YES       | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | monetization_eligibility_flags          | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | monetization_state                      | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | monetized                               | YES       | YES       | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | name                                    | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | overlay                                 | NO        | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | overlay_compatibility_hook              | NO        | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | overlay_method_flags                    | NO        | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | owner                                   | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | primary_sku_id                          | YES       | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | privacy_policy_url                      | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | publishers                              | YES       | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | redirect_urls                           | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | role_connection_verification_url        | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | rpc_origins                             | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | rpc_state                               | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | slug                                    | YES       | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | splash                                  | PROBABLY  | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | store_state                             | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | summary                                 | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | tags                                    | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | team                                    | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | terms_of_service_url                    | PROBABLY  | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | themes                                  | NO        | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | third_party_skus                        | NO        | NO        | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | type                                    | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | verification_state                      | YES       | NO        | NO            |
+# +-----------------------------------------+-----------+-----------+---------------+
+# | verify_key                              | YES       | YES       | YES           |
+# +-----------------------------------------+-----------+-----------+---------------+
 
 
-APPLICATION_COVER = IconSlot(
-    'cover',
-    'cover_image',
-    module_urls.application_cover_url,
-    module_urls.application_cover_url_as,
-    add_updater = False,
-)
-
-APPLICATION_ICON = IconSlot(
-    'icon',
-    'icon',
-    module_urls.application_icon_url,
-    module_urls.application_icon_url_as,
-    add_updater = False,
-)
-
-APPLICATION_SPLASH = IconSlot(
-    'splash',
-    'splash',
-    None,
-    None,
-    add_updater = False,
-)
-
-
-
-def _require_code_grant_validator_deprecated(value):
-    warn(
-        (
-            f'`{Application.__name__}`\'s `bot_require_code_grant` parameter is deprecated and will be removed in '
-            f'2024 April. '
-            f'Please use `bot_requires_code_grant` instead.'
-        ),
-        FutureWarning,
-        stacklevel = 4,
-    )
-    return validate_bot_requires_code_grant(value)
+APPLICATION_COVER = IconSlot('cover', 'cover_image', add_updater = False)
+APPLICATION_ICON = IconSlot('icon', 'icon', add_updater = False)
+APPLICATION_ICON_DETECTABLE = IconSlot('icon', 'icon_hash', add_updater = False)
+APPLICATION_SPLASH = IconSlot('splash', 'splash', add_updater = False)
 
 
 COMMON_CONSTRUCT_FIELDS = {
     'aliases': ('aliases', validate_aliases),
     'approximate_guild_count': ('approximate_guild_count', validate_approximate_guild_count),
+    'approximate_user_authorization_count': (
+        'approximate_user_authorization_count',
+        validate_approximate_user_authorization_count,
+    ),
+    'approximate_user_install_count': ('approximate_user_install_count', validate_approximate_user_install_count),
     'bot_public': ('bot_public', validate_bot_public),
-    'bot_require_code_grant': ('bot_requires_code_grant', _require_code_grant_validator_deprecated),
     'bot_requires_code_grant': ('bot_requires_code_grant', validate_bot_requires_code_grant),
     'creator_monetization_state': ('creator_monetization_state', validate_creator_monetization_state),
     'custom_install_url': ('custom_install_url', validate_custom_install_url),
@@ -355,6 +354,9 @@ COMMON_CONSTRUCT_FIELDS = {
     'discovery_eligibility_flags': ('discovery_eligibility_flags', validate_discovery_eligibility_flags),
     'embedded_activity_configuration': ('embedded_activity_configuration', validate_embedded_activity_configuration),
     'eula_id': ('eula_id', validate_eula_id),
+    'event_webhook_event_types': ('event_webhook_event_types', validate_event_webhook_event_types),
+    'event_webhook_state': ('event_webhook_state', validate_event_webhook_state),
+    'event_webhook_url': ('event_webhook_url', validate_event_webhook_url),
     'executables': ('executables', validate_executables),
     'explicit_content_filter_level': ('explicit_content_filter_level', validate_explicit_content_filter_level),
     'flags': ('flags', validate_flags),
@@ -389,6 +391,7 @@ COMMON_CONSTRUCT_FIELDS = {
     'store_state': ('store_state', validate_store_state),
     'tags': ('tags', validate_tags),
     'terms_of_service_url': ('terms_of_service_url', validate_terms_of_service_url),
+    'themes': ('themes', validate_themes),
     'third_party_skus': ('third_party_skus', validate_third_party_skus),
     'application_type': ('type', validate_type),
     'verification_state': ('verification_state', validate_verification_state),
@@ -420,11 +423,20 @@ class Application(DiscordEntity, immortal = True):
     
     Attributes
     ----------
-    aliases : `None`, `tuple` of `str`
+    _cache_emojis : `None | dict<int, Emoji>`
+        Application emoji cache.
+    
+    aliases : `None | tuple<str>`
         Aliases of the application's name.
     
     approximate_guild_count : `int`
         The approximate count of the guilds the application is in.
+    
+    approximate_user_authorization_count : `int`
+        The approximate count of the users who authorized the application.
+    
+    approximate_user_install_count : `int`
+        The approximate count of the users who installed the application.
     
     bot_public : `bool`.
         Whether not only the application's owner can join the application's bot to guilds.
@@ -474,6 +486,15 @@ class Application(DiscordEntity, immortal = True):
     eula_id : `int`
         The end-user license agreement's id of the application.
         Defaults to `0` if not applicable.
+    
+    event_webhook_event_types : `None | tuple<ApplicationEventWebhookEventType>`
+        The type of events received through event webhook.
+    
+    event_webhook_state : ``ApplicationEventWebhookState``
+        The state of the event webhook.
+    
+    event_webhook_url : ˙None | str`
+        The url where the event webhook requests are going.
     
     executables : `None`, `tuple` of ``ApplicationExecutable``
         The application's executables.
@@ -577,14 +598,14 @@ class Application(DiscordEntity, immortal = True):
         A list of the application's games' publishers.
         Defaults to `None`.
     
-    redirect_urls : `None`, `tuple` of `str`
+    redirect_urls : `None | tuple<str>`
         Configured oauth2 redirect urls.
         Defaults to `None`.
     
     role_connection_verification_url : `None`, `str`
         The application's role connection verification entry point
     
-    rpc_origins : `None`, `tuple` of `str`
+    rpc_origins : `None | tuple<str>`
         The application's `rpc` origin urls, if `rpc` is enabled.
         Defaults to `None`.
     
@@ -604,13 +625,16 @@ class Application(DiscordEntity, immortal = True):
     store_state : ``ApplicationStoreState``
         The application's state towards having approved store.
     
-    tags : `None`, `tuple` of `str`
+    tags : `None | tuple<str>`
         Up to 5 tags describing the content and functionality of the application.
         Defaults to `None`.
     
     terms_of_service_url : `None`, `str`
         The url of the application's terms of service.
         Defaults to `None`.
+    
+    themes : ``None | tuple<ApplicationTheme>``
+        The application's themes.
     
     third_party_skus : `None`, `tuple` of ``ThirdPartySKU``
          The application's third party stock keeping units.
@@ -631,21 +655,24 @@ class Application(DiscordEntity, immortal = True):
     The instances of the class support weakreferencing.
     """
     __slots__ = (
-        'aliases', 'approximate_guild_count', 'bot_public', 'bot_requires_code_grant', 'creator_monetization_state',
+        '_cache_emojis', 'aliases', 'approximate_guild_count', 'approximate_user_authorization_count',
+        'approximate_user_install_count', 'bot_public', 'bot_requires_code_grant', 'creator_monetization_state',
         'custom_install_url', 'deeplink_url', 'description', 'developers', 'discoverability_state',
-        'discovery_eligibility_flags',  'embedded_activity_configuration', 'eula_id', 'executables',
-        'explicit_content_filter_level', 'flags', 'guild_id', 'hook', 'install_parameters', 'integration_public',
-        'integration_requires_code_grant', 'integration_types', 'integration_types_configuration',
-        'interaction_endpoint_url', 'interaction_event_types', 'interaction_version', 'internal_guild_restriction',
-        'max_participants', 'monetization_eligibility_flags', 'monetization_state', 'monetized', 'name', 'overlay',
-        'overlay_compatibility_hook', 'overlay_method_flags', 'owner', 'primary_sku_id', 'privacy_policy_url',
-        'publishers', 'redirect_urls', 'role_connection_verification_url', 'rpc_origins', 'rpc_state', 'slug',
-        'store_state', 'tags', 'terms_of_service_url', 'third_party_skus', 'type', 'verification_state', 'verify_key'
+        'discovery_eligibility_flags',  'embedded_activity_configuration', 'eula_id', 'event_webhook_event_types',
+        'event_webhook_state', 'event_webhook_url', 'executables', 'explicit_content_filter_level', 'flags',
+        'guild_id', 'hook', 'install_parameters', 'integration_public', 'integration_requires_code_grant',
+        'integration_types', 'integration_types_configuration', 'interaction_endpoint_url', 'interaction_event_types',
+        'interaction_version', 'internal_guild_restriction', 'max_participants', 'monetization_eligibility_flags',
+        'monetization_state', 'monetized', 'name', 'overlay', 'overlay_compatibility_hook', 'overlay_method_flags',
+        'owner', 'primary_sku_id', 'privacy_policy_url', 'publishers', 'redirect_urls',
+        'role_connection_verification_url', 'rpc_origins', 'rpc_state', 'slug', 'store_state', 'tags',
+        'terms_of_service_url', 'themes', 'third_party_skus', 'type', 'verification_state', 'verify_key'
     )
     
     cover = APPLICATION_COVER
     icon = APPLICATION_ICON
     splash = APPLICATION_SPLASH
+    _set_icon_detectable = APPLICATION_ICON_DETECTABLE.added_class_attributes[0][1]
     
     @classmethod
     def _create_empty(cls, application_id):
@@ -663,9 +690,12 @@ class Application(DiscordEntity, immortal = True):
             The created application.
         """
         self = object.__new__(cls)
-        
+
+        self._cache_emojis = None
         self.aliases = None
         self.approximate_guild_count = 0
+        self.approximate_user_authorization_count = 0
+        self.approximate_user_install_count = 0
         self.bot_public = BOT_PUBLIC_DEFAULT
         self.bot_requires_code_grant = BOT_REQUIRES_CODE_GRANT_DEFAULT
         self.cover_hash = 0
@@ -679,6 +709,9 @@ class Application(DiscordEntity, immortal = True):
         self.discovery_eligibility_flags = ApplicationDiscoveryEligibilityFlags()
         self.embedded_activity_configuration = None
         self.eula_id = 0
+        self.event_webhook_event_types = None
+        self.event_webhook_state = ApplicationEventWebhookState.none
+        self.event_webhook_url = None
         self.executables = None
         self.explicit_content_filter_level = ApplicationExplicitContentFilterLevel.none
         self.flags = ApplicationFlag()
@@ -718,6 +751,7 @@ class Application(DiscordEntity, immortal = True):
         self.store_state = ApplicationStoreState.none
         self.tags = None
         self.terms_of_service_url = None
+        self.themes = None
         self.third_party_skus = None
         self.type = ApplicationType.none
         self.verification_state = ApplicationVerificationState.none
@@ -736,7 +770,7 @@ class Application(DiscordEntity, immortal = True):
         self : `None`, `instance<cls>>`
             The application instance the method was called if any.
         
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Application data.
         
         Returns
@@ -776,7 +810,7 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Application data.
         
         Returns
@@ -808,7 +842,7 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Application data.
         
         Returns
@@ -826,6 +860,7 @@ class Application(DiscordEntity, immortal = True):
         
         self = cls._from_data_constructor(data)
         self._update_attributes_common(data)
+        self._set_icon(data)
         return self
     
     
@@ -838,7 +873,7 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Application data.
         
         Returns
@@ -859,7 +894,7 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Application data.
         
         Returns
@@ -880,7 +915,7 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Application data.
         
         Returns
@@ -901,7 +936,7 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Application data.
         
         Returns
@@ -919,7 +954,7 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items, Optional
+        data : `dict<str, object>`, Optional
             Application data.
         """
         self.flags = parse_flags(data)
@@ -931,18 +966,24 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items, Optional
+        data : `dict<str, object>`, Optional
             Application data.
         """
         self._update_attributes_common(data)
         self.approximate_guild_count = parse_approximate_guild_count(data)
+        self.approximate_user_authorization_count = parse_approximate_user_authorization_count(data)
+        self.approximate_user_install_count = parse_approximate_user_install_count(data)
         self.creator_monetization_state = parse_creator_monetization_state(data)
         self.custom_install_url = parse_custom_install_url(data)
         self.developers = parse_developers(data)
         self.discoverability_state = parse_discoverability_state(data)
         self.discovery_eligibility_flags = parse_discovery_eligibility_flags(data)
+        self.event_webhook_event_types = parse_event_webhook_event_types(data)
+        self.event_webhook_state = parse_event_webhook_state(data)
+        self.event_webhook_url = parse_event_webhook_url(data)
         self.explicit_content_filter_level = parse_explicit_content_filter_level(data)
         self.guild_id = parse_guild_id(data)
+        self._set_icon(data)
         self.install_parameters = parse_install_parameters(data)
         self.integration_public = parse_integration_public(data)
         self.integration_requires_code_grant = parse_integration_requires_code_grant(data)
@@ -972,11 +1013,12 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items, Optional
+        data : `dict<str, object>`, Optional
             Application data.
         """
         self._update_attributes_common(data)
         self.embedded_activity_configuration = parse_embedded_activity_configuration(data)
+        self._set_icon(data)
         self.max_participants = parse_max_participants(data)
         self.monetized = parse_monetized(data)
     
@@ -987,7 +1029,7 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items, Optional
+        data : `dict<str, object>`, Optional
             Application data.
         """
         self._update_attributes_common(data)
@@ -997,12 +1039,14 @@ class Application(DiscordEntity, immortal = True):
         self.eula_id = parse_eula_id(data)
         self.executables = parse_executables(data)
         self.guild_id = parse_guild_id(data)
+        self._set_icon_detectable(data)
         self.overlay = parse_overlay(data)
         self.overlay_compatibility_hook = parse_overlay_compatibility_hook(data)
         self.overlay_method_flags = parse_overlay_method_flags(data)
         self.primary_sku_id = parse_primary_sku_id(data)
         self.publishers = parse_publishers(data)
         self.slug = parse_slug(data)
+        self.themes = parse_themes(data)
         self.third_party_skus = parse_third_party_skus(data)
     
     
@@ -1012,7 +1056,7 @@ class Application(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items, Optional
+        data : `dict<str, object>`, Optional
             Application data.
         """
         self.bot_public = parse_bot_public(data)
@@ -1021,7 +1065,6 @@ class Application(DiscordEntity, immortal = True):
         self.description = parse_description(data)
         self.flags = parse_flags(data)
         self.hook = parse_hook(data)
-        self._set_icon(data)
         self.name = parse_name(data)
         self.privacy_policy_url = parse_privacy_policy_url(data)
         self.rpc_origins = parse_rpc_origins(data)
@@ -1054,7 +1097,7 @@ class Application(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `str`) items
+        data : `dict<str, object>`
         """
         data = {}
         
@@ -1069,17 +1112,17 @@ class Application(DiscordEntity, immortal = True):
                 stacklevel = 2,
             )
             
-            put_id_into(self.id, data, defaults)
+            put_id(self.id, data, defaults)
         
         type(self).cover.put_into(self.cover, data, defaults, as_data = not include_internals)
-        put_custom_install_url_into(self.custom_install_url, data, defaults)
-        put_description_into(self.description, data, defaults)
-        put_flags_into(self.flags, data, defaults)
+        put_custom_install_url(self.custom_install_url, data, defaults)
+        put_description(self.description, data, defaults)
+        put_flags(self.flags, data, defaults)
         type(self).icon.put_into(self.icon, data, defaults, as_data = not include_internals)
-        put_install_parameters_into(self.install_parameters, data, defaults)
-        put_interaction_endpoint_url_into(self.interaction_endpoint_url, data, defaults)
-        put_role_connection_verification_url_into(self.role_connection_verification_url, data, defaults)
-        put_tags_into(self.tags, data, defaults)
+        put_install_parameters(self.install_parameters, data, defaults)
+        put_interaction_endpoint_url(self.interaction_endpoint_url, data, defaults)
+        put_role_connection_verification_url(self.role_connection_verification_url, data, defaults)
+        put_tags(self.tags, data, defaults)
         return data
     
     
@@ -1097,12 +1140,12 @@ class Application(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `str`) items
+        data : `dict<str, object>`
         """
         data = {}
-        put_flags_into(self.flags, data, defaults)
+        put_flags(self.flags, data, defaults)
         if include_internals:
-            put_id_into(self.id, data, defaults)
+            put_id(self.id, data, defaults)
         return data
     
     
@@ -1121,39 +1164,45 @@ class Application(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `str`) items
+        data : `dict<str, object>`
         """
         data = self._to_data_common(defaults, include_internals)
-        put_approximate_guild_count_into(self.approximate_guild_count, data, defaults)
-        put_creator_monetization_state_into(self.creator_monetization_state, data, defaults)
-        put_custom_install_url_into(self.custom_install_url, data, defaults)
-        put_developers_into(self.developers, data, defaults, include_internals = True)
-        put_discoverability_state_into(self.discoverability_state, data, defaults)
-        put_discovery_eligibility_flags_into(self.discovery_eligibility_flags, data, defaults)
-        put_explicit_content_filter_level_into(self.explicit_content_filter_level, data, defaults)
-        put_guild_id_into(self.guild_id, data, defaults)
-        put_install_parameters_into(self.install_parameters, data, defaults)
-        put_integration_public_into(self.integration_public, data, defaults)
-        put_integration_requires_code_grant_into(self.integration_requires_code_grant, data, defaults)
-        put_integration_types_into(self.integration_types, data, defaults)
-        put_integration_types_configuration_into(self.integration_types_configuration, data, defaults)
-        put_interaction_endpoint_url_into(self.interaction_endpoint_url, data, defaults)
-        put_interaction_event_types_into(self.interaction_event_types, data, defaults)
-        put_interaction_version_into(self.interaction_version, data, defaults)
-        put_internal_guild_restriction_into(self.internal_guild_restriction, data, defaults)
-        put_monetization_eligibility_flags_into(self.monetization_eligibility_flags, data, defaults)
-        put_monetization_state_into(self.monetization_state, data, defaults)
-        put_monetized_into(self.monetized, data, defaults)
+        put_approximate_guild_count(self.approximate_guild_count, data, defaults)
+        put_approximate_user_authorization_count(self.approximate_user_authorization_count, data, defaults)
+        put_approximate_user_install_count(self.approximate_user_install_count, data, defaults)
+        put_creator_monetization_state(self.creator_monetization_state, data, defaults)
+        put_custom_install_url(self.custom_install_url, data, defaults)
+        put_developers(self.developers, data, defaults, include_internals = True)
+        put_discoverability_state(self.discoverability_state, data, defaults)
+        put_discovery_eligibility_flags(self.discovery_eligibility_flags, data, defaults)
+        put_event_webhook_event_types(self.event_webhook_event_types, data, defaults)
+        put_event_webhook_state(self.event_webhook_state, data, defaults)
+        put_event_webhook_url(self.event_webhook_url, data, defaults)
+        put_explicit_content_filter_level(self.explicit_content_filter_level, data, defaults)
+        put_guild_id(self.guild_id, data, defaults)
+        type(self).icon.put_into(self.icon, data, defaults, as_data = not include_internals)
+        put_install_parameters(self.install_parameters, data, defaults)
+        put_integration_public(self.integration_public, data, defaults)
+        put_integration_requires_code_grant(self.integration_requires_code_grant, data, defaults)
+        put_integration_types(self.integration_types, data, defaults)
+        put_integration_types_configuration(self.integration_types_configuration, data, defaults)
+        put_interaction_endpoint_url(self.interaction_endpoint_url, data, defaults)
+        put_interaction_event_types(self.interaction_event_types, data, defaults)
+        put_interaction_version(self.interaction_version, data, defaults)
+        put_internal_guild_restriction(self.internal_guild_restriction, data, defaults)
+        put_monetization_eligibility_flags(self.monetization_eligibility_flags, data, defaults)
+        put_monetization_state(self.monetization_state, data, defaults)
+        put_monetized(self.monetized, data, defaults)
         if include_internals:
-            put_owner_into(self.owner, data, defaults)
-        put_primary_sku_id_into(self.primary_sku_id, data, defaults)
-        put_publishers_into(self.publishers, data, defaults, include_internals = True)
-        put_redirect_urls_into(self.redirect_urls, data, defaults)
-        put_role_connection_verification_url_into(self.role_connection_verification_url, data, defaults)
-        put_rpc_state_into(self.rpc_state, data, defaults)
-        put_slug_into(self.slug, data, defaults)
-        put_store_state_into(self.store_state, data, defaults)
-        put_verification_state_into(self.verification_state, data, defaults)
+            put_owner(self.owner, data, defaults)
+        put_primary_sku_id(self.primary_sku_id, data, defaults)
+        put_publishers(self.publishers, data, defaults, include_internals = True)
+        put_redirect_urls(self.redirect_urls, data, defaults)
+        put_role_connection_verification_url(self.role_connection_verification_url, data, defaults)
+        put_rpc_state(self.rpc_state, data, defaults)
+        put_slug(self.slug, data, defaults)
+        put_store_state(self.store_state, data, defaults)
+        put_verification_state(self.verification_state, data, defaults)
         return data
     
     
@@ -1171,12 +1220,13 @@ class Application(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `str`) items
+        data : `dict<str, object>`
         """
         data = self._to_data_common(defaults, include_internals)
-        put_embedded_activity_configuration_into(self.embedded_activity_configuration, data, defaults)
-        put_max_participants_into(self.max_participants, data, defaults)
-        put_monetized_into(self.monetized, data, defaults)
+        put_embedded_activity_configuration(self.embedded_activity_configuration, data, defaults)
+        type(self).icon.put_into(self.icon, data, defaults, as_data = not include_internals)
+        put_max_participants(self.max_participants, data, defaults)
+        put_monetized(self.monetized, data, defaults)
         return data
     
     
@@ -1194,22 +1244,24 @@ class Application(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `str`) items
+        data : `dict<str, object>`
         """
         data = self._to_data_common(defaults, include_internals)
-        put_aliases_into(self.aliases, data, defaults)
-        put_deeplink_url_into(self.deeplink_url, data, defaults)
-        put_developers_into(self.developers, data, defaults, include_internals = True)
-        put_eula_id_into(self.eula_id, data, defaults)
-        put_executables_into(self.executables, data, defaults)
-        put_guild_id_into(self.guild_id, data, defaults)
-        put_overlay_into(self.overlay, data, defaults)
-        put_overlay_compatibility_hook_into(self.overlay_compatibility_hook, data, defaults)
-        put_overlay_method_flags_into(self.overlay_method_flags, data, defaults)
-        put_primary_sku_id_into(self.primary_sku_id, data, defaults)
-        put_publishers_into(self.publishers, data, defaults, include_internals = True)
-        put_slug_into(self.slug, data, defaults)
-        put_third_party_skus_into(self.third_party_skus, data, defaults)
+        put_aliases(self.aliases, data, defaults)
+        put_deeplink_url(self.deeplink_url, data, defaults)
+        put_developers(self.developers, data, defaults, include_internals = True)
+        put_eula_id(self.eula_id, data, defaults)
+        put_executables(self.executables, data, defaults)
+        APPLICATION_ICON_DETECTABLE.put_into(self.icon, data, defaults, as_data = not include_internals)
+        put_guild_id(self.guild_id, data, defaults)
+        put_overlay(self.overlay, data, defaults)
+        put_overlay_compatibility_hook(self.overlay_compatibility_hook, data, defaults)
+        put_overlay_method_flags(self.overlay_method_flags, data, defaults)
+        put_primary_sku_id(self.primary_sku_id, data, defaults)
+        put_publishers(self.publishers, data, defaults, include_internals = True)
+        put_slug(self.slug, data, defaults)
+        put_themes(self.themes, data, defaults)
+        put_third_party_skus(self.third_party_skus, data, defaults)
         return data
     
     
@@ -1226,26 +1278,25 @@ class Application(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `str`) items
+        data : `dict<str, object>`
         """
         data = {}
-        put_bot_public_into(self.bot_public, data, defaults)
-        put_bot_requires_code_grant_into(self.bot_requires_code_grant, data, defaults)
+        put_bot_public(self.bot_public, data, defaults)
+        put_bot_requires_code_grant(self.bot_requires_code_grant, data, defaults)
         type(self).cover.put_into(self.cover, data, defaults, as_data = not include_internals)
-        put_description_into(self.description, data, defaults)
-        put_flags_into(self.flags, data, defaults)
-        put_hook_into(self.hook, data, defaults)
+        put_description(self.description, data, defaults)
+        put_flags(self.flags, data, defaults)
+        put_hook(self.hook, data, defaults)
         if include_internals:
-            put_id_into(self.id, data, defaults)
-        type(self).icon.put_into(self.icon, data, defaults, as_data = not include_internals)
-        put_name_into(self.name, data, defaults)
-        put_privacy_policy_url_into(self.privacy_policy_url, data, defaults)
-        put_rpc_origins_into(self.rpc_origins, data, defaults)
+            put_id(self.id, data, defaults)
+        put_name(self.name, data, defaults)
+        put_privacy_policy_url(self.privacy_policy_url, data, defaults)
+        put_rpc_origins(self.rpc_origins, data, defaults)
         type(self).splash.put_into(self.splash, data, defaults, as_data = not include_internals)
-        put_tags_into(self.tags, data, defaults)
-        put_terms_of_service_url_into(self.terms_of_service_url, data, defaults)
-        put_type_into(self.type, data, defaults)
-        put_verify_key_into(self.verify_key, data, defaults)
+        put_tags(self.tags, data, defaults)
+        put_terms_of_service_url(self.terms_of_service_url, data, defaults)
+        put_type(self.type, data, defaults)
+        put_verify_key(self.verify_key, data, defaults)
         return data
     
     
@@ -1278,6 +1329,12 @@ class Application(DiscordEntity, immortal = True):
         
         # approximate_guild_count
         hash_value ^= self.approximate_guild_count << 8
+        
+        # approximate_user_authorization_count
+        hash_value ^= self.approximate_user_authorization_count << 37
+        
+        # approximate_user_install_count
+        hash_value ^= self.approximate_user_install_count << 35
         
         # bot_public
         hash_value ^= self.bot_public << 4
@@ -1367,6 +1424,22 @@ class Application(DiscordEntity, immortal = True):
         
         # eula_id
         hash_value ^= self.eula_id
+        
+        # event_webhook_event_types
+        event_webhook_event_types = self.event_webhook_event_types
+        if (event_webhook_event_types is not None):
+            hash_value ^ len(event_webhook_event_types) << 36
+            
+            for event_webhook_event_type in event_webhook_event_types:
+                hash_value ^= hash(event_webhook_event_type)
+        
+        # event_webhook_state
+        hash_value ^= hash(self.event_webhook_state) << 37
+        
+        # event_webhook_url
+        event_webhook_url = self.event_webhook_url
+        if (event_webhook_url is not None):
+            hash_value ^= hash(event_webhook_url)
         
         # executables
         executables = self.executables
@@ -1489,6 +1562,14 @@ class Application(DiscordEntity, immortal = True):
         if (terms_of_service_url is not None):
             hash_value ^= hash(terms_of_service_url)
         
+        # themes
+        themes = self.themes
+        if (themes is not None):
+            hash_value ^= len(themes) << 38
+            
+            for theme in themes:
+                hash_value ^= hash(theme)
+        
         # third_party_skus
         third_party_skus = self.third_party_skus
         if (third_party_skus is not None):
@@ -1554,6 +1635,14 @@ class Application(DiscordEntity, immortal = True):
         if self.approximate_guild_count != other.approximate_guild_count:
             return False
         
+        # approximate_user_authorization_count
+        if self.approximate_user_authorization_count != other.approximate_user_authorization_count:
+            return False
+        
+        # approximate_user_install_count
+        if self.approximate_user_install_count != other.approximate_user_install_count:
+            return False
+        
         # bot_public
         if self.bot_public != other.bot_public:
             return False
@@ -1604,6 +1693,18 @@ class Application(DiscordEntity, immortal = True):
         
         # eula_id
         if self.eula_id != other.eula_id:
+            return False
+        
+        # event_webhook_event_types
+        if self.event_webhook_event_types != other.event_webhook_event_types:
+            return False
+        
+        # event_webhook_state
+        if self.event_webhook_state != other.event_webhook_state:
+            return False
+        
+        # event_webhook_url
+        if self.event_webhook_url != other.event_webhook_url:
             return False
         
         # executables
@@ -1758,6 +1859,10 @@ class Application(DiscordEntity, immortal = True):
         if self.terms_of_service_url != other.terms_of_service_url:
             return False
         
+        # themes
+        if self.themes != other.themes:
+            return False
+        
         # third_party_skus
         if self.third_party_skus != other.third_party_skus:
             return False
@@ -1781,7 +1886,7 @@ class Application(DiscordEntity, immortal = True):
         """Returns the application's representation"""
         repr_parts = [
             '<',
-            self.__class__.__name__,
+            type(self).__name__,
         ]
         
         application_id = self.id
@@ -1816,6 +1921,12 @@ class Application(DiscordEntity, immortal = True):
         approximate_guild_count : `int`, Optional (Keyword only)
             The approximate count of the guilds the application is in.
         
+        approximate_user_authorization_count : `int`, Optional (Keyword only)
+            The approximate count of the users who authorized the application.
+        
+        approximate_user_install_count : `int`, Optional (Keyword only)
+            The approximate count of the users who installed the application.
+        
         application_type : `int`, ``ApplicationType``, Optional (Keyword only)
             The application's type.
         
@@ -1825,7 +1936,7 @@ class Application(DiscordEntity, immortal = True):
         bot_requires_code_grant : `bool`, Optional (Keyword only)
             Whether the application's bot will only join a guild when completing the full `oauth2` code grant flow.
         
-        cover : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        cover : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The application's cover.
         
         creator_monetization_state : ``ApplicationMonetizationState``, `int`, Optional (Keyword only)
@@ -1855,6 +1966,15 @@ class Application(DiscordEntity, immortal = True):
         eula_id : `int`, Optional (Keyword only)
             The end-user license agreement's id of the application.
         
+        event_webhook_event_types : `None | iterable<ApplicationEventWebhookEventType | str>`, Optional (Keyword only)
+            The type event of eventy received through event webhook.
+        
+        event_webhook_state : ApplicationEventWebhookState | int`, Optional (Keyword only)
+            The state of the event webhook.
+        
+        event_webhook_url : ˙None | str`, Optional (Keyword only)
+            The url where the event webhook requests are going.
+        
         executables : `None`, `iterable` of ``ApplicationExecutable``, Optional (Keyword only)
             The application's executables.
         
@@ -1870,7 +1990,7 @@ class Application(DiscordEntity, immortal = True):
         hook : `bool`, Optional (Keyword only)
             Whether the application's bot is allowed to hook into the application's game directly.
         
-        icon : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        icon : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The application's icon.
         
         install_parameters : `None`, ``ApplicationInstallParameters``, Optional (Keyword only)
@@ -1940,7 +2060,7 @@ class Application(DiscordEntity, immortal = True):
         publishers : `None`, `iterable` of ``ApplicationEntity``, Optional (Keyword only)
             A list of the application's games' publishers.
     
-        redirect_urls : `None`, `str`, `iterable` of `str`, Optional (Keyword only)
+        redirect_urls : `None | str | iterable<str>`, Optional (Keyword only)
             Configured oauth2 redirect urls.
         
         role_connection_verification_url : `None`, `str`, Optional (Keyword only)
@@ -1955,7 +2075,7 @@ class Application(DiscordEntity, immortal = True):
         slug : `None`, `str`, Optional (Keyword only)
             If this application is a game sold on Discord, this field will be the url slug that links to the store page.
         
-        splash : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        splash : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The application's splash.
         
         store_state : ``ApplicationStoreState``, `int`, Optional (Keyword only)
@@ -1966,6 +2086,9 @@ class Application(DiscordEntity, immortal = True):
         
         terms_of_service_url : `None`, `str`, Optional (Keyword only)
             The url of the application's terms of service.
+        
+        themes : ``None | iterable<str> | iterable<ApplicationTheme>``, Optional (Keyword only)
+            The themes of the application.
         
         third_party_skus : `None`, `iterable` of ``ThirdPartySKU``, Optional (Keyword only)
              The application's third party stock keeping units.
@@ -2023,6 +2146,12 @@ class Application(DiscordEntity, immortal = True):
         approximate_guild_count : `int`, Optional (Keyword only)
             The approximate count of the guilds the application is in.
         
+        approximate_user_authorization_count : `int`, Optional (Keyword only)
+            The approximate count of the users who authorized the application.
+        
+        approximate_user_install_count : `int`, Optional (Keyword only)
+            The approximate count of the users who installed the application.
+        
         application_type : `int`, ``ApplicationType``, Optional (Keyword only)
             The application's type.
         
@@ -2032,7 +2161,7 @@ class Application(DiscordEntity, immortal = True):
         bot_requires_code_grant : `bool`, Optional (Keyword only)
             Whether the application's bot will only join a guild when completing the full `oauth2` code grant flow.
         
-        cover : `None`, ``Icon``, `str`, Optional (Keyword only)
+        cover : ``None | str | Icon``, Optional (Keyword only)
             The application's cover.
         
         creator_monetization_state : ``ApplicationMonetizationState``, `int`, Optional (Keyword only)
@@ -2062,6 +2191,15 @@ class Application(DiscordEntity, immortal = True):
         eula_id : `int`, Optional (Keyword only)
             The end-user license agreement's id of the application.
         
+        event_webhook_event_types : `None | iterable<ApplicationEventWebhookEventType | str>`, Optional (Keyword only)
+            The type event of eventy received through event webhook.
+        
+        event_webhook_state : ApplicationEventWebhookState | int`, Optional (Keyword only)
+            The state of the event webhook.
+        
+        event_webhook_url : ˙None | str`, Optional (Keyword only)
+            The url where the event webhook requests are going.
+        
         executables : `None`, `iterable` of ``ApplicationExecutable``, Optional (Keyword only)
             The application's executables.
         
@@ -2077,7 +2215,7 @@ class Application(DiscordEntity, immortal = True):
         hook : `bool`, Optional (Keyword only)
             Whether the application's bot is allowed to hook into the application's game directly.
         
-        icon : `None`, ``Icon``, `str`, Optional (Keyword only)
+        icon : ``None | str | Icon``, Optional (Keyword only)
             The application's icon.
         
         install_parameters : `None`, ``ApplicationInstallParameters``, Optional (Keyword only)
@@ -2148,7 +2286,7 @@ class Application(DiscordEntity, immortal = True):
         publishers : `None`, `iterable` of ``ApplicationEntity``, Optional (Keyword only)
             A list of the application's games' publishers.
     
-        redirect_urls : `None`, `str`, `iterable` of `str`, Optional (Keyword only)
+        redirect_urls : `None | str | iterable<str>`, Optional (Keyword only)
             Configured oauth2 redirect urls.
         
         role_connection_verification_url : `None`, `str`, Optional (Keyword only)
@@ -2163,7 +2301,7 @@ class Application(DiscordEntity, immortal = True):
         slug : `None`, `str`, Optional (Keyword only)
             If this application is a game sold on Discord, this field will be the url slug that links to the store page.
         
-        splash : `None`, ``Icon``, `str`, Optional (Keyword only)
+        splash : ``None | str | Icon``, Optional (Keyword only)
             The application's splash.
         
         store_state : ``ApplicationStoreState``, `int`, Optional (Keyword only)
@@ -2174,6 +2312,9 @@ class Application(DiscordEntity, immortal = True):
         
         terms_of_service_url : `None`, `str`, Optional (Keyword only)
             The url of the application's terms of service.
+        
+        themes : ``None | iterable<str> | iterable<ApplicationTheme>``, Optional (Keyword only)
+            The themes of the application.
         
         third_party_skus : `None`, `iterable` of ``ThirdPartySKU``, Optional (Keyword only)
              The application's third party stock keeping units.
@@ -2241,6 +2382,12 @@ class Application(DiscordEntity, immortal = True):
         approximate_guild_count : `int`, Optional (Keyword only)
             The approximate count of the guilds the application is in.
         
+        approximate_user_authorization_count : `int`, Optional (Keyword only)
+            The approximate count of the users who authorized the application.
+        
+        approximate_user_install_count : `int`, Optional (Keyword only)
+            The approximate count of the users who installed the application.
+        
         application_type : `int`, ``ApplicationType``, Optional (Keyword only)
             The application's type.
         
@@ -2250,7 +2397,7 @@ class Application(DiscordEntity, immortal = True):
         bot_requires_code_grant : `bool`, Optional (Keyword only)
             Whether the application's bot will only join a guild when completing the full `oauth2` code grant flow.
         
-        cover : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        cover : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The application's cover.
         
         creator_monetization_state : ``ApplicationMonetizationState``, `int`, Optional (Keyword only)
@@ -2280,6 +2427,15 @@ class Application(DiscordEntity, immortal = True):
         eula_id : `int`, Optional (Keyword only)
             The end-user license agreement's id of the application.
         
+        event_webhook_event_types : `None | iterable<ApplicationEventWebhookEventType | str>`, Optional (Keyword only)
+            The type event of eventy received through event webhook.
+        
+        event_webhook_state : ApplicationEventWebhookState | int`, Optional (Keyword only)
+            The state of the event webhook.
+        
+        event_webhook_url : ˙None | str`, Optional (Keyword only)
+            The url where the event webhook requests are going.
+        
         executables : `None`, `iterable` of ``ApplicationExecutable``, Optional (Keyword only)
             The application's executables.
         
@@ -2295,7 +2451,7 @@ class Application(DiscordEntity, immortal = True):
         hook : `bool`, Optional (Keyword only)
             Whether the application's bot is allowed to hook into the application's game directly.
         
-        icon : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        icon : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The application's icon.
         
         install_parameters : `None`, ``ApplicationInstallParameters``, Optional (Keyword only)
@@ -2365,7 +2521,7 @@ class Application(DiscordEntity, immortal = True):
         publishers : `None`, `iterable` of ``ApplicationEntity``, Optional (Keyword only)
             A list of the application's games' publishers.
     
-        redirect_urls : `None`, `str`, `iterable` of `str`, Optional (Keyword only)
+        redirect_urls : `None | str | iterable<str>`, Optional (Keyword only)
             Configured oauth2 redirect urls.
         
         role_connection_verification_url : `None`, `str`, Optional (Keyword only)
@@ -2380,7 +2536,7 @@ class Application(DiscordEntity, immortal = True):
         slug : `None`, `str`, Optional (Keyword only)
             If this application is a game sold on Discord, this field will be the url slug that links to the store page.
         
-        splash : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        splash : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The application's splash.
         
         store_state : ``ApplicationStoreState``, `int`, Optional (Keyword only)
@@ -2391,6 +2547,9 @@ class Application(DiscordEntity, immortal = True):
         
         terms_of_service_url : `None`, `str`, Optional (Keyword only)
             The url of the application's terms of service.
+        
+        themes : ``None | iterable<str> | iterable<ApplicationTheme>``, Optional (Keyword only)
+            The themes of the application.
         
         third_party_skus : `None`, `iterable` of ``ThirdPartySKU``, Optional (Keyword only)
              The application's third party stock keeping units.
@@ -2432,11 +2591,14 @@ class Application(DiscordEntity, immortal = True):
         new : `instance<type<self>>`
         """
         new = object.__new__(type(self))
+        new._cache_emojis = None
         aliases = self.aliases
         if (aliases is not None):
             aliases = (*aliases,)
         new.aliases = aliases
         new.approximate_guild_count = self.approximate_guild_count
+        new.approximate_user_authorization_count = self.approximate_user_authorization_count
+        new.approximate_user_install_count = self.approximate_user_install_count
         new.bot_public = self.bot_public
         new.bot_requires_code_grant = self.bot_requires_code_grant
         new.cover_hash = self.cover_hash
@@ -2456,6 +2618,12 @@ class Application(DiscordEntity, immortal = True):
             embedded_activity_configuration = embedded_activity_configuration.copy()
         new.embedded_activity_configuration = embedded_activity_configuration
         new.eula_id = self.eula_id
+        event_webhook_event_types = self.event_webhook_event_types
+        if (event_webhook_event_types is not None):
+            event_webhook_event_types = (*event_webhook_event_types,)
+        new.event_webhook_event_types = event_webhook_event_types
+        new.event_webhook_state = self.event_webhook_state
+        new.event_webhook_url = self.event_webhook_url
         executables = self.executables
         if (executables is not None):
             executables = (*(executable.copy() for executable in executables),)
@@ -2526,6 +2694,12 @@ class Application(DiscordEntity, immortal = True):
             tags = (*tags,)
         new.tags = tags
         new.terms_of_service_url = self.terms_of_service_url
+        
+        themes = self.themes
+        if (themes is not None):
+            themes = (*themes,)
+        new.themes = themes
+        
         third_party_skus = self.third_party_skus
         if (third_party_skus is not None):
             third_party_skus = (*(third_party_sku.copy() for third_party_sku in third_party_skus),)
@@ -2650,6 +2824,21 @@ class Application(DiscordEntity, immortal = True):
             yield from tags
     
     
+    def iter_themes(self):
+        """
+        Iterates over the third party sku-s of the application.
+        
+        This method is an iterable generator.
+        
+        Yields
+        ------
+        theme : ``ApplicationTheme``
+        """
+        themes = self.themes
+        if (themes is not None):
+            yield from themes
+    
+    
     def iter_third_party_skus(self):
         """
         Iterates over the third party sku-s of the application.
@@ -2672,27 +2861,26 @@ class Application(DiscordEntity, immortal = True):
         
         Returns
         -------
-        guild : `None | Guild`
+        guild : ``None | Guild``
         """
         guild_id = self.guild_id
         if guild_id:
             return GUILDS.get(guild_id, None)
     
     
-    @property
-    def bot_require_code_grant(self):
+    def iter_event_webhook_event_types(self):
         """
-        Deprecated and will be removed in 2024 April. Please use `.bot_requires_code_grant` instead.
+        Iterates over the event webhook event types of the application
+        
+        This method is an iterable generator.
+        
+        Yields
+        ------
+        event_webhook_event_type : ``ApplicationEventWebhookEventType``
         """
-        warn(
-            (
-                f'`{type(self).__name__}.bot_require_code_grant` is deprecated and will be removed in 2024 April. '
-                f'Please use `.bot_requires_code_grant` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        return self.bot_requires_code_grant
+        event_webhook_event_types = self.event_webhook_event_types
+        if (event_webhook_event_types is not None):
+            yield from event_webhook_event_types
     
     
     def iter_interaction_event_types(self):
@@ -2779,3 +2967,136 @@ class Application(DiscordEntity, immortal = True):
                 pass
         
         return ApplicationIntegrationTypeConfiguration._create_empty()
+    
+    
+    # emoji cache
+    
+    def _add_cache_emoji(self, emoji):
+        """
+        Adds an emoji to the application's cached emojis.
+        
+        Parameters
+        ----------
+        emoji : ``Emoji``
+            The emoji to add.
+        """
+        cache_emojis = self._cache_emojis
+        if cache_emojis is None:
+            cache_emojis = {}
+            self._cache_emojis = cache_emojis
+        
+        cache_emojis[emoji.id] = emoji
+    
+    
+    def _delete_cache_emoji_by_id(self, emoji_id):
+        """
+        Deletes an emoji from the application's cached emojis by its identifier.
+        
+        Parameters
+        ----------
+        emoji_id : `int`
+            The emoji identifier to delete.
+        
+        Returns
+        -------
+        success : `bool`
+        """
+        cache_emojis = self._cache_emojis
+        if cache_emojis is None:
+            return False
+        
+        try:
+            del cache_emojis[emoji_id]
+        except KeyError:
+            return False
+        
+        if not cache_emojis:
+            self._cache_emojis = None
+        
+        return True
+    
+    
+    def _has_cache_emoji_by_id(self, emoji_id):
+        """
+        Returns whether the application has the given emoji cached by its identifier.
+        
+        Parameters
+        ----------
+        emoji_id : `int`
+            The emoji identifier to check for.
+        
+        Returns
+        -------
+        has_emoji : `bool`
+        """
+        cache_emojis = self._cache_emojis
+        if cache_emojis is None:
+            return False
+        
+        return emoji_id in cache_emojis
+    
+    
+    # urls
+    
+    @property
+    def cover_url(self):
+        """
+        Returns the application's cover's url. If the application has no cover, then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_application_cover_url(self.id, self.cover_type, self.cover_hash)
+    
+    
+    def cover_url_as(self, ext = None, size = None):
+        """
+        Returns the application's cover's url. If the application has no cover, then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the application has animated cover, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_application_cover_url_as(self.id, self.cover_type, self.cover_hash, ext, size)
+    
+    
+    @property
+    def icon_url(self):
+        """
+        Returns the application's icon's url. If the application has no icon, then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_application_icon_url(self.id, self.icon_type, self.icon_hash)
+    
+    
+    def icon_url_as(self, ext = None, size = None):
+        """
+        Returns the application's icon's url. If the application has no icon, then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the application has animated icon, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_application_icon_url_as(self.id, self.icon_type, self.icon_hash, ext, size)

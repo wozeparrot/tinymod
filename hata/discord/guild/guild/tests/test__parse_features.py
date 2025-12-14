@@ -5,22 +5,47 @@ from ..preinstanced import GuildFeature
 
 
 def _iter_options():
-    yield ({}, None)
-    yield ({'features': None}, None)
-    yield ({'features': []}, None)
+    yield (
+        {},
+        None,
+    )
+    yield (
+        {
+            'features': None,
+        },
+        None,
+    )
+    yield (
+        {
+            'features': [],
+        },
+        None,
+    )
     yield (
         {
             'features': [
-                GuildFeature.animated_banner.value,
-                GuildFeature.animated_icon.value,
+                GuildFeature.banner_animated.value,
+                GuildFeature.icon_animated.value,
             ],
         },
         (
-            GuildFeature.animated_banner,
-            GuildFeature.animated_icon,
+            GuildFeature.banner_animated,
+            GuildFeature.icon_animated,
         ),
     )
-
+    yield (
+        {
+            'features': [
+                GuildFeature.icon_animated.value,
+                GuildFeature.banner_animated.value,
+            ],
+        },
+        (
+            GuildFeature.banner_animated,
+            GuildFeature.icon_animated,
+        ),
+    )
+    
 
 @vampytest._(vampytest.call_from(_iter_options()).returning_last())
 def test__parse_features(input_data):
@@ -34,6 +59,14 @@ def test__parse_features(input_data):
     
     Returns
     -------
-    output : `None | tuple<GuildFeature>`
+    output :  ``None | tuple<GuildFeature>``
     """
-    return parse_features(input_data)
+    output = parse_features(input_data)
+    
+    vampytest.assert_instance(output, tuple, nullable = True)
+    
+    if (output is not None):
+        for element in output:
+            vampytest.assert_instance(element, GuildFeature)
+    
+    return output

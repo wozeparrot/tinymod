@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime, timedelta as TimeDelta
+from datetime import datetime as DateTime, timedelta as TimeDelta, timezone as TimeZone
 
 import vampytest
 
@@ -6,6 +6,7 @@ from ..fields import validate_direct_messages_disabled_duration
 
 
 class DateTimeMock(DateTime):
+    __slots__ = ()
     current_date_time = None
     
     @classmethod
@@ -13,15 +14,15 @@ class DateTimeMock(DateTime):
         cls.current_date_time = value
     
     @classmethod
-    def utcnow(cls):
+    def now(cls, time_zone):
         value = cls.current_date_time
         if value is None:
-            value = DateTime.utcnow()
+            value = DateTime.now(time_zone)
         return value
 
 
 def _iter_options():
-    current_date = DateTime(2016, 5, 14)
+    current_date = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     
     yield current_date, 0, None
     yield current_date, -1, None

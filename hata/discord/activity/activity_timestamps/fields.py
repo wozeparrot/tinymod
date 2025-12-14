@@ -11,34 +11,34 @@ def parse_end(data):
     
     Parameters
     ----------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Activity timestamp data.
     
     Returns
     -------
-    end : `None`, `datetime`
+    end : `None | DateTime`
     """
     end = data.get('end', None)
     if (end is not None):
         return millisecond_unix_time_to_datetime(end)
 
 
-def put_end_into(end, data, defaults):
+def put_end(end, data, defaults):
     """
     Puts the activity timestamps end into the given data.
     
     Parameters
     ----------
-    end : `None`, `datetime`
+    end : `None | DateTime`
         Activity timestamps end.
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Json serializable dictionary.
     defaults : `bool`
         Whether default values should be included as well.
     
     Returns
     -------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
     """
     if defaults or (end is not None):
         if (end is not None):
@@ -59,34 +59,34 @@ def parse_start(data):
     
     Parameters
     ----------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Activity timestamp data.
     
     Returns
     -------
-    start : `None`, `datetime`
+    start : `None | DateTime`
     """
     start = data.get('start', None)
     if (start is not None):
         return millisecond_unix_time_to_datetime(start)
 
 
-def put_start_into(start, data, defaults):
+def put_start(start, data, defaults):
     """
     Puts the activity timestamps start into the given data.
     
     Parameters
     ----------
-    start : `None`, `datetime`
+    start : `None | DateTime`
         Activity timestamps start.
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Json serializable dictionary.
     defaults : `bool`
         Whether default values should be included as well.
     
     Returns
     -------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
     """
     if defaults or (start is not None):
         if (start is not None):

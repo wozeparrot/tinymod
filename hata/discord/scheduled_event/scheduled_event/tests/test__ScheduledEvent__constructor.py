@@ -1,11 +1,13 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
 from ....bases import Icon, IconType
 from ....user import ClientUserBase, User
 
+from ...schedule import Schedule
 from ...scheduled_event_entity_metadata import ScheduledEventEntityMetadataBase
+from ...scheduled_event_occasion_overwrite import ScheduledEventOccasionOverwrite
 
 from ..preinstanced import PrivacyLevel, ScheduledEventEntityType, ScheduledEventStatus
 from ..scheduled_event import ScheduledEvent
@@ -21,6 +23,7 @@ def _assert_fields_set(scheduled_event):
         The scheduled event to check out.
     """
     vampytest.assert_instance(scheduled_event, ScheduledEvent)
+    vampytest.assert_instance(scheduled_event.occasion_overwrites, tuple, nullable = True)
     vampytest.assert_instance(scheduled_event.channel_id, int)
     vampytest.assert_instance(scheduled_event.creator, ClientUserBase)
     vampytest.assert_instance(scheduled_event.description, str, nullable = True)
@@ -33,13 +36,14 @@ def _assert_fields_set(scheduled_event):
     vampytest.assert_instance(scheduled_event.image, Icon)
     vampytest.assert_instance(scheduled_event.name, str)
     vampytest.assert_instance(scheduled_event.privacy_level, PrivacyLevel)
+    vampytest.assert_instance(scheduled_event.schedule, Schedule, nullable = True)
     vampytest.assert_instance(scheduled_event.start, DateTime, nullable = True)
     vampytest.assert_instance(scheduled_event.sku_ids, tuple, nullable = True)
     vampytest.assert_instance(scheduled_event.status, ScheduledEventStatus)
     vampytest.assert_instance(scheduled_event.user_count, int)
 
 
-def test__ScheduledEvent__new__0():
+def test__ScheduledEvent__new__no_fields():
     """
     Tests whether ``ScheduledEvent.__new__`` works as intended.
     
@@ -49,7 +53,7 @@ def test__ScheduledEvent__new__0():
     _assert_fields_set(scheduled_event)
 
 
-def test__ScheduledEvent__new__1():
+def test__ScheduledEvent__new__all_fields():
     """
     Tests whether ``ScheduledEvent.__new__`` works as intended.
     
@@ -57,12 +61,13 @@ def test__ScheduledEvent__new__1():
     """
     channel_id = 202303160000
     description = 'koishi'
-    end = DateTime(2016, 3, 10)
+    end = DateTime(2016, 3, 10, tzinfo = TimeZone.utc)
     entity_type = ScheduledEventEntityType.location
     image = Icon(IconType.static, 45)
     name = 'komeiji'
     privacy_level = PrivacyLevel.public
-    start = DateTime(2017, 4, 6)
+    schedule = Schedule(occurrence_spacing = 2)
+    start = DateTime(2017, 4, 6, tzinfo = TimeZone.utc)
     status = ScheduledEventStatus.active
     location = 'hell'
     
@@ -75,6 +80,7 @@ def test__ScheduledEvent__new__1():
         image = image,
         name = name,
         privacy_level = privacy_level,
+        schedule = schedule,
         start = start,
         status = status,
         location = location,
@@ -89,6 +95,7 @@ def test__ScheduledEvent__new__1():
     vampytest.assert_eq(scheduled_event.image, image)
     vampytest.assert_eq(scheduled_event.name, name)
     vampytest.assert_is(scheduled_event.privacy_level, privacy_level)
+    vampytest.assert_eq(scheduled_event.schedule, schedule)
     vampytest.assert_eq(scheduled_event.start, start)
     vampytest.assert_is(scheduled_event.status, status)
 
@@ -105,7 +112,7 @@ def test__ScheduledEvent__create_empty():
     vampytest.assert_eq(scheduled_event.id, scheduled_event_id)
 
 
-def test__ScheduledEvent__precreate__0():
+def test__ScheduledEvent__precreate__no_fields():
     """
     Tests whether ``ScheduledEvent.precreate`` works as intended.
     
@@ -119,7 +126,7 @@ def test__ScheduledEvent__precreate__0():
     vampytest.assert_eq(scheduled_event.id, scheduled_event_id)
 
 
-def test__ScheduledEvent__precreate__1():
+def test__ScheduledEvent__precreate__all_fields():
     """
     Tests whether ``ScheduledEvent.precreate`` works as intended.
     
@@ -127,14 +134,23 @@ def test__ScheduledEvent__precreate__1():
     """
     scheduled_event_id = 202303160003
     
+    occasion_overwrites = [
+        ScheduledEventOccasionOverwrite(
+            timestamp = DateTime(2016, 5, 14, 13, 0, 0, tzinfo = TimeZone.utc),
+        ),
+        ScheduledEventOccasionOverwrite(
+            timestamp = DateTime(2016, 5, 16, 13, 10, 0, tzinfo = TimeZone.utc),
+        ),
+    ]
     channel_id = 202303160004
     description = 'koishi'
-    end = DateTime(2016, 3, 10)
+    end = DateTime(2016, 3, 10, tzinfo = TimeZone.utc)
     entity_type = ScheduledEventEntityType.location
     image = Icon(IconType.static, 45)
     name = 'komeiji'
     privacy_level = PrivacyLevel.public
-    start = DateTime(2017, 4, 6)
+    schedule = Schedule(occurrence_spacing = 2)
+    start = DateTime(2017, 4, 6, tzinfo = TimeZone.utc)
     status = ScheduledEventStatus.active
     location = 'hell'
     
@@ -146,6 +162,7 @@ def test__ScheduledEvent__precreate__1():
     
     scheduled_event = ScheduledEvent.precreate(
         scheduled_event_id,
+        occasion_overwrites = occasion_overwrites,
         channel_id = channel_id,
         description = description,
         end = end,
@@ -153,6 +170,7 @@ def test__ScheduledEvent__precreate__1():
         image = image,
         name = name,
         privacy_level = privacy_level,
+        schedule = schedule,
         start = start,
         status = status,
         location = location,
@@ -166,6 +184,7 @@ def test__ScheduledEvent__precreate__1():
     
     vampytest.assert_eq(scheduled_event.id, scheduled_event_id)
     
+    vampytest.assert_eq(scheduled_event.occasion_overwrites, tuple(occasion_overwrites))
     vampytest.assert_eq(scheduled_event.channel_id, channel_id)
     vampytest.assert_eq(scheduled_event.description, description)
     vampytest.assert_eq(scheduled_event.end, end)
@@ -174,6 +193,7 @@ def test__ScheduledEvent__precreate__1():
     vampytest.assert_eq(scheduled_event.image, image)
     vampytest.assert_eq(scheduled_event.name, name)
     vampytest.assert_is(scheduled_event.privacy_level, privacy_level)
+    vampytest.assert_eq(scheduled_event.schedule, schedule)
     vampytest.assert_eq(scheduled_event.start, start)
     vampytest.assert_is(scheduled_event.status, status)
         
@@ -184,7 +204,7 @@ def test__ScheduledEvent__precreate__1():
     vampytest.assert_eq(scheduled_event.user_count, user_count)
 
 
-def test__ScheduledEvent__precreate__2():
+def test__ScheduledEvent__precreate__caching():
     """
     Tests whether ``ScheduledEvent.precreate`` works as intended.
     

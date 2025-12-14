@@ -138,7 +138,7 @@ class ApplicationCommandPermissionOverwriteWrapper(CommandWrapper):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild's identifier where the overwrite is applied.
         target : ``ClientUserBase``, ``Role``, ``Channel``, `tuple` ((``ClientUserBase``, ``Role``, \
                 ``Channel``, `str` (`'Role'`, `'role'`, `'User'`, `'user'`, `'Channel'`, `'channel'`, \
@@ -291,7 +291,7 @@ class ApplicationCommandParameterConfigurerWrapper(CommandWrapper):
         The command or other wrapper to wrap.
     _autocomplete : `None`, `CoroutineFunction`
         Auto complete function for the parameter.
-    _channel_types : `None`, `tuple` of `int`
+    _channel_types : `None | tuple<int>`
         The accepted channel types.
     _choice_enum_type : `None`, `type`
         Enum type of `choices` if applicable.
@@ -301,11 +301,11 @@ class ApplicationCommandParameterConfigurerWrapper(CommandWrapper):
         Parameter's description.
     _max_length : `int`
         The maximum input length allowed for this option.
-    _max_value : `None`, `int`, `float`
+    _max_value : `None | int | float`
         The maximal accepted value by the parameter.
     _min_length : `int`
         The minimum input length allowed for this option.
-    _min_value : `None`, `int`, `float`
+    _min_value : `None | int | float`
         The minimal accepted value by the parameter.
     _name : `str`
         The parameter's name.
@@ -348,15 +348,15 @@ class ApplicationCommandParameterConfigurerWrapper(CommandWrapper):
             Name to use instead of the parameter's.
         autocomplete : `None`, `CoroutineFunction` = `None`, Optional (Keyword only)
             Auto complete function for the parameter.
-        channel_types : `None`, `iterable` of `int` = `None`, Optional (Keyword only)
+        channel_types : `None | iterable<int>` = `None`, Optional (Keyword only)
             The accepted channel types.
-        max_length : `None`, `int` = `None`, Optional (Keyword only)
+        max_length : `None | int` = `None`, Optional (Keyword only)
             The maximum input length allowed for this option.
-        max_value : `None`, `int`, `float` = `None`, Optional (Keyword only)
+        max_value : `None | int | float` = `None`, Optional (Keyword only)
             The maximal accepted value by the parameter.
-        min_length : `None`, `int` = `None`, Optional (Keyword only)
+        min_length : `None | int` = `None`, Optional (Keyword only)
             The minimum input length allowed for this option.
-        min_value : `None`, `int`, `float` = `None`, Optional (Keyword only)
+        min_value : `None | int | float` = `None`, Optional (Keyword only)
             The minimal accepted value by the parameter.
         
         Returns

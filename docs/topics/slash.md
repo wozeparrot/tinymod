@@ -256,7 +256,7 @@ async def cake(
     user: P('user', 'To who?'),
 ):
     """Gifts a cake!"""
-    return Embed(description = f'{event.user:f} just gifted a cookie to {user:f} !').add_image(choice(CAKES))
+    return Embed(description = f'{event.user:f} just gifted a cake to {user:f} !').add_image(choice(CAKES))
 ```
 
 # Optional parameters
@@ -617,7 +617,7 @@ async def channel_create(
         return 'Please keep name length between 2 and 32 characters.'
     
     try:
-        await client.channel_create(event.guild, name, parent=event.channel.parent)
+        await client.channel_create(event.guild, name, parent = event.channel.parent)
     except DiscordException as err:
         # Error message can be over 2k length
         reason = str(err)
@@ -860,10 +860,10 @@ async def is_banned(client, event,
     user: ('user', 'Who should I check?')
 ):
     """Checks whether the user is banned."""
-    if not event.user_permissions.can_ban_users:
+    if not event.user_permissions.ban_users:
         abort('You need to have `ban users` permissions to do this.')
     
-    if not event.channel.cached_permissions_for(client).can_ban_users:
+    if not event.channel.cached_permissions_for(client).ban_users:
         abort('I need to have `ban users` permissions to do this.')
     
     yield # Acknowledge the event.
@@ -954,7 +954,7 @@ async def enable_ping(
     if guild is None:
         abort('Guild only command.')
     
-    if not event.user_permissions.can_administrator:
+    if not event.user_permissions.administrator:
         abort('You must have administrator permission to use this command.')
     
     application_commands = await client.application_command_guild_get_all(guild)
@@ -1048,10 +1048,10 @@ async def remilia(client):
 
 You can also set default sub-command, which is used if a sub command is selected.
 
-> Sub-commands and default commands are not yet fully supported by Discord.
+> Default sub-commands are not yet fully supported by Discord.
 
 ```py3
-@SCARLET.interactions(is_default = True)
+@SCARLET.interactions(default = True)
 async def devil(client, event):
     """Flandre & Remilia!"""
     yield
@@ -1213,26 +1213,26 @@ For `number` and `float` parameter types, you can define the minimal and the max
 from hata.ext.slash import P
 
 MOST_POPULAR_TOUHOU_CHARACTERS = [
-    'Konpaku Youmu',
+    'Komeiji Koishi',
     'Kirisame Marisa',
     'Hakurei Reimu',
-    'Komeiji Koishi',
     'Scarlet Flandre',
     'Izayoi Sakuya',
     'Scarlet Remilia',
-    'Fujiwara no Mokou',
+    'Konpaku Youmu',
     'Komeiji Satori',
-    'Saigyouji Yuyuko',
-    'Shameimaru Aya',
-    'Margatroid Alice',
-    'Kochiya Sanae',
-    'Reisen Udongein Inaba',
-    'Hinanawi Tenshi',
-    'Yakumo Yukari',
-    'Hata no Kokoro',
+    'Fujiwara no Mokou',
     'Chiruno',
+    'Shameimaru Aya',
+    'Saigyouji Yuyuko',
+    'Kochiya Sanae',
+    'Margatroid Alice',
+    'Reisen Udongein Inaba',
+    'Yakumo Yukari',
+    'Hong Meiling',
     'Patchouli Knowledge',
-    'Tatara Kogasa',
+    'Rumia',
+    'Hata no Kokoro',
 ]
 
 @Nitori.interactions(guild = TEST_GUILD)
@@ -1266,7 +1266,7 @@ async def set_nick(
 ):
     """Edit's the selected user's nick."""
     yield
-    await client.user_guild_profile_edit(event.guild, user, nick=nick)
+    await client.user_guild_profile_edit(event.guild, user, nick = nick)
     yield f'{user:f}\'s nick has been updated'
 ```
 

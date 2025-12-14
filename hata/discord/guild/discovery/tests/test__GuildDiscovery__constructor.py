@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
@@ -25,7 +25,7 @@ def _check_is_every_field_set(discovery):
     vampytest.assert_instance(discovery.sub_categories, tuple, nullable = True)
 
 
-def test__DiscoveryCategory__new__0():
+def test__GuildDiscovery__new__no_fields():
     """
     Tests whether ``GuildDiscovery.__new__`` works as intended.
     
@@ -35,14 +35,14 @@ def test__DiscoveryCategory__new__0():
     _check_is_every_field_set(discovery)
 
 
-def test__DiscoveryCategory__new__1():
+def test__GuildDiscovery__new__all_fields():
     """
     Tests whether ``GuildDiscovery.__new__`` works as intended.
     
     Case: All fields given.
     """
-    application_actioned = DateTime(2016, 5, 4)
-    application_requested = DateTime(2017, 6, 4)
+    application_actioned = DateTime(2016, 5, 4, tzinfo = TimeZone.utc)
+    application_requested = DateTime(2017, 6, 4, tzinfo = TimeZone.utc)
     emoji_discovery = True
     keywords = ['kisaki']
     primary_category = DiscoveryCategory.music

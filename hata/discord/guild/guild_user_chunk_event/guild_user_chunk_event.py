@@ -1,15 +1,13 @@
 __all__ = ('GuildUserChunkEvent',)
 
-import warnings
-
 from scarletio import copy_docs
 
 from ...bases import EventBase
 from ...core import GUILDS
 
 from .fields import (
-    parse_chunk_count, parse_chunk_index, parse_guild_id, parse_nonce, parse_users, put_chunk_count_into,
-    put_chunk_index_into, put_guild_id_into, put_nonce_into, put_users_into, validate_chunk_count, validate_chunk_index,
+    parse_chunk_count, parse_chunk_index, parse_guild_id, parse_nonce, parse_users, put_chunk_count,
+    put_chunk_index, put_guild_id, put_nonce, put_users, validate_chunk_count, validate_chunk_index,
     validate_guild_id, validate_nonce, validate_users
 )
 
@@ -28,7 +26,7 @@ class GuildUserChunkEvent(EventBase):
         The guild's identifier, what received the user chunk.
     nonce : `None`, `str`
         A nonce to identify guild user chunk response.
-    users : `list` of ``ClientUserBase``
+    users : ``list<ClientUserBase>``
         The received users.
     
     Examples
@@ -111,7 +109,7 @@ class GuildUserChunkEvent(EventBase):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Guild user chunk event data.
         
         Returns
@@ -138,20 +136,20 @@ class GuildUserChunkEvent(EventBase):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
-        put_chunk_count_into(self.chunk_count, data, defaults)
-        put_chunk_index_into(self.chunk_index, data, defaults)
-        put_guild_id_into(self.guild_id, data, defaults)
-        put_nonce_into(self.nonce, data, defaults)
-        put_users_into(self.users, data, defaults, guild_id = self.guild_id)
+        put_chunk_count(self.chunk_count, data, defaults)
+        put_chunk_index(self.chunk_index, data, defaults)
+        put_guild_id(self.guild_id, data, defaults)
+        put_nonce(self.nonce, data, defaults)
+        put_users(self.users, data, defaults, guild_id = self.guild_id)
         return data
     
     
     @copy_docs(EventBase.__repr__)
     def __repr__(self):
-        repr_parts = ['<', self.__class__.__name__]
+        repr_parts = ['<', type(self).__name__]
         
         repr_parts.append(' guild_id = ')
         repr_parts.append(repr(self.guild_id))
@@ -332,7 +330,7 @@ class GuildUserChunkEvent(EventBase):
         
         Returns
         -------
-        guild : `None`, ``Guild``
+        guild : ``None | Guild``
         """
         guild_id = self.guild_id
         if guild_id:
@@ -350,31 +348,3 @@ class GuildUserChunkEvent(EventBase):
         user : ``ClientUserBase``
         """
         yield from self.users
-    
-    
-    @property
-    def index(self):
-        warnings.warn(
-            (
-                f'`{self.__name__}.index` is deprecated and will be removed in 2023 December.'
-                f'Please use `.chunk_index` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return self.chunk_index
-    
-    
-    @property
-    def count(self):
-        warnings.warn(
-            (
-                f'`{self.__name__}.count` is deprecated and will be removed in 2023 December.'
-                f'Please use `.chunk_count` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return self.chunk_count

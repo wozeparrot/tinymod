@@ -9,6 +9,9 @@ from .embedded_activity_configuration import *
 from .entitlement import *
 from .eula import *
 from .sku import *
+from .sku_enhancement import *
+from .sku_enhancement_guild import *
+from .subscription import *
 from .team import *
 from .team_member import *
 from .third_party_sku import *
@@ -25,6 +28,9 @@ __all__ = (
     *entitlement.__all__,
     *eula.__all__,
     *sku.__all__,
+    *sku_enhancement.__all__,
+    *sku_enhancement_guild.__all__,
+    *subscription.__all__,
     *team.__all__,
     *team_member.__all__,
     *third_party_sku.__all__,

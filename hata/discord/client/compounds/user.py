@@ -7,11 +7,11 @@ from ...core import GUILDS
 from ...guild import Guild
 from ...http import DiscordApiClient
 from ...payload_building import add_payload_fields_from_keyword_parameters
-from ...user import ClientUserBase, User
+from ...user import create_partial_user_from_id, ClientUserBase, User, VoiceState
 from ...user.guild_profile.utils import GUILD_PROFILE_FIELD_CONVERTERS
 
 from ..request_helpers import (
-    get_channel_guild_id_and_id, get_guild_id, get_role_guild_id_and_id, get_user_and_id, get_user_id
+    get_channel_guild_id_and_id, get_guild_and_id, get_guild_id, get_role_guild_id_and_id, get_user_and_id, get_user_id
 )
 
 
@@ -86,7 +86,7 @@ class ClientCompoundUserEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             Where the user will be edited.
         
         user : ``ClientUserBase``, `int`
@@ -109,7 +109,7 @@ class ClientCompoundUserEndpoints(Compound):
         nick : `None`, `str`, Optional (Keyword only)
             The new nick of the user. You can remove the current one by passing it as `None`, an empty string.
         
-        voice_channel : `None`, ``Channel``, `int` , Optional (Keyword only)
+        voice_channel : ``None | int | Channel`` , Optional (Keyword only)
             Moves the user to the given voice channel. Only applicable if the user is already at a voice channel.
             
             Pass it as `None` to disconnect the user from it's voice channel.
@@ -120,18 +120,18 @@ class ClientCompoundUserEndpoints(Compound):
         roles : `None`, `iterable` of (``Role``, `int`), Optional (Keyword only)
             Alternative of `role_ids`.
         
-        timed_out_until : `None`, `DateTime`, Optional (Keyword only)
+        timed_out_until : `None | DateTime`, Optional (Keyword only)
             Until when the user is timed out.
         
         timeout_duration : `int`, `float`, `TimeDelta`, Optional (Keyword only)
-            The timeout duration of the user in seconds.
+            The timeout duration of the user in seconds or in delta.
         
             The max allowed value equals to 28 days.
         
-        voice_channel : `None`, ``Channel``, `int` , Optional (Keyword only)
+        voice_channel : ``None | int | Channel`` , Optional (Keyword only)
             Alternative of `voice_channel_id`.
         
-        voice_channel_id : `None`, ``Channel``, `int` , Optional (Keyword only)
+        voice_channel_id : ``None | int | Channel`` , Optional (Keyword only)
             Moves the user to the given voice channel. Only applicable if the user is already at a voice channel.
             
             Pass it as `None` to disconnect the user from it's voice channel.
@@ -167,7 +167,7 @@ class ClientCompoundUserEndpoints(Compound):
         ----------
         user : ```ClientUserBase``, `int`
             The user who will get the role.
-        role : ``Role``, `tuple` (`int`, `int`)
+        role : ``Role | (int, int)``
             The role to add on the user.
         reason : `None`, `str` = `None`, Optional (Keyword only)
             Shows up at the respective guild's audit logs.
@@ -198,7 +198,7 @@ class ClientCompoundUserEndpoints(Compound):
         ----------
         user : ```ClientUserBase``, `int`
             The user from who the role will be removed.
-        role : ``Role``, `tuple` (`int`, `int`)
+        role : ``Role | (int, int)``
             The role to remove from the user.
         reason : `None`, `str` = `None`, Optional (Keyword only)
             Shows up at the respective guild's audit logs.
@@ -285,7 +285,7 @@ class ClientCompoundUserEndpoints(Compound):
             'channel_id': channel_id,
         }
         
-        await self.api.voice_state_user_edit(guild_id, user_id, data)
+        await self.api.voice_state_edit(guild_id, user_id, data)
     
     
     async def user_voice_move_to_audience(self, user, channel):
@@ -322,36 +322,7 @@ class ClientCompoundUserEndpoints(Compound):
             'channel_id': channel_id,
         }
         
-        await self.api.voice_state_user_edit(guild_id, user_id, data)
-    
-    
-    async def user_voice_kick(self, user, guild):
-        """
-        Kicks the user from the guild's voice channels. The user must be in a voice channel at the guild.
-        
-        This method is a coroutine.
-        
-        Parameters
-        ----------
-        user : ```ClientUserBase``, `int`
-            The user who will be kicked from the voice channel.
-        guild : ``Guild``, `int`
-            The guild from what's voice channel the user will be kicked.
-        
-        Raises
-        ------
-        TypeError
-            - If `user` was not given neither as ``ClientUserBase``, neither as `int`.
-            - If `guild` was not given neither as ``Guild`` nor `int`.
-        ConnectionError
-            No internet connection.
-        DiscordException
-            If any exception was received from the Discord API.
-        """
-        user_id = get_user_id(user)
-        guild_id = get_guild_id(guild)
-        
-        await self.api.user_move(guild_id, user_id, {'channel_id': None})
+        await self.api.voice_state_edit(guild_id, user_id, data)
     
     
     async def user_get(self, user, *, force_update = False):
@@ -379,11 +350,6 @@ class ClientCompoundUserEndpoints(Compound):
             No internet connection.
         DiscordException
             If any exception was received from the Discord API.
-        
-        Raises
-        ------
-        TypeError
-            If `user` was not given as ``ClientUserBase``, nor as `int`.
         """
         user, user_id = get_user_and_id(user)
         
@@ -419,7 +385,7 @@ class ClientCompoundUserEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, where the user is.
         user : ```ClientUserBase``, `int`
             The user's id, who will be requested.
@@ -467,7 +433,7 @@ class ClientCompoundUserEndpoints(Compound):
         
         Returns
         -------
-        users : `list` of ``ClientUserBase``
+        users : ``list<ClientUserBase>``
         
         Raises
         ------
@@ -497,3 +463,144 @@ class ClientCompoundUserEndpoints(Compound):
         datas = await self.api.guild_user_search(guild_id, data)
         
         return [User.from_data(data['user'], data, guild_id) for data in datas]
+    
+    
+    async def user_voice_kick(self, user, guild):
+        """
+        Kicks the user from the guild's voice channels. The user must be in a voice channel at the guild.
+        
+        This method is a coroutine.
+        
+        Parameters
+        ----------
+        user : ```ClientUserBase``, `int`
+            The user who will be kicked from the voice channel.
+        guild : ``int | Guild``
+            The guild from what's voice channel the user will be kicked.
+        
+        Raises
+        ------
+        TypeError
+            - If a parameter's type is incorrect.
+        ConnectionError
+            No internet connection.
+        DiscordException
+            If any exception was received from the Discord API.
+        """
+        user_id = get_user_id(user)
+        guild_id = get_guild_id(guild)
+        
+        await self.api.user_move(guild_id, user_id, {'channel_id': None})
+    
+    
+    async def voice_state_get(self, guild, user, *, force_update = False):
+        """
+        Gets the user's voice state at the given guild.
+                
+        This method is a coroutine.
+        
+        Parameters
+        ----------
+        guild : ``int | Guild``
+            The respective guild.
+        user : ```ClientUserBase``, `int`
+            The user to get its voice state.
+        force_update : `bool` = `False`, Optional (Keyword only)
+            Whether the user should be requested even if it supposed to be up to date.
+        
+        Returns
+        -------
+        voice_state : ``VoiceState``
+        
+        Raises
+        ------
+        TypeError
+            - If a parameter's type is incorrect.
+        ConnectionError
+            No internet connection.
+        DiscordException
+            If any exception was received from the Discord API.
+            
+        """
+        user, user_id = get_user_and_id(user)
+        guild, guild_id = get_guild_and_id(guild)
+        
+        while True:
+            if force_update:
+                break
+            
+            if (guild is None) or guild.partial:
+                break
+            
+            voice_state = guild.get_voice_state(user_id)
+            if (voice_state is None):
+                break
+            
+            return voice_state
+            
+        voice_state_data = await self.api.voice_state_get(guild_id, user_id)
+        
+        # Try to re-get the guild.
+        if guild is None:
+            guild = GUILDS.get(guild_id, None)
+        
+        if guild is None:
+            return VoiceState.from_data(voice_state_data, guild_id, strong_cache = False)
+        
+        if user is None:
+            user = create_partial_user_from_id(user_id)
+        
+        return guild._update_voice_state_restricted(voice_state_data, user)
+    
+    
+    async def voice_state_get_own(self, guild, *, force_update = False):
+        """
+        Gets the user's voice state at the given guild.
+                
+        This method is a coroutine.
+        
+        Parameters
+        ----------
+        guild : ``int | Guild``
+            The respective guild.
+        force_update : `bool` = `False`, Optional (Keyword only)
+            Whether the user should be requested even if it supposed to be up to date.
+        
+        Returns
+        -------
+        voice_state : ``VoiceState``
+        
+        Raises
+        ------
+        TypeError
+            - If a parameter's type is incorrect.
+        ConnectionError
+            No internet connection.
+        DiscordException
+            If any exception was received from the Discord API.
+        """
+        guild, guild_id = get_guild_and_id(guild)
+        
+        while True:
+            if force_update:
+                break
+            
+            if (guild is None) or guild.partial:
+                break
+            
+            voice_state = guild.get_voice_state(self.id)
+            if (voice_state is None):
+                break
+            
+            return voice_state
+        
+        voice_state_data = await self.api.voice_state_get_own(guild_id)
+        
+        # Try to re-get the guild.
+        if guild is None:
+            guild = GUILDS.get(guild_id, None)
+        
+        if guild is None:
+            return VoiceState.from_data(voice_state_data, guild_id, strong_cache = False)
+        
+        return guild._update_voice_state_restricted(voice_state_data, self)

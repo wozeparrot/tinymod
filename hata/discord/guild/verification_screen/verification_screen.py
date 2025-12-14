@@ -5,7 +5,7 @@ from scarletio import RichAttributeErrorBaseType
 from ...utils import DATETIME_FORMAT_CODE
 
 from .fields import (
-    parse_description, parse_edited_at, parse_steps, put_description_into, put_edited_at_into, put_steps_into,
+    parse_description, parse_edited_at, parse_steps, put_description, put_edited_at, put_steps,
     validate_description, validate_edited_at, validate_steps
 )
 
@@ -18,7 +18,7 @@ class VerificationScreen(RichAttributeErrorBaseType):
     ----------
     description  : `None`, `str`
         The guild's description shown in the verification screen.
-    edited_at : `None`, `datetime`
+    edited_at : `None | DateTime`
         When the last version of the screen was created.
     steps : `None`, `tuple` of ``VerificationScreenStep``
         The step in the verification screen.
@@ -33,7 +33,7 @@ class VerificationScreen(RichAttributeErrorBaseType):
         ----------
         description  : `None`, `str`, Optional (Keyword only)
             The guild's description shown in the verification screen.
-        edited_at : `None`, `datetime`, Optional (Keyword only)
+        edited_at : `None | DateTime`, Optional (Keyword only)
             When the last version of the screen was created.
         steps : `None`, `tuple` of ``VerificationScreenStep``, Optional (Keyword only)
             The step in the verification screen.
@@ -78,7 +78,7 @@ class VerificationScreen(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Verification screen data.
         """
         self = object.__new__(cls)
@@ -101,15 +101,15 @@ class VerificationScreen(RichAttributeErrorBaseType):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
         
-        put_description_into(self.description, data, defaults)
-        put_steps_into(self.steps, data, defaults)
+        put_description(self.description, data, defaults)
+        put_steps(self.steps, data, defaults)
         
         if include_internals:
-            put_edited_at_into(self.edited_at, data, defaults)
+            put_edited_at(self.edited_at, data, defaults)
         
         return data
     
@@ -238,7 +238,7 @@ class VerificationScreen(RichAttributeErrorBaseType):
         ----------
         description  : `None`, `str`, Optional (Keyword only)
             The guild's description shown in the verification screen.
-        edited_at : `None`, `datetime`, Optional (Keyword only)
+        edited_at : `None | DateTime`, Optional (Keyword only)
             When the last version of the screen was created.
         steps : `None`, `tuple` of ``VerificationScreenStep``, Optional (Keyword only)
             The step in the verification screen.

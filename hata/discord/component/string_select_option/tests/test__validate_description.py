@@ -8,6 +8,7 @@ def _iter_options__passing():
     yield None, None
     yield '', None
     yield 'a', 'a'
+    yield 'aa', 'aa'
 
 
 def _iter_options__type_error():
@@ -39,4 +40,6 @@ def test__validate_description(input_value):
     TypeError
     ValueError
     """
-    return validate_description(input_value)
+    output = validate_description(input_value)
+    vampytest.assert_instance(output, str, nullable = True)
+    return output

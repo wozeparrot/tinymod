@@ -4,7 +4,7 @@ Before loading hata, it checks for related environmental variables, which are:
 HATA_ALLOW_DEBUG_MESSAGES : `bool` = `False`
     Whether debug messages should be show (experimental).
 
-HATA_API_ENDPOINT : `None`, `str` = `None`
+HATA_API_ENDPOINT : `None | str` = `None`
     The api endpoint to use instead of the Discord's default.
 
 HATA_API_VERSION : `int` = `10`
@@ -15,19 +15,22 @@ HATA_API_VERSION : `int` = `10`
 
 HATA_CACHE_PRESENCE : `bool` = `True`
     Whether hata should enable presence related attributes and dispatch users presence related events. By disabling it,
-    ``User.status``, ``User.statuses``, ``User.platform``, ``User.activities``, ``User.activity`` will be disabled. And
-    each will be replaced by a dummy property.
+    ``User.status``, ``User.status_by_platform``, ``User.platform``, ``User.activities``, ``User.activity``
+    will be disabled. And each will be replaced by a dummy property.
     
     If `HATA_CACHE_USERS` is defined as `False`, `HATA_CACHE_PRESENCE` will be set as `False` as well.
 
 HATA_CACHE_USERS : `bool` = `True`
     Whether hata should cache users. Disabling it can cause many hata features to disappear.
 
-HATA_CDN_ENDPOINT : `None`, `str` = `None`
+HATA_CDN_ENDPOINT : `None | str` = `None`
     The cdn (content delivery network) endpoint to use instead of the Discord's default.
 
-HATA_DISCORD_ENDPOINT : `None`, `str` = `None`
+HATA_DISCORD_ENDPOINT : `None | str` = `None`
     The endpoint of Discord, to use instead of it's own.
+
+HATA_INVITE_ENDPOINT : `None | str` = `None`
+    The endpoint used for Discord invites.
 
 HATA_DOCS_ENABLED : `bool` = `True`
     Whether hata should be loaded with docstrings.
@@ -54,7 +57,7 @@ HATA_MESSAGE_CACHE_SIZE : `int` = `10`
 HATA_RICH_DISCORD_EXCEPTION : `bool` = `False`
     Whether ``DiscordException``-s should show the request data as well.
 
-HATA_STATUS_ENDPOINT : `None`, `str` = `None`
+HATA_STATUS_ENDPOINT : `None | str` = `None`
     Discord status endpoint.
 """
 

@@ -15,16 +15,18 @@ def test__ComponentMetadataStringSelect__from_data():
     enabled = False
     max_values = 10
     min_values = 9
-    placeholder = 'swing'
     options = [StringSelectOption('yume')]
+    placeholder = 'swing'
+    required = True
     
     data = {
         'custom_id': custom_id,
         'disabled': not enabled,
         'max_values': max_values,
         'min_values': min_values,
-        'placeholder': placeholder,
         'options': [string_type.to_data() for string_type in options],
+        'placeholder': placeholder,
+        'required': required,
     }
     
     component_metadata = ComponentMetadataStringSelect.from_data(data)
@@ -33,42 +35,47 @@ def test__ComponentMetadataStringSelect__from_data():
     vampytest.assert_eq(component_metadata.enabled, enabled)
     vampytest.assert_eq(component_metadata.max_values, max_values)
     vampytest.assert_eq(component_metadata.min_values, min_values)
-    vampytest.assert_eq(component_metadata.placeholder, placeholder)
     vampytest.assert_eq(component_metadata.options, tuple(options))
+    vampytest.assert_eq(component_metadata.placeholder, placeholder)
+    vampytest.assert_eq(component_metadata.required, required)
 
 
 def test__ComponentMetadataStringSelect__to_data():
     """
     Tests whether ``ComponentMetadataStringSelect.to_data`` works as intended.
     
-    Case: include defaults.
+    Case: include defaults and internals.
     """
     custom_id = 'oriental'
     enabled = False
     max_values = 10
     min_values = 9
-    placeholder = 'swing'
     options = [StringSelectOption('yume')]
+    placeholder = 'swing'
+    required = True
     
     component_metadata = ComponentMetadataStringSelect(
         custom_id = custom_id,
         enabled = enabled,
         max_values = max_values,
         min_values = min_values,
-        placeholder = placeholder,
         options = options,
+        placeholder = placeholder,
+        required = required,
     )
     
     vampytest.assert_eq(
         component_metadata.to_data(
             defaults = True,
+            include_internals = True,
         ),
         {
             'custom_id': custom_id,
             'disabled': not enabled,
             'max_values': max_values,
             'min_values': min_values,
-            'placeholder': placeholder,
             'options': [string_type.to_data(defaults = True) for string_type in options],
+            'placeholder': placeholder,
+            'required': required,
         },
     )

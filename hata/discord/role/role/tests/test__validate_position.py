@@ -4,8 +4,20 @@ from ..fields import validate_position
 
 
 def _iter_options__passing():
-    yield 0, 0
-    yield 1, 1
+    yield (
+        None,
+        0,
+    )
+    
+    yield (
+        0,
+        0,
+    )
+    
+    yield (
+        1,
+        1,
+    )
 
 
 def _iter_options__type_error():
@@ -27,7 +39,7 @@ def test__validate_position(input_value):
     Parameters
     ----------
     input_value : `object`
-        Input value to validate.
+        Value to validate.
     
     Returns
     -------
@@ -38,4 +50,6 @@ def test__validate_position(input_value):
     TypeError
     ValueError
     """
-    return validate_position(input_value)
+    output = validate_position(input_value)
+    vampytest.assert_instance(output, int)
+    return output

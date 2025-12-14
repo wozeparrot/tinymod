@@ -24,14 +24,19 @@ class WebhookBase(UserBase):
     ----------
     avatar_hash : `int`
         The webhook's avatar's hash in `uint128`.
+    
     avatar_type : ``IconType``
         The webhook's avatar's type.
+    
     channel_id : `int`
         The channel's identifier, where the webhook is going to send it's messages.
+    
     id : `int`
         The webhook's unique identifier number.
+    
     name : str
         The webhook's username.
+    
     type : ``WebhookType``
         The webhook's type.
     """
@@ -52,10 +57,13 @@ class WebhookBase(UserBase):
         ----------
         channel_id : `int`, Optional (Keyword only)
             The channel's identifier, where the webhook is going to send it's messages.
-        avatar : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        
+        avatar : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The user's avatar.
+        
         name : `str`, Optional (Keyword only)
             The user's name.
+        
         webhook_type : ``WebhookType``, `int`, Optional (Keyword only)
             The webhook's type.
         
@@ -127,10 +135,13 @@ class WebhookBase(UserBase):
         ----------
         channel_id : `int`, Optional (Keyword only)
             The channel's identifier, where the webhook is going to send it's messages.
-        avatar : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        
+        avatar : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The user's avatar.
+        
         name : `str`, Optional (Keyword only)
             The user's name.
+        
         webhook_type : ``WebhookType``, `int`, Optional (Keyword only)
             The webhook's type.
         
@@ -351,7 +362,7 @@ class WebhookBase(UserBase):
         
         Returns
         -------
-        guild : `None`, ``Guild``
+        guild : ``None | Guild``
         """
         try:
             channel = CHANNELS[self.channel_id]
@@ -366,6 +377,9 @@ class WebhookBase(UserBase):
         if emoji.is_unicode_emoji():
             return True
         
+        if not emoji.available:
+            return False
+        
         role_ids = emoji.role_ids
         if (role_ids is not None):
             return False
@@ -374,11 +388,15 @@ class WebhookBase(UserBase):
         if guild is None:
             return False
         
+        # Already deleted?
+        if emoji.id not in guild.emojis:
+            return False
+        
         default_role = guild.default_role
         if (default_role is None):
             return False
         
-        if (default_role & PERMISSION_MASK_USE_EXTERNAL_EMOJIS):
-            return True
+        if not (default_role.permissions & PERMISSION_MASK_USE_EXTERNAL_EMOJIS):
+            return False
         
-        return False
+        return True

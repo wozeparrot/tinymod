@@ -30,9 +30,9 @@ Weak Caches
     
     Contains various ``Channel``.
 
-- `EMBEDDED_ACTIVITY_STATES` : ``WeakValueDictionary``
+- `EMBEDDED_ACTIVITIES` : ``WeakValueDictionary``
     
-    Contains ``EmbeddedActivityState``.
+    Contains ``EmbeddedActivity``.
     
 - `EMOJIS` : ``WeakValueDictionary``
     
@@ -152,10 +152,10 @@ Immortal Objects
 """
 
 __all__ = (
-    'APPLICATIONS', 'APPLICATION_COMMANDS', 'BUILTIN_EMOJIS', 'CHANNELS', 'CLIENTS', 'EMBEDDED_ACTIVITY_STATES',
-    'EMOJIS', 'ENTITLEMENTS', 'EULAS', 'FORUM_TAGS', 'GUILDS', 'INTEGRATIONS', 'INVITES', 'KOKORO', 'MESSAGES',
-    'ROLES', 'SCHEDULED_EVENTS', 'SKUS', 'SOUNDBOARD_SOUNDS', 'STAGES', 'STICKERS', 'STICKER_PACKS', 'TEAMS',
-    'UNICODE_TO_EMOJI', 'USERS'
+    'APPLICATIONS', 'APPLICATION_COMMANDS', 'BUILTIN_EMOJIS', 'CHANNELS', 'CLIENTS', 'EMBEDDED_ACTIVITIES',
+    'EMOJIS', 'ENTITLEMENTS', 'EULAS', 'FORUM_TAGS', 'GUILD_BOOSTS', 'GUILDS', 'INTEGRATIONS', 'INVITES', 'KOKORO',
+    'MESSAGES', 'ROLES', 'SCHEDULED_EVENTS', 'SKUS', 'SOUNDBOARD_SOUNDS', 'STAGES', 'STICKERS', 'STICKER_PACKS',
+    'TEAMS', 'UNICODE_TO_EMOJI', 'USERS'
 )
 
 from scarletio import WeakKeyDictionary, WeakValueDictionary, create_event_loop, get_event_loop
@@ -167,11 +167,12 @@ APPLICATIONS = WeakValueDictionary()
 APPLICATION_COMMANDS = WeakValueDictionary()
 AUTO_MODERATION_RULES = WeakValueDictionary()
 CHANNELS = WeakValueDictionary()
-EMBEDDED_ACTIVITY_STATES = WeakValueDictionary()
+EMBEDDED_ACTIVITIES = WeakValueDictionary()
 EMOJIS = WeakValueDictionary()
 ENTITLEMENTS = WeakValueDictionary()
 EULAS = WeakValueDictionary()
 FORUM_TAGS = WeakValueDictionary()
+GUILD_BOOSTS = WeakValueDictionary()
 GUILDS = WeakValueDictionary()
 INTEGRATIONS = WeakValueDictionary()
 INVITES = WeakValueDictionary()
@@ -183,6 +184,7 @@ SOUNDBOARD_SOUNDS = WeakValueDictionary()
 STAGES = WeakValueDictionary()
 STICKERS = WeakValueDictionary()
 STICKER_PACKS = WeakValueDictionary()
+SUBSCRIPTIONS = WeakValueDictionary()
 TEAMS = WeakValueDictionary()
 USERS = WeakValueDictionary()
 

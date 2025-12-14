@@ -1,9 +1,8 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
 from ....color import Color
-from ....utils import datetime_to_timestamp
 
 from ...embed_author import EmbedAuthor
 from ...embed_field import EmbedField
@@ -14,6 +13,7 @@ from ...embed_thumbnail import EmbedThumbnail
 from ...embed_video import EmbedVideo
 
 from ..embed import Embed
+from ..flags import EmbedFlag
 from ..preinstanced import EmbedType
 
 
@@ -43,7 +43,7 @@ def test__Embed__len():
     image = EmbedImage('attachment://image')
     provider = EmbedProvider(embed_provider_name)
     thumbnail = EmbedThumbnail('attachment://thumbnail')
-    timestamp = DateTime(2016, 5, 5)
+    timestamp = DateTime(2016, 5, 5, tzinfo = TimeZone.utc)
     title = embed_title
     url = 'https://orindance.party/'
     video = EmbedVideo('attachment://video')
@@ -86,7 +86,7 @@ def _iter_options__bool():
     yield {'image': EmbedImage('attachment://image')}, True
     yield {'provider': EmbedProvider('provider name')}, True
     yield {'thumbnail': EmbedThumbnail('attachment://thumbnail')}, True
-    yield {'timestamp': DateTime(2016, 5, 5)}, True
+    yield {'timestamp': DateTime(2016, 5, 5, tzinfo = TimeZone.utc)}, True
     yield {'title': 'embed title'}, True
     yield {'url': 'https://orindance.party/'}, True
     yield {'video': EmbedVideo('attachment://video')}, True
@@ -94,6 +94,7 @@ def _iter_options__bool():
     yield {'embed_type': EmbedType.video}, False
     yield {'author': EmbedAuthor()}, False
     yield {'fields': [EmbedField(), EmbedField(inline = True)]}, False
+    yield {'flags': EmbedFlag(3)}, False
     yield {'footer': EmbedFooter()}, False
     yield {'image': EmbedImage()}, False
     yield {'provider': EmbedProvider()}, False
@@ -130,11 +131,12 @@ def test__Embed__repr():
     description = 'embed description'
     embed_type = EmbedType.video
     fields = [EmbedField('komeiji', 'koishi'), EmbedField('komeiji', 'satori', inline = True)]
+    flags = EmbedFlag(3)
     footer = EmbedFooter('footer text')
     image = EmbedImage('attachment://image')
     provider = EmbedProvider('provider name')
     thumbnail = EmbedThumbnail('attachment://thumbnail')
-    timestamp = DateTime(2016, 5, 5)
+    timestamp = DateTime(2016, 5, 5, tzinfo = TimeZone.utc)
     title = 'embed title'
     url = 'https://orindance.party/'
     video = EmbedVideo('attachment://video')
@@ -145,6 +147,7 @@ def test__Embed__repr():
         description = description,
         embed_type = embed_type,
         fields = fields,
+        flags = flags,
         footer = footer,
         image = image,
         provider = provider,
@@ -167,11 +170,12 @@ def test__Embed__hash():
     description = 'embed description'
     embed_type = EmbedType.video
     fields = [EmbedField('komeiji', 'koishi'), EmbedField('komeiji', 'satori', inline = True)]
+    flags = EmbedFlag(3)
     footer = EmbedFooter('footer text')
     image = EmbedImage('attachment://image')
     provider = EmbedProvider('provider name')
     thumbnail = EmbedThumbnail('attachment://thumbnail')
-    timestamp = DateTime(2016, 5, 5)
+    timestamp = DateTime(2016, 5, 5, tzinfo = TimeZone.utc)
     title = 'embed title'
     url = 'https://orindance.party/'
     video = EmbedVideo('attachment://video')
@@ -182,6 +186,7 @@ def test__Embed__hash():
         description = description,
         embed_type = embed_type,
         fields = fields,
+        flags = flags,
         footer = footer,
         image = image,
         provider = provider,
@@ -195,20 +200,18 @@ def test__Embed__hash():
     vampytest.assert_instance(hash(embed), int)
 
 
-def test__Embed__eq():
-    """
-    Tests whether ``Embed.__eq__`` works as intended.
-    """
+def _iter_options__eq():
     author = EmbedAuthor('author name')
     color = Color(123)
     description = 'embed description'
     embed_type = EmbedType.video
     fields = [EmbedField('komeiji', 'koishi'), EmbedField('komeiji', 'satori', inline = True)]
+    flags = EmbedFlag(3)
     footer = EmbedFooter('footer text')
     image = EmbedImage('attachment://image')
     provider = EmbedProvider('provider name')
     thumbnail = EmbedThumbnail('attachment://thumbnail')
-    timestamp = DateTime(2016, 5, 5)
+    timestamp = DateTime(2016, 5, 5, tzinfo = TimeZone.utc)
     title = 'embed title'
     url = 'https://orindance.party/'
     video = EmbedVideo('attachment://video')
@@ -219,6 +222,7 @@ def test__Embed__eq():
         'description': description,
         'embed_type': embed_type,
         'fields': fields,
+        'flags': flags,
         'footer': footer,
         'image': image,
         'provider': provider,
@@ -228,26 +232,160 @@ def test__Embed__eq():
         'url': url,
         'video': video,
     }
+    
+    yield (
+        keyword_parameters,
+        keyword_parameters,
+        True,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'author': EmbedAuthor('author derp'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'color': Color(124),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'description': 'embed derp',
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'embed_type': EmbedType.gifv,
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'fields': [EmbedField('komeiji', 'kokoro')],
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'flags': EmbedFlag(5),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'footer': EmbedFooter('footer derp'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'image': EmbedImage('attachment://image_what'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'provider': EmbedProvider('provider derp'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'thumbnail': EmbedThumbnail('attachment://thumbnail_what'),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'timestamp': DateTime(2016, 5, 4, tzinfo = TimeZone.utc),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'title': 'embed derp',
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'url': 'https://www.astil.dev/project/hata/',
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'video': EmbedVideo('attachment://video_what'),
+        },
+        False,
+    )
 
-    embed = Embed(**keyword_parameters)
+
+@vampytest._(vampytest.call_from(_iter_options__eq()).returning_last())
+def test__Embed__eq(keyword_parameters_0, keyword_parameters_1):
+    """
+    Tests whether ``Embed.__eq__`` works as intended.
     
-    vampytest.assert_eq(embed, embed)
-    vampytest.assert_ne(embed, object())
+    Parameters
+    ----------
+    keyword_parameters_0 : `dict<str, object>`
+        Keyword parameters to create instance with.
     
-    for field_name, field_value in (
-        ('author', EmbedAuthor('author derp')),
-        ('color', Color(124)),
-        ('description', 'embed derp'),
-        ('embed_type', EmbedType.gifv),
-        ('fields', [EmbedField('komeiji', 'kokoro')]),
-        ('footer', EmbedFooter('footer derp')),
-        ('image', EmbedImage('attachment://image_what')),
-        ('provider', EmbedProvider('provider derp')),
-        ('thumbnail', EmbedThumbnail('attachment://thumbnail_what')),
-        ('timestamp', DateTime(2016, 5, 4)),
-        ('title', 'embed derp'),
-        ('url', 'https://www.astil.dev/project/hata/'),
-        ('video', EmbedVideo('attachment://video_what')),
-    ):
-        test_embed = Embed(**{**keyword_parameters, field_name: field_value})
-        vampytest.assert_ne(embed, test_embed)
+    keyword_parameters_1 : `dict<str, object>`
+        Keyword parameters to create instance with.
+    
+    Returns
+    -------
+    output : `bool`
+    """
+    embed_0 = Embed(**keyword_parameters_0)
+    embed_1 = Embed(**keyword_parameters_1)
+    
+    output = embed_0 == embed_1
+    vampytest.assert_instance(output, bool)
+    return output

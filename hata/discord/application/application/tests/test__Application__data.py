@@ -1,4 +1,4 @@
-import warnings as module_warnings
+from warnings import catch_warnings, simplefilter as apply_simple_filter
 
 import vampytest
 
@@ -19,10 +19,10 @@ from ..flags import (
     ApplicationOverlayMethodFlags
 )
 from ..preinstanced import (
-    ApplicationDiscoverabilityState, ApplicationExplicitContentFilterLevel, ApplicationIntegrationType,
-    ApplicationInteractionEventType, ApplicationInteractionVersion, ApplicationInternalGuildRestriction,
-    ApplicationMonetizationState, ApplicationRPCState, ApplicationStoreState, ApplicationType,
-    ApplicationVerificationState
+    ApplicationDiscoverabilityState, ApplicationEventWebhookEventType, ApplicationEventWebhookState,
+    ApplicationExplicitContentFilterLevel, ApplicationIntegrationType, ApplicationInteractionEventType,
+    ApplicationInteractionVersion, ApplicationInternalGuildRestriction, ApplicationMonetizationState,
+    ApplicationRPCState, ApplicationStoreState, ApplicationTheme, ApplicationType, ApplicationVerificationState
 )
 
 from .test__Application__constructor import _assert_fields_set
@@ -40,8 +40,8 @@ def test__Application__from_data__warning_and_attributes():
         'id': str(application_id),
     }
     
-    with module_warnings.catch_warnings(record = True) as warnings:
-        module_warnings.simplefilter('always')
+    with catch_warnings(record = True) as warnings:
+        apply_simple_filter('always')
         
         application = Application.from_data(data)
         _assert_fields_set(application)
@@ -62,8 +62,8 @@ def test__Application__from_data__caching():
         'id': application_id,
     }
     
-    with module_warnings.catch_warnings():
-        module_warnings.simplefilter('ignore')
+    with catch_warnings():
+        apply_simple_filter('ignore')
         
         application = Application.from_data(data)
         test_application = Application.from_data(data)
@@ -154,6 +154,8 @@ def test__Application__from_data_own__attributes():
     application_id = 202211290019
     
     approximate_guild_count = 11
+    approximate_user_authorization_count = 21
+    approximate_user_install_count = 13
     bot_public = True
     bot_requires_code_grant = True
     cover = Icon(IconType.static, 23)
@@ -175,6 +177,12 @@ def test__Application__from_data_own__attributes():
     developers = [ApplicationEntity.precreate(202312030000, name = 'BrainDead')]
     discoverability_state = ApplicationDiscoverabilityState.blocked
     discovery_eligibility_flags = ApplicationDiscoveryEligibilityFlags(9)
+    event_webhook_event_types = [
+        ApplicationEventWebhookEventType.application_authorization,
+        ApplicationEventWebhookEventType.entitlement_create
+    ]
+    event_webhook_state = ApplicationEventWebhookState.enabled
+    event_webhook_url = 'https://orindance.party/event-webhook'
     explicit_content_filter_level = ApplicationExplicitContentFilterLevel.filtered
     guild_id = 202211290020
     install_parameters = ApplicationInstallParameters(permissions = 8)
@@ -209,6 +217,8 @@ def test__Application__from_data_own__attributes():
     data = {
         'id': str(application_id),
         'approximate_guild_count': approximate_guild_count,
+        'approximate_user_authorization_count': approximate_user_authorization_count,
+        'approximate_user_install_count': approximate_user_install_count,
         'bot_public': bot_public,
         'bot_require_code_grant': bot_requires_code_grant,
         'cover_image': cover.as_base_16_hash,
@@ -230,6 +240,11 @@ def test__Application__from_data_own__attributes():
         'developers': [developer.to_data(defaults = True, include_internals = True) for developer in developers],
         'discoverability_state': discoverability_state.value,
         'discovery_eligibility_flags': int(discovery_eligibility_flags),
+        'event_webhooks_types': [
+            event_webhook_event_type.value for event_webhook_event_type in event_webhook_event_types
+        ], 
+        'event_webhooks_status': event_webhook_state.value,
+        'event_webhooks_url': event_webhook_url,
         'explicit_content_filter': explicit_content_filter_level.value,
         'guild_id': str(guild_id),
         'install_params': install_parameters.to_data(defaults = True),
@@ -267,6 +282,8 @@ def test__Application__from_data_own__attributes():
     vampytest.assert_eq(application.id, application_id)
     
     vampytest.assert_eq(application.approximate_guild_count, approximate_guild_count)
+    vampytest.assert_eq(application.approximate_user_authorization_count, approximate_user_authorization_count)
+    vampytest.assert_eq(application.approximate_user_install_count, approximate_user_install_count)
     vampytest.assert_eq(application.bot_public, bot_public)
     vampytest.assert_eq(application.bot_requires_code_grant, bot_requires_code_grant)
     vampytest.assert_eq(application.cover, cover)
@@ -276,6 +293,9 @@ def test__Application__from_data_own__attributes():
     vampytest.assert_eq(application.discovery_eligibility_flags, discovery_eligibility_flags)
     vampytest.assert_eq(application.description, description)
     vampytest.assert_eq(application.developers, tuple(developers))
+    vampytest.assert_eq(application.event_webhook_event_types, tuple(event_webhook_event_types))
+    vampytest.assert_is(application.event_webhook_state, event_webhook_state)
+    vampytest.assert_eq(application.event_webhook_url, event_webhook_url)
     vampytest.assert_is(application.explicit_content_filter_level, explicit_content_filter_level)
     vampytest.assert_eq(application.flags, flags)
     vampytest.assert_eq(application.guild_id, guild_id)
@@ -494,6 +514,7 @@ def test__Application__from_data_detectable__attributes():
     primary_sku_id = 202211290036
     publishers = [ApplicationEntity.precreate(202211290037, name = 'Brain')]
     slug = 'https://orindance.party/'
+    themes = [ApplicationTheme.action]
     third_party_skus = [ThirdPartySKU(distributor = 'Dead')]
     
     data = {
@@ -504,7 +525,7 @@ def test__Application__from_data_detectable__attributes():
         'description': description,
         'flags': int(flags),
         'hook': hook,
-        'icon': icon.as_base_16_hash,
+        'icon_hash': icon.as_base_16_hash,
         'name': name,
         'privacy_policy_url': privacy_policy_url,
         'rpc_origins': rpc_origins,
@@ -526,6 +547,7 @@ def test__Application__from_data_detectable__attributes():
         'primary_sku_id': str(primary_sku_id),
         'publishers': [publisher.to_data(defaults = True, include_internals = True) for publisher in publishers],
         'slug': slug,
+        'themes': [theme.value for theme in themes],
         'third_party_skus': [third_party_sku.to_data(defaults = True) for third_party_sku in third_party_skus]
     }
     
@@ -558,6 +580,7 @@ def test__Application__from_data_detectable__attributes():
     vampytest.assert_eq(application.splash, splash)
     vampytest.assert_eq(application.tags, tuple(tags))
     vampytest.assert_eq(application.terms_of_service_url, terms_of_service_url)
+    vampytest.assert_eq(application.themes, tuple(themes))
     vampytest.assert_eq(application.third_party_skus, tuple(third_party_skus))
     vampytest.assert_is(application.type, application_type)
     vampytest.assert_eq(application.verify_key, verify_key)
@@ -593,8 +616,8 @@ def test__Application__to_data__include_internals():
         application_id,
     )
     
-    with module_warnings.catch_warnings(record = True) as warnings:
-        module_warnings.simplefilter('always')
+    with catch_warnings(record = True) as warnings:
+        apply_simple_filter('always')
         
         data = application.to_data(defaults = True, include_internals = True)
         
@@ -632,8 +655,8 @@ def test__Application__to_data__default():
         tags = tags,
     )
     
-    with module_warnings.catch_warnings(record = True) as warnings:
-        module_warnings.simplefilter('always')
+    with catch_warnings(record = True) as warnings:
+        apply_simple_filter('always')
         
         data = application.to_data(defaults = True)
         
@@ -692,6 +715,8 @@ def test__Application__to_data_own():
     application_id = 202211290041
     
     approximate_guild_count = 11
+    approximate_user_authorization_count = 21
+    approximate_user_install_count = 13
     bot_public = True
     bot_requires_code_grant = True
     cover = Icon(IconType.static, 23)
@@ -713,6 +738,12 @@ def test__Application__to_data_own():
     developers = [ApplicationEntity.precreate(202312030001, name = 'BrainDead')]
     discoverability_state = ApplicationDiscoverabilityState.blocked
     discovery_eligibility_flags = ApplicationDiscoveryEligibilityFlags(9)
+    event_webhook_event_types = [
+        ApplicationEventWebhookEventType.application_authorization,
+        ApplicationEventWebhookEventType.entitlement_create
+    ]
+    event_webhook_state = ApplicationEventWebhookState.enabled
+    event_webhook_url = 'https://orindance.party/event-webhook'
     explicit_content_filter_level = ApplicationExplicitContentFilterLevel.filtered
     guild_id = 202211290042
     install_parameters = ApplicationInstallParameters(permissions = 8)
@@ -747,6 +778,8 @@ def test__Application__to_data_own():
     application = Application.precreate(
         application_id,
         approximate_guild_count = approximate_guild_count,
+        approximate_user_authorization_count = approximate_user_authorization_count,
+        approximate_user_install_count = approximate_user_install_count,
         bot_public = bot_public,
         bot_requires_code_grant = bot_requires_code_grant,
         cover = cover,
@@ -756,6 +789,9 @@ def test__Application__to_data_own():
         discovery_eligibility_flags = discovery_eligibility_flags,
         description = description,
         developers = developers,
+        event_webhook_event_types = event_webhook_event_types,
+        event_webhook_state = event_webhook_state,
+        event_webhook_url = event_webhook_url,
         explicit_content_filter_level = explicit_content_filter_level,
         flags = flags,
         guild_id = guild_id,
@@ -795,6 +831,8 @@ def test__Application__to_data_own():
     expected_data = {
         'id': str(application_id),
         'approximate_guild_count': approximate_guild_count,
+        'approximate_user_authorization_count': approximate_user_authorization_count,
+        'approximate_user_install_count': approximate_user_install_count,
         'bot_public': bot_public,
         'bot_require_code_grant': bot_requires_code_grant,
         'cover_image': cover.as_base_16_hash,
@@ -816,6 +854,11 @@ def test__Application__to_data_own():
         'developers': [developer.to_data(defaults = True, include_internals = True) for developer in developers],
         'discoverability_state': discoverability_state.value,
         'discovery_eligibility_flags': int(discovery_eligibility_flags),
+        'event_webhooks_types': [
+            event_webhook_event_type.value for event_webhook_event_type in event_webhook_event_types
+        ], 
+        'event_webhooks_status': event_webhook_state.value,
+        'event_webhooks_url': event_webhook_url,
         'explicit_content_filter': explicit_content_filter_level.value,
         'guild_id': str(guild_id),
         'install_params': install_parameters.to_data(defaults = True),
@@ -969,6 +1012,7 @@ def test__Application__to_data_detectable():
     primary_sku_id = 202211290050
     publishers = [ApplicationEntity.precreate(202211290051, name = 'Brain')]
     slug = 'https://orindance.party/'
+    themes = [ApplicationTheme.action]
     third_party_skus = [ThirdPartySKU(distributor = 'Dead')]
     application_id = 202211290052
     flags = ApplicationFlag(96)
@@ -1000,6 +1044,7 @@ def test__Application__to_data_detectable():
         splash = splash,
         tags = tags,
         terms_of_service_url = terms_of_service_url,
+        themes = themes,
         third_party_skus = third_party_skus,
         application_type = application_type,
         verify_key = verify_key,
@@ -1013,7 +1058,7 @@ def test__Application__to_data_detectable():
         'description': description,
         'flags': int(flags),
         'hook': hook,
-        'icon': icon.as_base_16_hash,
+        'icon_hash': icon.as_base_16_hash,
         'name': name,
         'privacy_policy_url': privacy_policy_url,
         'rpc_origins': rpc_origins,
@@ -1035,6 +1080,7 @@ def test__Application__to_data_detectable():
         'primary_sku_id': str(primary_sku_id),
         'publishers': [publisher.to_data(defaults = True, include_internals = True) for publisher in publishers],
         'slug': slug,
+        'themes': [theme.value for theme in themes],
         'third_party_skus': [third_party_sku.to_data(defaults = True) for third_party_sku in third_party_skus]
     }
     

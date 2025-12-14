@@ -11,7 +11,6 @@ def _iter_options__type_error():
     yield 12.6
 
 
-
 def _iter_options__value_error():
     yield None
     yield ''
@@ -39,4 +38,6 @@ def test__validate_url(input_value):
     TypeError
     ValueError
     """
-    return validate_url(input_value)
+    output = validate_url(input_value)
+    vampytest.assert_instance(output, str)
+    return output

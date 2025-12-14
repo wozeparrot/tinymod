@@ -1,20 +1,28 @@
 __all__ = ()
 
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 from scarletio import Task, include
 
 from ...env import CACHE_PRESENCE, CACHE_USER
 
-from ..application import Entitlement
+from ..application import Entitlement, Subscription
 from ..application.entitlement.fields import parse_id as parse_entitlement_id
 from ..application_command import ApplicationCommand, ApplicationCommandPermission
+from ..application.subscription.fields import parse_id as parse_subscription_id
 from ..audit_logs import AuditLogEntry
 from ..auto_moderation import AutoModerationActionExecutionEvent, AutoModerationRule
 from ..channel import Channel, VoiceChannelEffect
 from ..core import (
-    APPLICATION_COMMANDS, APPLICATION_ID_TO_CLIENT, AUTO_MODERATION_RULES, CHANNELS, CLIENTS, ENTITLEMENTS, GUILDS,
-    KOKORO, MESSAGES, ROLES, SCHEDULED_EVENTS, STAGES, USERS
+    APPLICATION_COMMANDS, APPLICATION_ID_TO_CLIENT, AUTO_MODERATION_RULES, CHANNELS, CLIENTS, ENTITLEMENTS, GUILD_BOOSTS,
+    GUILDS, KOKORO, MESSAGES, ROLES, SCHEDULED_EVENTS, STAGES, SUBSCRIPTIONS, USERS
+)
+from ..embedded_activity.embedded_activity.constants import (
+    EMBEDDED_ACTIVITY_UPDATE_CREATE, EMBEDDED_ACTIVITY_UPDATE_DELETE, EMBEDDED_ACTIVITY_UPDATE_UPDATE,
+    EMBEDDED_ACTIVITY_UPDATE_USER_ADD, EMBEDDED_ACTIVITY_UPDATE_USER_DELETE
+)
+from ..embedded_activity.embedded_activity.utils import (
+    difference_handle_embedded_activity_update_event, handle_embedded_activity_update_event
 )
 from ..emoji import Reaction, ReactionAddEvent, ReactionDeleteEvent
 from ..emoji.reaction_events.fields import (
@@ -22,14 +30,8 @@ from ..emoji.reaction_events.fields import (
     parse_user as parse_reaction_event_user
 )
 from ..guild import (
-    Guild, GuildJoinRequest, GuildJoinRequestDeleteEvent, GuildUserChunkEvent, create_partial_guild_from_id
-)
-from ..guild.embedded_activity_state.constants import (
-    EMBEDDED_ACTIVITY_UPDATE_CREATE, EMBEDDED_ACTIVITY_UPDATE_DELETE, EMBEDDED_ACTIVITY_UPDATE_UPDATE,
-    EMBEDDED_ACTIVITY_UPDATE_USER_ADD, EMBEDDED_ACTIVITY_UPDATE_USER_DELETE
-)
-from ..guild.embedded_activity_state.utils import (
-    difference_handle_embedded_activity_update_event, handle_embedded_activity_update_event
+    Guild, GuildBoost, GuildEnhancementEntitlementsCreateEvent, GuildEnhancementEntitlementsDeleteEvent, GuildJoinRequest,
+    GuildJoinRequestDeleteEvent, GuildUserChunkEvent, create_partial_guild_from_id
 )
 from ..guild.guild.constants import (
     EMOJI_EVENT_CREATE, EMOJI_EVENT_DELETE, EMOJI_EVENT_UPDATE, SOUNDBOARD_SOUND_EVENT_CREATE,
@@ -37,6 +39,7 @@ from ..guild.guild.constants import (
     STICKER_EVENT_UPDATE, VOICE_STATE_EVENT_JOIN, VOICE_STATE_EVENT_LEAVE, VOICE_STATE_EVENT_MOVE,
     VOICE_STATE_EVENT_UPDATE
 )
+from ..guild.guild_boost.fields import parse_guild_id as parse_guild_boost_guild_id, parse_id as parse_guild_boost_id
 from ..integration import Integration
 from ..interaction import InteractionEvent
 from ..invite import Invite, create_partial_invite_from_data
@@ -46,9 +49,24 @@ from ..poll.poll_events.fields import (
     parse_answer_id as parse_poll_vote_event_answer_id, parse_user as parse_poll_vote_event_user
 )
 from ..role import Role, create_partial_role_from_id
-from ..scheduled_event import ScheduledEvent, ScheduledEventSubscribeEvent, ScheduledEventUnsubscribeEvent
+from ..scheduled_event import (
+    ScheduledEvent, ScheduledEventOccasionOverwrite, ScheduledEventOccasionOverwriteCreateEvent,
+    ScheduledEventOccasionOverwriteDeleteEvent, ScheduledEventOccasionOverwriteUpdateEvent,
+    ScheduledEventStatus, ScheduledEventSubscribeEvent, ScheduledEventUnsubscribeEvent
+)
 from ..scheduled_event.scheduled_event.fields import (
     parse_guild_id as parse_scheduled_event_guild_id, parse_id as parse_scheduled_event_id
+)
+from ..scheduled_event.scheduled_event.utils import (
+    scheduled_event_occasion_overwrite_add, scheduled_event_occasion_overwrite_get,
+    scheduled_event_occasion_overwrite_remove,
+)
+from ..scheduled_event.scheduled_event_occasion_overwrite.fields import (
+    parse_timestamp as parse_scheduled_event_occasion_overwrite_timestamp
+)
+from ..scheduled_event.scheduled_event_occasion_overwrite_create_event.fields import (
+    parse_guild_id as parse_scheduled_event_occasion_overwrite_create_guild_id,
+    parse_scheduled_event_id as parse_scheduled_event_occasion_overwrite_create_scheduled_event_id,
 )
 from ..soundboard import SoundboardSound, SoundboardSoundsEvent, create_partial_soundboard_sound_from_partial_data
 from ..soundboard.soundboard_sound.fields import parse_guild_id as parse_soundboard_guild_id
@@ -70,8 +88,9 @@ from .guild_sync import check_channel, guild_sync
 from .intent import (
     INTENT_MASK_AUTO_MODERATION_CONFIGURATION, INTENT_MASK_DIRECT_MESSAGES, INTENT_MASK_DIRECT_POLLS,
     INTENT_MASK_DIRECT_REACTIONS, INTENT_MASK_GUILDS, INTENT_MASK_GUILD_EXPRESSIONS, INTENT_MASK_GUILD_MESSAGES,
-    INTENT_MASK_GUILD_POLLS, INTENT_MASK_GUILD_PRESENCES, INTENT_MASK_GUILD_REACTIONS, INTENT_MASK_GUILD_USERS,
-    INTENT_MASK_GUILD_VOICE_STATES, INTENT_SHIFT_GUILD_USERS
+    INTENT_MASK_GUILD_POLLS, INTENT_MASK_GUILD_PRESENCES, INTENT_MASK_GUILD_REACTIONS,
+    INTENT_MASK_GUILD_SCHEDULED_EVENTS, INTENT_MASK_GUILD_USERS, INTENT_MASK_GUILD_VOICE_STATES,
+    INTENT_SHIFT_GUILD_USERS
 )
 
 
@@ -139,7 +158,8 @@ add_parser(
     READY,
     READY,
     READY,
-    READY)
+    READY,
+)
 del READY
 
 def RESUMED(client, data):
@@ -150,7 +170,8 @@ add_parser(
     RESUMED,
     RESUMED,
     RESUMED,
-    RESUMED)
+    RESUMED,
+)
 del RESUMED
 
 def USER_UPDATE__CAL(client, data):
@@ -168,9 +189,12 @@ add_parser(
     USER_UPDATE__CAL,
     USER_UPDATE__CAL,
     USER_UPDATE__OPT,
-    USER_UPDATE__OPT)
-del USER_UPDATE__CAL, \
-    USER_UPDATE__OPT
+    USER_UPDATE__OPT,
+)
+del (
+    USER_UPDATE__CAL,
+    USER_UPDATE__OPT,
+)
 
 def MESSAGE_CREATE__CAL(client, data):
     channel_id = int(data['channel_id'])
@@ -207,9 +231,12 @@ add_parser(
     MESSAGE_CREATE__CAL,
     MESSAGE_CREATE__CAL,
     MESSAGE_CREATE__OPT,
-    MESSAGE_CREATE__OPT)
-del MESSAGE_CREATE__CAL, \
-    MESSAGE_CREATE__OPT
+    MESSAGE_CREATE__OPT,
+)
+del (
+    MESSAGE_CREATE__CAL,
+    MESSAGE_CREATE__OPT,
+)
 
 
 def MESSAGE_DELETE__CAL_SC(client, data):
@@ -232,7 +259,7 @@ def MESSAGE_DELETE__CAL_MC(client, data):
         message = None
     else:
         clients = filter_clients(
-            channel.clients,
+            channel.iter_clients(),
             INTENT_MASK_GUILD_MESSAGES if channel.is_in_group_guild() else INTENT_MASK_DIRECT_MESSAGES,
             client,
         )
@@ -262,6 +289,7 @@ def MESSAGE_DELETE__CAL_MC(client, data):
             if (event_handler is not DEFAULT_EVENT_HANDLER):
                 Task(KOKORO, event_handler(client_, message))
 
+
 def MESSAGE_DELETE__OPT_SC(client, data):
     channel_id = int(data['channel_id'])
     try:
@@ -285,7 +313,7 @@ def MESSAGE_DELETE__OPT_MC(client, data):
         return
     
     if first_client(
-        channel.clients,
+        channel.iter_clients(),
         INTENT_MASK_GUILD_MESSAGES if channel.is_in_group_guild() else INTENT_MASK_DIRECT_MESSAGES,
         client,
     ) is not client:
@@ -299,11 +327,14 @@ add_parser(
     MESSAGE_DELETE__CAL_SC,
     MESSAGE_DELETE__CAL_MC,
     MESSAGE_DELETE__OPT_SC,
-    MESSAGE_DELETE__OPT_MC)
-del MESSAGE_DELETE__CAL_SC, \
-    MESSAGE_DELETE__CAL_MC, \
-    MESSAGE_DELETE__OPT_SC, \
-    MESSAGE_DELETE__OPT_MC
+    MESSAGE_DELETE__OPT_MC,
+)
+del (
+    MESSAGE_DELETE__CAL_SC,
+    MESSAGE_DELETE__CAL_MC,
+    MESSAGE_DELETE__OPT_SC,
+    MESSAGE_DELETE__OPT_MC,
+)
 
 
 def MESSAGE_DELETE_BULK__CAL_SC(client, data):
@@ -345,7 +376,7 @@ def MESSAGE_DELETE_BULK__CAL_MC(client, data):
         missed = [int(message_id) for message_id in data['ids']]
     
     else:
-        clients = filter_clients(channel.clients, INTENT_MASK_GUILD_MESSAGES, client)
+        clients = filter_clients(channel.iter_clients(), INTENT_MASK_GUILD_MESSAGES, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -399,7 +430,7 @@ def MESSAGE_DELETE_BULK__OPT_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    if first_client(channel.clients, INTENT_MASK_GUILD_MESSAGES, client) is not client:
+    if first_client(channel.iter_clients(), INTENT_MASK_GUILD_MESSAGES, client) is not client:
         return
     
     message_ids = [int(message_id) for message_id in data['ids']]
@@ -411,11 +442,14 @@ add_parser(
     MESSAGE_DELETE_BULK__CAL_SC,
     MESSAGE_DELETE_BULK__CAL_MC,
     MESSAGE_DELETE_BULK__OPT_SC,
-    MESSAGE_DELETE_BULK__OPT_MC)
-del MESSAGE_DELETE_BULK__CAL_SC, \
-    MESSAGE_DELETE_BULK__CAL_MC, \
-    MESSAGE_DELETE_BULK__OPT_SC, \
-    MESSAGE_DELETE_BULK__OPT_MC
+    MESSAGE_DELETE_BULK__OPT_MC,
+)
+del (
+    MESSAGE_DELETE_BULK__CAL_SC,
+    MESSAGE_DELETE_BULK__CAL_MC,
+    MESSAGE_DELETE_BULK__OPT_SC,
+    MESSAGE_DELETE_BULK__OPT_MC,
+)
 
 
 def MESSAGE_UPDATE__CAL_SC(client, data):
@@ -445,6 +479,7 @@ def MESSAGE_UPDATE__CAL_SC(client, data):
         
         Task(KOKORO, client.events.embed_update(client, message, change_state))
 
+
 def MESSAGE_UPDATE__CAL_MC(client, data):
     message_id = int(data['id'])
     message = MESSAGES.get(message_id, None)
@@ -464,12 +499,11 @@ def MESSAGE_UPDATE__CAL_MC(client, data):
         if (event_handler is not DEFAULT_EVENT_HANDLER):
             Task(KOKORO, event_handler(client, message, None))
     
-    clients = filter_content_intent_client(channel.clients, data, client)
+    clients = filter_content_intent_client(channel.iter_clients(), data, client)
     
     if clients.send(None) is not client:
         clients.close()
         return
-    
     
     if 'edited_timestamp' in data:
         if message_cached_before:
@@ -516,7 +550,7 @@ def MESSAGE_UPDATE__OPT_MC(client, data):
         return
     
     channel = message.channel
-    if first_content_intent_client(channel.clients, data, client) is not client:
+    if first_content_intent_client(channel.iter_clients(), data, client) is not client:
         return
     
     if 'edited_timestamp' in data:
@@ -530,11 +564,14 @@ add_parser(
     MESSAGE_UPDATE__CAL_SC,
     MESSAGE_UPDATE__CAL_MC,
     MESSAGE_UPDATE__OPT_SC,
-    MESSAGE_UPDATE__OPT_MC)
-del MESSAGE_UPDATE__CAL_SC, \
-    MESSAGE_UPDATE__CAL_MC, \
-    MESSAGE_UPDATE__OPT_SC, \
-    MESSAGE_UPDATE__OPT_MC
+    MESSAGE_UPDATE__OPT_MC,
+)
+del (
+    MESSAGE_UPDATE__CAL_SC,
+    MESSAGE_UPDATE__CAL_MC,
+    MESSAGE_UPDATE__OPT_SC,
+    MESSAGE_UPDATE__OPT_MC,
+)
 
 
 def MESSAGE_REACTION_ADD__CAL_SC(client, data):
@@ -550,7 +587,7 @@ def MESSAGE_REACTION_ADD__CAL_MC(client, data):
         clients = None
     else:
         clients = filter_clients(
-            channel.clients,
+            channel.iter_clients(),
             INTENT_MASK_GUILD_REACTIONS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_REACTIONS,
             client,
         )
@@ -587,7 +624,7 @@ def MESSAGE_REACTION_ADD__OPT_MC(client, data):
     
     channel = message.channel
     if first_client(
-        channel.clients,
+        channel.iter_clients(),
         INTENT_MASK_GUILD_REACTIONS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_REACTIONS,
         client,
     ) is not client:
@@ -601,11 +638,14 @@ add_parser(
     MESSAGE_REACTION_ADD__CAL_SC,
     MESSAGE_REACTION_ADD__CAL_MC,
     MESSAGE_REACTION_ADD__OPT_SC,
-    MESSAGE_REACTION_ADD__OPT_MC)
-del MESSAGE_REACTION_ADD__CAL_SC, \
-    MESSAGE_REACTION_ADD__CAL_MC, \
-    MESSAGE_REACTION_ADD__OPT_SC, \
-    MESSAGE_REACTION_ADD__OPT_MC
+    MESSAGE_REACTION_ADD__OPT_MC,
+)
+del (
+    MESSAGE_REACTION_ADD__CAL_SC,
+    MESSAGE_REACTION_ADD__CAL_MC,
+    MESSAGE_REACTION_ADD__OPT_SC,
+    MESSAGE_REACTION_ADD__OPT_MC,
+)
 
 
 def MESSAGE_REACTION_REMOVE_ALL__CAL_SC(client, data):
@@ -633,7 +673,7 @@ def MESSAGE_REACTION_REMOVE_ALL__CAL_MC(client, data):
     
     else:
         clients = filter_clients(
-            channel.clients,
+            channel.iter_clients(),
             INTENT_MASK_GUILD_REACTIONS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_REACTIONS,
             client,
         )
@@ -683,7 +723,7 @@ def MESSAGE_REACTION_REMOVE_ALL__OPT_MC(client, data):
     
     channel = message.channel
     if first_client(
-        channel.clients,
+        channel.iter_clients(),
         INTENT_MASK_GUILD_REACTIONS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_REACTIONS,
         client,
     ) is not client:
@@ -699,11 +739,14 @@ add_parser(
     MESSAGE_REACTION_REMOVE_ALL__CAL_SC,
     MESSAGE_REACTION_REMOVE_ALL__CAL_MC,
     MESSAGE_REACTION_REMOVE_ALL__OPT_SC,
-    MESSAGE_REACTION_REMOVE_ALL__OPT_MC)
-del MESSAGE_REACTION_REMOVE_ALL__CAL_SC, \
-    MESSAGE_REACTION_REMOVE_ALL__CAL_MC, \
-    MESSAGE_REACTION_REMOVE_ALL__OPT_SC, \
-    MESSAGE_REACTION_REMOVE_ALL__OPT_MC
+    MESSAGE_REACTION_REMOVE_ALL__OPT_MC,
+)
+del (
+    MESSAGE_REACTION_REMOVE_ALL__CAL_SC,
+    MESSAGE_REACTION_REMOVE_ALL__CAL_MC,
+    MESSAGE_REACTION_REMOVE_ALL__OPT_SC,
+    MESSAGE_REACTION_REMOVE_ALL__OPT_MC,
+)
 
 
 def MESSAGE_REACTION_REMOVE__CAL_SC(client, data):
@@ -720,7 +763,7 @@ def MESSAGE_REACTION_REMOVE__CAL_MC(client, data):
     
     else:
         clients = filter_clients(
-            channel.clients,
+            channel.iter_clients(),
             INTENT_MASK_GUILD_REACTIONS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_REACTIONS,
             client,
         )
@@ -757,7 +800,7 @@ def MESSAGE_REACTION_REMOVE__OPT_MC(client, data):
     
     channel = message.channel
     if first_client(
-        channel.clients,
+        channel.iter_clients(),
         INTENT_MASK_GUILD_REACTIONS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_REACTIONS,
         client,
     ) is not client:
@@ -771,11 +814,14 @@ add_parser(
     MESSAGE_REACTION_REMOVE__CAL_SC,
     MESSAGE_REACTION_REMOVE__CAL_MC,
     MESSAGE_REACTION_REMOVE__OPT_SC,
-    MESSAGE_REACTION_REMOVE__OPT_MC)
-del MESSAGE_REACTION_REMOVE__CAL_SC, \
-    MESSAGE_REACTION_REMOVE__CAL_MC, \
-    MESSAGE_REACTION_REMOVE__OPT_SC, \
-    MESSAGE_REACTION_REMOVE__OPT_MC
+    MESSAGE_REACTION_REMOVE__OPT_MC,
+)
+del (
+    MESSAGE_REACTION_REMOVE__CAL_SC,
+    MESSAGE_REACTION_REMOVE__CAL_MC,
+    MESSAGE_REACTION_REMOVE__OPT_SC,
+    MESSAGE_REACTION_REMOVE__OPT_MC,
+)
 
 
 def MESSAGE_REACTION_REMOVE_EMOJI__CAL_SC(client, data):
@@ -800,7 +846,7 @@ def MESSAGE_REACTION_REMOVE_EMOJI__CAL_MC(client, data):
     
     else:
         clients = filter_clients(
-            channel.clients,
+            channel.iter_clients(),
             INTENT_MASK_GUILD_REACTIONS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_REACTIONS,
             client,
         )
@@ -848,7 +894,7 @@ def MESSAGE_REACTION_REMOVE_EMOJI__OPT_MC(client, data):
     
     channel = message.channel
     if first_client(
-        channel.clients,
+        channel.iter_clients(),
         INTENT_MASK_GUILD_REACTIONS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_REACTIONS,
         client,
     ) is not client:
@@ -863,11 +909,14 @@ add_parser(
     MESSAGE_REACTION_REMOVE_EMOJI__CAL_SC,
     MESSAGE_REACTION_REMOVE_EMOJI__CAL_MC,
     MESSAGE_REACTION_REMOVE_EMOJI__OPT_SC,
-    MESSAGE_REACTION_REMOVE_EMOJI__OPT_MC)
-del MESSAGE_REACTION_REMOVE_EMOJI__CAL_SC, \
-    MESSAGE_REACTION_REMOVE_EMOJI__CAL_MC, \
-    MESSAGE_REACTION_REMOVE_EMOJI__OPT_SC, \
-    MESSAGE_REACTION_REMOVE_EMOJI__OPT_MC
+    MESSAGE_REACTION_REMOVE_EMOJI__OPT_MC,
+)
+del (
+    MESSAGE_REACTION_REMOVE_EMOJI__CAL_SC,
+    MESSAGE_REACTION_REMOVE_EMOJI__CAL_MC,
+    MESSAGE_REACTION_REMOVE_EMOJI__OPT_SC,
+    MESSAGE_REACTION_REMOVE_EMOJI__OPT_MC,
+)
 
 
 if CACHE_PRESENCE:
@@ -958,10 +1007,13 @@ add_parser(
     PRESENCE_UPDATE__CAL_SC,
     PRESENCE_UPDATE__CAL_MC,
     PRESENCE_UPDATE__OPT,
-    PRESENCE_UPDATE__OPT)
-del PRESENCE_UPDATE__CAL_SC, \
-    PRESENCE_UPDATE__CAL_MC, \
-    PRESENCE_UPDATE__OPT
+    PRESENCE_UPDATE__OPT,
+)
+del (
+    PRESENCE_UPDATE__CAL_SC,
+    PRESENCE_UPDATE__CAL_MC,
+    PRESENCE_UPDATE__OPT,
+)
 
 
 if CACHE_USER:
@@ -989,7 +1041,7 @@ if CACHE_USER:
             guild_sync(client, data, 'GUILD_MEMBER_UPDATE')
             return
         
-        clients = filter_clients_or_me(guild.clients, INTENT_MASK_GUILD_USERS, client)
+        clients = filter_clients_or_me(guild.iter_clients(), INTENT_MASK_GUILD_USERS, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -1026,7 +1078,7 @@ if CACHE_USER:
             guild_sync(client, data, 'GUILD_MEMBER_UPDATE')
             return
         
-        if first_client_or_me(guild.clients, INTENT_MASK_GUILD_USERS, client) is not client:
+        if first_client_or_me(guild.iter_clients(), INTENT_MASK_GUILD_USERS, client) is not client:
             return
         
         User._from_data_and_update_profile(data, guild)
@@ -1078,11 +1130,132 @@ add_parser(
     GUILD_MEMBER_UPDATE__CAL_SC,
     GUILD_MEMBER_UPDATE__CAL_MC,
     GUILD_MEMBER_UPDATE__OPT_SC,
-    GUILD_MEMBER_UPDATE__OPT_MC)
-del GUILD_MEMBER_UPDATE__CAL_SC, \
-    GUILD_MEMBER_UPDATE__CAL_MC, \
-    GUILD_MEMBER_UPDATE__OPT_SC, \
-    GUILD_MEMBER_UPDATE__OPT_MC
+    GUILD_MEMBER_UPDATE__OPT_MC,
+)
+del (
+    GUILD_MEMBER_UPDATE__CAL_SC,
+    GUILD_MEMBER_UPDATE__CAL_MC,
+    GUILD_MEMBER_UPDATE__OPT_SC,
+    GUILD_MEMBER_UPDATE__OPT_MC,
+)
+
+
+def GUILD_POWERUP_ENTITLEMENTS_CREATE__CAL(client, data):
+    event = GuildEnhancementEntitlementsCreateEvent.from_data(data)
+    Task(KOKORO, client.events.guild_enhancement_entitlements_create(client, event))
+
+
+def GUILD_POWERUP_ENTITLEMENTS_CREATE__OPT(client, data):
+    return
+
+
+add_parser(
+    'GUILD_POWERUP_ENTITLEMENTS_CREATE',
+    GUILD_POWERUP_ENTITLEMENTS_CREATE__CAL,
+    GUILD_POWERUP_ENTITLEMENTS_CREATE__CAL,
+    GUILD_POWERUP_ENTITLEMENTS_CREATE__OPT,
+    GUILD_POWERUP_ENTITLEMENTS_CREATE__OPT,
+)
+del (
+    GUILD_POWERUP_ENTITLEMENTS_CREATE__CAL,
+    GUILD_POWERUP_ENTITLEMENTS_CREATE__OPT,
+)
+
+
+def GUILD_POWERUP_ENTITLEMENTS_DELETE__CAL(client, data):
+    event = GuildEnhancementEntitlementsDeleteEvent.from_data(data)
+    Task(KOKORO, client.events.guild_enhancement_entitlements_delete(client, event))
+
+
+def GUILD_POWERUP_ENTITLEMENTS_DELETE__OPT(client, data):
+    return
+
+
+add_parser(
+    'GUILD_POWERUP_ENTITLEMENTS_DELETE',
+    GUILD_POWERUP_ENTITLEMENTS_DELETE__CAL,
+    GUILD_POWERUP_ENTITLEMENTS_DELETE__CAL,
+    GUILD_POWERUP_ENTITLEMENTS_DELETE__OPT,
+    GUILD_POWERUP_ENTITLEMENTS_DELETE__OPT,
+)
+del (
+    GUILD_POWERUP_ENTITLEMENTS_DELETE__CAL,
+    GUILD_POWERUP_ENTITLEMENTS_DELETE__OPT,
+)
+
+
+def GUILD_APPLIED_BOOSTS_UPDATE__CAL_SC(client, data):
+    guild_boost_id = parse_guild_boost_id(data)
+    
+    try:
+        guild_boost = GUILD_BOOSTS[guild_boost_id]
+    except KeyError:
+        guild_boost = GuildBoost.from_data(data)
+        old_attributes = None
+    
+    else:
+        old_attributes = guild_boost._difference_update_attributes()
+        if not old_attributes:
+            return
+    
+    Task(KOKORO, client.events.guild_boost_update(client, guild_boost, old_attributes))
+
+
+def GUILD_APPLIED_BOOSTS_UPDATE__CAL_MC(client, data):
+    guild_id = parse_guild_boost_guild_id()
+    
+    try:
+        guild = GUILDS[guild_id]
+    except KeyError:
+        clients = None
+    
+    else:
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILDS, client)
+        if clients.send(None) is not client:
+            clients.close()
+            return
+    
+    guild_boost_id = parse_guild_boost_id(data)
+    
+    try:
+        guild_boost = GUILD_BOOSTS[guild_boost_id]
+    except KeyError:
+        guild_boost = GuildBoost.from_data(data)
+        old_attributes = None
+    
+    else:
+        old_attributes = guild_boost._difference_update_attributes(data)
+        if not old_attributes:
+            return
+    
+    if clients is None:
+        event_handler = client.events.guild_boost_update
+        if (event_handler is not DEFAULT_EVENT_HANDLER):
+            event_handler(client, guild_boost, old_attributes)
+        
+    else:
+        for client_ in clients:
+            event_handler = client_.events.guild_boost_update
+            if (event_handler is not DEFAULT_EVENT_HANDLER):
+                event_handler(client_, guild_boost, old_attributes)
+
+
+def GUILD_APPLIED_BOOSTS_UPDATE__OPT(client, data):
+    GuildBoost.from_data(data)
+
+
+add_parser(
+    'GUILD_APPLIED_BOOSTS_UPDATE',
+    GUILD_APPLIED_BOOSTS_UPDATE__CAL_SC,
+    GUILD_APPLIED_BOOSTS_UPDATE__CAL_MC,
+    GUILD_APPLIED_BOOSTS_UPDATE__OPT,
+    GUILD_APPLIED_BOOSTS_UPDATE__OPT,
+)
+del (
+    GUILD_APPLIED_BOOSTS_UPDATE__CAL_SC,
+    GUILD_APPLIED_BOOSTS_UPDATE__CAL_MC,
+    GUILD_APPLIED_BOOSTS_UPDATE__OPT,
+)
 
 
 def CHANNEL_DELETE__CAL_SC(client, data):
@@ -1105,7 +1278,7 @@ def CHANNEL_DELETE__CAL_MC(client, data):
     except KeyError:
         return
     
-    clients = channel.clients
+    clients = channel.iter_clients()
     if channel.is_in_group_guild():
         clients = filter_clients(clients, INTENT_MASK_GUILDS, client)
         if clients.send(None) is not client:
@@ -1137,10 +1310,13 @@ add_parser(
     CHANNEL_DELETE__CAL_SC,
     CHANNEL_DELETE__CAL_MC,
     CHANNEL_DELETE__OPT,
-    CHANNEL_DELETE__OPT)
-del CHANNEL_DELETE__CAL_SC, \
-    CHANNEL_DELETE__CAL_MC, \
-    CHANNEL_DELETE__OPT
+    CHANNEL_DELETE__OPT,
+)
+del (
+    CHANNEL_DELETE__CAL_SC,
+    CHANNEL_DELETE__CAL_MC,
+    CHANNEL_DELETE__OPT,
+)
 
 
 def CHANNEL_UPDATE__CAL_SC(client, data):
@@ -1157,6 +1333,7 @@ def CHANNEL_UPDATE__CAL_SC(client, data):
     
     Task(KOKORO, client.events.channel_update(client, channel, old_attributes))
 
+
 def CHANNEL_UPDATE__CAL_MC(client, data):
     channel_id = int(data['id'])
     try:
@@ -1165,7 +1342,17 @@ def CHANNEL_UPDATE__CAL_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    clients = filter_clients(channel.clients, INTENT_MASK_GUILDS, client)
+    if channel.is_in_group_guild():
+        guild = channel.guild
+        if guild is None:
+            clients = filter_just_me(client)
+        else:
+            clients = guild.iter_clients()
+    
+    else:
+        clients = channel.iter_clients()
+    
+    clients = filter_clients(clients, INTENT_MASK_GUILDS, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -1191,6 +1378,7 @@ def CHANNEL_UPDATE__OPT_SC(client, data):
     
     channel._update_attributes(data)
 
+
 def CHANNEL_UPDATE__OPT_MC(client, data):
     channel_id = int(data['id'])
     try:
@@ -1199,21 +1387,35 @@ def CHANNEL_UPDATE__OPT_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    if first_client(channel.clients, INTENT_MASK_GUILDS, client) is not client:
+    if channel.is_in_group_guild():
+        guild = channel.guild
+        if guild is None:
+            clients = filter_just_me(client)
+        else:
+            clients = guild.iter_clients()
+    
+    else:
+        clients = channel.iter_clients()
+    
+    if first_client(clients, INTENT_MASK_GUILDS, client) is not client:
         return
     
     channel._update_attributes(data)
+
 
 add_parser(
     'CHANNEL_UPDATE',
     CHANNEL_UPDATE__CAL_SC,
     CHANNEL_UPDATE__CAL_MC,
     CHANNEL_UPDATE__OPT_SC,
-    CHANNEL_UPDATE__OPT_MC)
-del CHANNEL_UPDATE__CAL_SC, \
-    CHANNEL_UPDATE__CAL_MC, \
-    CHANNEL_UPDATE__OPT_SC, \
-    CHANNEL_UPDATE__OPT_MC
+    CHANNEL_UPDATE__OPT_MC,
+)
+del (
+    CHANNEL_UPDATE__CAL_SC,
+    CHANNEL_UPDATE__CAL_MC,
+    CHANNEL_UPDATE__OPT_SC,
+    CHANNEL_UPDATE__OPT_MC,
+)
 
 
 def THREAD_UPDATE__CAL_SC(client, data):
@@ -1249,7 +1451,7 @@ def THREAD_UPDATE__CAL_MC(client, data):
         except KeyError:
             clients = None
         else:
-            clients = guild.clients
+            clients = guild.iter_clients()
     
     channel_id = int(data['id'])
     channel = CHANNELS.get(channel_id, None)
@@ -1307,7 +1509,7 @@ def THREAD_UPDATE__OPT_MC(client, data):
         except KeyError:
             clients = None
         else:
-            clients = guild.clients
+            clients = guild.iter_clients()
     
     channel_id = int(data['id'])
     channel = CHANNELS.get(channel_id, None)
@@ -1327,11 +1529,14 @@ add_parser(
     THREAD_UPDATE__CAL_SC,
     THREAD_UPDATE__CAL_MC,
     THREAD_UPDATE__OPT_SC,
-    THREAD_UPDATE__OPT_MC)
-del THREAD_UPDATE__CAL_SC, \
-    THREAD_UPDATE__CAL_MC, \
-    THREAD_UPDATE__OPT_SC, \
-    THREAD_UPDATE__OPT_MC
+    THREAD_UPDATE__OPT_MC,
+)
+del (
+    THREAD_UPDATE__CAL_SC,
+    THREAD_UPDATE__CAL_MC,
+    THREAD_UPDATE__OPT_SC,
+    THREAD_UPDATE__OPT_MC,
+)
 
 
 def VOICE_CHANNEL_STATUS_UPDATE__CAL_SC(client, data):
@@ -1348,6 +1553,7 @@ def VOICE_CHANNEL_STATUS_UPDATE__CAL_SC(client, data):
     
     Task(KOKORO, client.events.channel_update(client, channel, old_attributes))
 
+
 def VOICE_CHANNEL_STATUS_UPDATE__CAL_MC(client, data):
     channel_id = int(data['id'])
     try:
@@ -1356,7 +1562,7 @@ def VOICE_CHANNEL_STATUS_UPDATE__CAL_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    clients = filter_clients(channel.clients, INTENT_MASK_GUILDS, client)
+    clients = filter_clients(channel.iter_clients(), INTENT_MASK_GUILDS, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -1382,6 +1588,7 @@ def VOICE_CHANNEL_STATUS_UPDATE__OPT_SC(client, data):
     
     channel._update_status(data)
 
+
 def VOICE_CHANNEL_STATUS_UPDATE__OPT_MC(client, data):
     channel_id = int(data['id'])
     try:
@@ -1390,7 +1597,7 @@ def VOICE_CHANNEL_STATUS_UPDATE__OPT_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    if first_client(channel.clients, INTENT_MASK_GUILDS, client) is not client:
+    if first_client(channel.iter_clients(), INTENT_MASK_GUILDS, client) is not client:
         return
     
     channel._update_status(data)
@@ -1401,11 +1608,93 @@ add_parser(
     VOICE_CHANNEL_STATUS_UPDATE__CAL_SC,
     VOICE_CHANNEL_STATUS_UPDATE__CAL_MC,
     VOICE_CHANNEL_STATUS_UPDATE__OPT_SC,
-    VOICE_CHANNEL_STATUS_UPDATE__OPT_MC)
-del VOICE_CHANNEL_STATUS_UPDATE__CAL_SC, \
-    VOICE_CHANNEL_STATUS_UPDATE__CAL_MC, \
-    VOICE_CHANNEL_STATUS_UPDATE__OPT_SC, \
-    VOICE_CHANNEL_STATUS_UPDATE__OPT_MC
+    VOICE_CHANNEL_STATUS_UPDATE__OPT_MC,
+)
+del (
+    VOICE_CHANNEL_STATUS_UPDATE__CAL_SC,
+    VOICE_CHANNEL_STATUS_UPDATE__CAL_MC,
+    VOICE_CHANNEL_STATUS_UPDATE__OPT_SC,
+    VOICE_CHANNEL_STATUS_UPDATE__OPT_MC,
+)
+
+
+def VOICE_CHANNEL_START_TIME_UPDATE__CAL_SC(client, data):
+    channel_id = int(data['id'])
+    try:
+        channel = CHANNELS[channel_id]
+    except KeyError:
+        guild_sync(client, data, None)
+        return
+    
+    old_attributes = channel._difference_update_voice_engaged_since(data)
+    if not old_attributes:
+        return
+    
+    Task(KOKORO, client.events.channel_update(client, channel, old_attributes))
+
+
+def VOICE_CHANNEL_START_TIME_UPDATE__CAL_MC(client, data):
+    channel_id = int(data['id'])
+    try:
+        channel = CHANNELS[channel_id]
+    except KeyError:
+        guild_sync(client, data, None)
+        return
+    
+    clients = filter_clients(channel.iter_clients(), INTENT_MASK_GUILDS, client)
+    if clients.send(None) is not client:
+        clients.close()
+        return
+    
+    old_attributes = channel._difference_update_voice_engaged_since(data)
+    if not old_attributes:
+        clients.close()
+        return
+    
+    for client_ in clients:
+        event_handler = client_.events.channel_update
+        if (event_handler is not DEFAULT_EVENT_HANDLER):
+            Task(KOKORO, event_handler(client_, channel, old_attributes))
+
+
+def VOICE_CHANNEL_START_TIME_UPDATE__OPT_SC(client, data):
+    channel_id = int(data['id'])
+    try:
+        channel = CHANNELS[channel_id]
+    except KeyError:
+        guild_sync(client, data, None)
+        return
+    
+    channel._update_voice_engaged_since(data)
+
+
+def VOICE_CHANNEL_START_TIME_UPDATE__OPT_MC(client, data):
+    channel_id = int(data['id'])
+    try:
+        channel = CHANNELS[channel_id]
+    except KeyError:
+        guild_sync(client, data, None)
+        return
+    
+    if first_client(channel.iter_clients(), INTENT_MASK_GUILDS, client) is not client:
+        return
+    
+    channel._update_voice_engaged_since(data)
+
+
+add_parser(
+    'VOICE_CHANNEL_START_TIME_UPDATE',
+    VOICE_CHANNEL_START_TIME_UPDATE__CAL_SC,
+    VOICE_CHANNEL_START_TIME_UPDATE__CAL_MC,
+    VOICE_CHANNEL_START_TIME_UPDATE__OPT_SC,
+    VOICE_CHANNEL_START_TIME_UPDATE__OPT_MC,
+)
+del (
+    VOICE_CHANNEL_START_TIME_UPDATE__CAL_SC,
+    VOICE_CHANNEL_START_TIME_UPDATE__CAL_MC,
+    VOICE_CHANNEL_START_TIME_UPDATE__OPT_SC,
+    VOICE_CHANNEL_START_TIME_UPDATE__OPT_MC,
+)
 
 
 def CHANNEL_CREATE__CAL(client, data):
@@ -1434,9 +1723,12 @@ add_parser(
     CHANNEL_CREATE__CAL,
     CHANNEL_CREATE__CAL,
     CHANNEL_CREATE__OPT,
-    CHANNEL_CREATE__OPT)
-del CHANNEL_CREATE__CAL, \
-    CHANNEL_CREATE__OPT
+    CHANNEL_CREATE__OPT,
+)
+del (
+    CHANNEL_CREATE__CAL,
+    CHANNEL_CREATE__OPT,
+)
 
 
 def CHANNEL_PINS_UPDATE__CAL(client, data):
@@ -1459,9 +1751,12 @@ add_parser(
     CHANNEL_PINS_UPDATE__CAL,
     CHANNEL_PINS_UPDATE__CAL,
     CHANNEL_PINS_UPDATE__OPT,
-    CHANNEL_PINS_UPDATE__OPT)
-del CHANNEL_PINS_UPDATE__CAL, \
-    CHANNEL_PINS_UPDATE__OPT
+    CHANNEL_PINS_UPDATE__OPT,
+)
+del (
+    CHANNEL_PINS_UPDATE__CAL,
+    CHANNEL_PINS_UPDATE__OPT,
+)
 
 
 def CHANNEL_RECIPIENT_ADD_CAL(client, data):
@@ -1495,9 +1790,12 @@ add_parser(
     CHANNEL_RECIPIENT_ADD_CAL,
     CHANNEL_RECIPIENT_ADD_CAL,
     CHANNEL_RECIPIENT_ADD__OPT,
-    CHANNEL_RECIPIENT_ADD__OPT)
-del CHANNEL_RECIPIENT_ADD_CAL, \
-    CHANNEL_RECIPIENT_ADD__OPT
+    CHANNEL_RECIPIENT_ADD__OPT,
+)
+del (
+    CHANNEL_RECIPIENT_ADD_CAL,
+    CHANNEL_RECIPIENT_ADD__OPT,
+)
 
 
 def CHANNEL_RECIPIENT_REMOVE__CAL_SC(client, data):
@@ -1516,6 +1814,7 @@ def CHANNEL_RECIPIENT_REMOVE__CAL_SC(client, data):
     if client != user:
         Task(KOKORO, client.events.channel_group_user_delete(client, channel, user))
 
+
 def CHANNEL_RECIPIENT_REMOVE__CAL_MC(client, data):
     channel_id = int(data['channel_id'])
     try:
@@ -1529,11 +1828,12 @@ def CHANNEL_RECIPIENT_REMOVE__CAL_MC(client, data):
     except ValueError:
         return
     
-    for client_ in channel.clients:
+    for client_ in channel.iter_clients():
         if (client_ is client) or (client_ != user):
             event_handler = client_.events.channel_group_user_delete
             if (event_handler is not DEFAULT_EVENT_HANDLER):
                 Task(KOKORO, event_handler(client_, channel, user))
+
 
 def CHANNEL_RECIPIENT_REMOVE__OPT(client, data):
     channel_id = int(data['channel_id'])
@@ -1554,10 +1854,13 @@ add_parser(
     CHANNEL_RECIPIENT_REMOVE__CAL_SC,
     CHANNEL_RECIPIENT_REMOVE__CAL_MC,
     CHANNEL_RECIPIENT_REMOVE__OPT,
-    CHANNEL_RECIPIENT_REMOVE__OPT)
-del CHANNEL_RECIPIENT_REMOVE__CAL_SC, \
-    CHANNEL_RECIPIENT_REMOVE__CAL_MC, \
-    CHANNEL_RECIPIENT_REMOVE__OPT
+    CHANNEL_RECIPIENT_REMOVE__OPT,
+)
+del (
+    CHANNEL_RECIPIENT_REMOVE__CAL_SC,
+    CHANNEL_RECIPIENT_REMOVE__CAL_MC,
+    CHANNEL_RECIPIENT_REMOVE__OPT,
+)
 
 
 def GUILD_EMOJIS_UPDATE__CAL_SC(client, data):
@@ -1604,7 +1907,7 @@ def GUILD_EMOJIS_UPDATE__CAL_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    clients = filter_clients(guild.clients, INTENT_MASK_GUILD_EXPRESSIONS, client)
+    clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_EXPRESSIONS, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -1658,7 +1961,7 @@ def GUILD_EMOJIS_UPDATE__OPT_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    if first_client(guild.clients, INTENT_MASK_GUILD_EXPRESSIONS, client) is not client:
+    if first_client(guild.iter_clients(), INTENT_MASK_GUILD_EXPRESSIONS, client) is not client:
         return
     
     guild._update_emojis(data['emojis'])
@@ -1669,11 +1972,14 @@ add_parser(
     GUILD_EMOJIS_UPDATE__CAL_SC,
     GUILD_EMOJIS_UPDATE__CAL_MC,
     GUILD_EMOJIS_UPDATE__OPT_SC,
-    GUILD_EMOJIS_UPDATE__OPT_MC)
-del GUILD_EMOJIS_UPDATE__CAL_SC, \
-    GUILD_EMOJIS_UPDATE__CAL_MC, \
-    GUILD_EMOJIS_UPDATE__OPT_SC, \
-    GUILD_EMOJIS_UPDATE__OPT_MC
+    GUILD_EMOJIS_UPDATE__OPT_MC,
+)
+del (
+    GUILD_EMOJIS_UPDATE__CAL_SC,
+    GUILD_EMOJIS_UPDATE__CAL_MC,
+    GUILD_EMOJIS_UPDATE__OPT_SC,
+    GUILD_EMOJIS_UPDATE__OPT_MC,
+)
 
 
 def GUILD_STICKERS_UPDATE__CAL_SC(client, data):
@@ -1718,7 +2024,7 @@ def GUILD_STICKERS_UPDATE__CAL_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    clients = filter_clients(guild.clients, INTENT_MASK_GUILD_EXPRESSIONS, client)
+    clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_EXPRESSIONS, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -1771,7 +2077,7 @@ def GUILD_STICKERS_UPDATE__OPT_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    if first_client(guild.clients, INTENT_MASK_GUILD_EXPRESSIONS, client) is not client:
+    if first_client(guild.iter_clients(), INTENT_MASK_GUILD_EXPRESSIONS, client) is not client:
         return
     
     guild._update_stickers(data['stickers'])
@@ -1782,11 +2088,14 @@ add_parser(
     GUILD_STICKERS_UPDATE__CAL_SC,
     GUILD_STICKERS_UPDATE__CAL_MC,
     GUILD_STICKERS_UPDATE__OPT_SC,
-    GUILD_STICKERS_UPDATE__OPT_MC)
-del GUILD_STICKERS_UPDATE__CAL_SC, \
-    GUILD_STICKERS_UPDATE__CAL_MC, \
-    GUILD_STICKERS_UPDATE__OPT_SC, \
-    GUILD_STICKERS_UPDATE__OPT_MC
+    GUILD_STICKERS_UPDATE__OPT_MC,
+)
+del (
+    GUILD_STICKERS_UPDATE__CAL_SC,
+    GUILD_STICKERS_UPDATE__CAL_MC,
+    GUILD_STICKERS_UPDATE__OPT_SC,
+    GUILD_STICKERS_UPDATE__OPT_MC,
+)
 
 
 def GUILD_MEMBER_ADD__CAL_SC(client, data):
@@ -1811,7 +2120,7 @@ def GUILD_MEMBER_ADD__CAL_MC(client, data):
         clients = None
     
     else:
-        clients = filter_clients(guild.clients, INTENT_MASK_GUILD_USERS, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_USERS, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -1847,7 +2156,7 @@ if CACHE_USER:
         except KeyError:
             return
         
-        if first_client(guild.clients, INTENT_MASK_GUILD_USERS, client) is not client:
+        if first_client(guild.iter_clients(), INTENT_MASK_GUILD_USERS, client) is not client:
             return
         
         User.from_data(data['user'], data, guild_id)
@@ -1869,7 +2178,7 @@ else:
         except KeyError:
             return
         
-        if first_client(guild.clients, INTENT_MASK_GUILD_USERS, client) is not client:
+        if first_client(guild.iter_clients(), INTENT_MASK_GUILD_USERS, client) is not client:
             return
         
         guild.user_count += 1
@@ -1880,11 +2189,14 @@ add_parser(
     GUILD_MEMBER_ADD__CAL_SC,
     GUILD_MEMBER_ADD__CAL_MC,
     GUILD_MEMBER_ADD__OPT_SC,
-    GUILD_MEMBER_ADD__OPT_MC)
-del GUILD_MEMBER_ADD__CAL_SC, \
-    GUILD_MEMBER_ADD__CAL_MC, \
-    GUILD_MEMBER_ADD__OPT_SC, \
-    GUILD_MEMBER_ADD__OPT_MC
+    GUILD_MEMBER_ADD__OPT_MC,
+)
+del (
+    GUILD_MEMBER_ADD__CAL_SC,
+    GUILD_MEMBER_ADD__CAL_MC,
+    GUILD_MEMBER_ADD__OPT_SC,
+    GUILD_MEMBER_ADD__OPT_MC,
+)
 
 
 if CACHE_USER:
@@ -1920,7 +2232,7 @@ if CACHE_USER:
             guild_sync(client, data, 'GUILD_MEMBER_REMOVE')
             return
         
-        clients = filter_clients(guild.clients, INTENT_MASK_GUILD_USERS, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_USERS, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -1975,7 +2287,7 @@ if CACHE_USER:
             guild_sync(client, data, 'GUILD_MEMBER_REMOVE')
             return
         
-        if first_client(guild.clients, INTENT_MASK_GUILD_USERS, client) is not client:
+        if first_client(guild.iter_clients(), INTENT_MASK_GUILD_USERS, client) is not client:
             return
         
         user = User.from_data(data['user'])
@@ -2015,7 +2327,7 @@ else:
             guild_sync(client, data, 'GUILD_MEMBER_REMOVE')
             return
         
-        clients = filter_clients(guild.clients, INTENT_MASK_GUILD_USERS, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_USERS, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -2046,7 +2358,7 @@ else:
             guild_sync(client, data, 'GUILD_MEMBER_REMOVE')
             return
         
-        if first_client(guild.clients, INTENT_MASK_GUILD_USERS, client) is not client:
+        if first_client(guild.iter_clients(), INTENT_MASK_GUILD_USERS, client) is not client:
             return
         
         guild.user_count -= 1
@@ -2057,11 +2369,14 @@ add_parser(
     GUILD_MEMBER_REMOVE__CAL_SC,
     GUILD_MEMBER_REMOVE__CAL_MC,
     GUILD_MEMBER_REMOVE__OPT_SC,
-    GUILD_MEMBER_REMOVE__OPT_MC)
-del GUILD_MEMBER_REMOVE__CAL_SC, \
-    GUILD_MEMBER_REMOVE__CAL_MC, \
-    GUILD_MEMBER_REMOVE__OPT_SC, \
-    GUILD_MEMBER_REMOVE__OPT_MC
+    GUILD_MEMBER_REMOVE__OPT_MC,
+)
+del (
+    GUILD_MEMBER_REMOVE__CAL_SC,
+    GUILD_MEMBER_REMOVE__CAL_MC,
+    GUILD_MEMBER_REMOVE__OPT_SC,
+    GUILD_MEMBER_REMOVE__OPT_MC,
+)
 
 
 def GUILD_JOIN_REQUEST_CREATE__CAL(client, data):
@@ -2078,9 +2393,12 @@ add_parser(
     GUILD_JOIN_REQUEST_CREATE__CAL,
     GUILD_JOIN_REQUEST_CREATE__CAL,
     GUILD_JOIN_REQUEST_CREATE__OPT,
-    GUILD_JOIN_REQUEST_CREATE__OPT)
-del GUILD_JOIN_REQUEST_CREATE__CAL, \
-    GUILD_JOIN_REQUEST_CREATE__OPT
+    GUILD_JOIN_REQUEST_CREATE__OPT,
+)
+del (
+    GUILD_JOIN_REQUEST_CREATE__CAL,
+    GUILD_JOIN_REQUEST_CREATE__OPT,
+)
 
 # This is a low priority event. Is called after `GUILD_MEMBER_REMOVE`, so we should have everything cached.
 
@@ -2098,9 +2416,12 @@ add_parser(
     GUILD_JOIN_REQUEST_DELETE__CAL,
     GUILD_JOIN_REQUEST_DELETE__CAL,
     GUILD_JOIN_REQUEST_DELETE__OPT,
-    GUILD_JOIN_REQUEST_DELETE__OPT)
-del GUILD_JOIN_REQUEST_DELETE__CAL, \
-    GUILD_JOIN_REQUEST_DELETE__OPT
+    GUILD_JOIN_REQUEST_DELETE__OPT,
+)
+del (
+    GUILD_JOIN_REQUEST_DELETE__CAL,
+    GUILD_JOIN_REQUEST_DELETE__OPT,
+)
 
 
 def GUILD_JOIN_REQUEST_UPDATE__CAL(client, data):
@@ -2117,9 +2438,12 @@ add_parser(
     GUILD_JOIN_REQUEST_UPDATE__CAL,
     GUILD_JOIN_REQUEST_UPDATE__CAL,
     GUILD_JOIN_REQUEST_UPDATE__OPT,
-    GUILD_JOIN_REQUEST_UPDATE__OPT)
-del GUILD_JOIN_REQUEST_UPDATE__CAL, \
-    GUILD_JOIN_REQUEST_UPDATE__OPT
+    GUILD_JOIN_REQUEST_UPDATE__OPT,
+)
+del (
+    GUILD_JOIN_REQUEST_UPDATE__CAL,
+    GUILD_JOIN_REQUEST_UPDATE__OPT,
+)
 
 
 if CACHE_PRESENCE:
@@ -2206,9 +2530,12 @@ add_parser(
     GUILD_CREATE__CAL,
     GUILD_CREATE__CAL,
     GUILD_CREATE__OPT,
-    GUILD_CREATE__OPT)
-del GUILD_CREATE__CAL, \
-    GUILD_CREATE__OPT
+    GUILD_CREATE__OPT,
+)
+del (
+    GUILD_CREATE__CAL,
+    GUILD_CREATE__OPT,
+)
 
 
 def GUILD_UPDATE__CAL_SC(client, data):
@@ -2233,7 +2560,7 @@ def GUILD_UPDATE__CAL_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    clients = filter_clients(guild.clients, INTENT_MASK_GUILDS, client)
+    clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILDS, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -2266,7 +2593,7 @@ def GUILD_UPDATE__OPT_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    if first_client(guild.clients, INTENT_MASK_GUILDS, client) is not client:
+    if first_client(guild.iter_clients(), INTENT_MASK_GUILDS, client) is not client:
         return
     
     guild._update_attributes(data)
@@ -2277,11 +2604,14 @@ add_parser(
     GUILD_UPDATE__CAL_SC,
     GUILD_UPDATE__CAL_MC,
     GUILD_UPDATE__OPT_SC,
-    GUILD_UPDATE__OPT_MC)
-del GUILD_UPDATE__CAL_SC, \
-    GUILD_UPDATE__CAL_MC, \
-    GUILD_UPDATE__OPT_SC, \
-    GUILD_UPDATE__OPT_MC
+    GUILD_UPDATE__OPT_MC,
+)
+del (
+    GUILD_UPDATE__CAL_SC,
+    GUILD_UPDATE__CAL_MC,
+    GUILD_UPDATE__OPT_SC,
+    GUILD_UPDATE__OPT_MC,
+)
 
 
 def GUILD_DELETE__CAL(client, data):
@@ -2296,13 +2626,13 @@ def GUILD_DELETE__CAL(client, data):
     
     guild_profile = client.guild_profiles.pop(guild, None)
     
-    guild._delete(client)
-    
     ready_state = client.ready_state
     if (ready_state is not None):
         ready_state.discard_guild(guild)
     
     Task(KOKORO, client.events.guild_delete(client, guild, guild_profile))
+    KOKORO.call_soon(type(guild)._delete, guild, client)
+
 
 def GUILD_DELETE__OPT(client, data):
     guild_id = int(data['id'])
@@ -2318,12 +2648,12 @@ def GUILD_DELETE__OPT(client, data):
         del client.guild_profiles[guild_id]
     except KeyError:
         pass
-    
-    guild._delete(client)
 
     ready_state = client.ready_state
     if (ready_state is not None):
         ready_state.discard_guild(guild)
+    
+    guild._delete(client)
 
 
 add_parser(
@@ -2331,9 +2661,12 @@ add_parser(
     GUILD_DELETE__CAL,
     GUILD_DELETE__CAL,
     GUILD_DELETE__OPT,
-    GUILD_DELETE__OPT)
-del GUILD_DELETE__CAL, \
-    GUILD_DELETE__OPT
+    GUILD_DELETE__OPT,
+)
+del (
+    GUILD_DELETE__CAL,
+    GUILD_DELETE__OPT,
+)
 
 
 def GUILD_AUDIT_LOG_ENTRY_CREATE__CAL(client, data):
@@ -2350,9 +2683,12 @@ add_parser(
     GUILD_AUDIT_LOG_ENTRY_CREATE__CAL,
     GUILD_AUDIT_LOG_ENTRY_CREATE__CAL,
     GUILD_AUDIT_LOG_ENTRY_CREATE__OPT,
-    GUILD_AUDIT_LOG_ENTRY_CREATE__OPT)
-del GUILD_AUDIT_LOG_ENTRY_CREATE__CAL, \
-    GUILD_AUDIT_LOG_ENTRY_CREATE__OPT
+    GUILD_AUDIT_LOG_ENTRY_CREATE__OPT,
+)
+del (
+    GUILD_AUDIT_LOG_ENTRY_CREATE__CAL,
+    GUILD_AUDIT_LOG_ENTRY_CREATE__OPT,
+)
 
 
 def GUILD_BAN_ADD__CAL(client, data):
@@ -2376,9 +2712,12 @@ add_parser(
     GUILD_BAN_ADD__CAL,
     GUILD_BAN_ADD__CAL,
     GUILD_BAN_ADD__OPT,
-    GUILD_BAN_ADD__OPT)
-del GUILD_BAN_ADD__CAL, \
-    GUILD_BAN_ADD__OPT
+    GUILD_BAN_ADD__OPT,
+)
+del (
+    GUILD_BAN_ADD__CAL,
+    GUILD_BAN_ADD__OPT,
+)
 
 
 def GUILD_BAN_REMOVE__CAL(client, data):
@@ -2401,9 +2740,12 @@ add_parser(
     GUILD_BAN_REMOVE__CAL,
     GUILD_BAN_REMOVE__CAL,
     GUILD_BAN_REMOVE__OPT,
-    GUILD_BAN_REMOVE__OPT)
-del GUILD_BAN_REMOVE__CAL, \
-    GUILD_BAN_REMOVE__OPT
+    GUILD_BAN_REMOVE__OPT,
+)
+del (
+    GUILD_BAN_REMOVE__CAL,
+    GUILD_BAN_REMOVE__OPT,
+)
 
 
 def GUILD_MEMBERS_CHUNK(client, data):
@@ -2442,9 +2784,12 @@ add_parser(
     INTEGRATION_CREATE__CAL,
     INTEGRATION_CREATE__CAL,
     INTEGRATION_CREATE__OPT,
-    INTEGRATION_CREATE__OPT)
-del INTEGRATION_CREATE__CAL, \
-    INTEGRATION_CREATE__OPT
+    INTEGRATION_CREATE__OPT,
+)
+del (
+    INTEGRATION_CREATE__CAL,
+    INTEGRATION_CREATE__OPT,
+)
 
 
 def INTEGRATION_DELETE__CAL(client, data):
@@ -2474,9 +2819,12 @@ add_parser(
     INTEGRATION_DELETE__CAL,
     INTEGRATION_DELETE__CAL,
     INTEGRATION_DELETE__OPT,
-    INTEGRATION_DELETE__OPT)
-del INTEGRATION_DELETE__CAL, \
-    INTEGRATION_DELETE__OPT
+    INTEGRATION_DELETE__OPT,
+)
+del (
+    INTEGRATION_DELETE__CAL,
+    INTEGRATION_DELETE__OPT,
+)
 
 
 def INTEGRATION_UPDATE__CAL(client, data):
@@ -2500,9 +2848,12 @@ add_parser(
     INTEGRATION_UPDATE__CAL,
     INTEGRATION_UPDATE__CAL,
     INTEGRATION_UPDATE__OPT,
-    INTEGRATION_UPDATE__OPT)
-del INTEGRATION_UPDATE__CAL, \
-    INTEGRATION_UPDATE__OPT
+    INTEGRATION_UPDATE__OPT,
+)
+del (
+    INTEGRATION_UPDATE__CAL,
+    INTEGRATION_UPDATE__OPT,
+)
 
 
 def GUILD_INTEGRATIONS_UPDATE__CAL(client, data):
@@ -2524,9 +2875,12 @@ add_parser(
     GUILD_INTEGRATIONS_UPDATE__CAL,
     GUILD_INTEGRATIONS_UPDATE__CAL,
     GUILD_INTEGRATIONS_UPDATE__OPT,
-    GUILD_INTEGRATIONS_UPDATE__OPT)
-del GUILD_INTEGRATIONS_UPDATE__CAL, \
-    GUILD_INTEGRATIONS_UPDATE__OPT
+    GUILD_INTEGRATIONS_UPDATE__OPT,
+)
+del (
+    GUILD_INTEGRATIONS_UPDATE__CAL,
+    GUILD_INTEGRATIONS_UPDATE__OPT,
+)
 
 
 def GUILD_ROLE_CREATE__CAL_SC(client, data):
@@ -2544,7 +2898,7 @@ def GUILD_ROLE_CREATE__CAL_MC(client, data):
     except KeyError:
         clients = None
     else:
-        clients = filter_clients(guild.clients, INTENT_MASK_GUILDS, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILDS, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -2576,7 +2930,7 @@ def GUILD_ROLE_CREATE__OPT_MC(client, data):
     except KeyError:
         pass
     else:
-        if first_client(guild.clients, INTENT_MASK_GUILDS, client) is not client:
+        if first_client(guild.iter_clients(), INTENT_MASK_GUILDS, client) is not client:
             return
     
     Role.from_data(data['role'], guild_id)
@@ -2587,11 +2941,14 @@ add_parser(
     GUILD_ROLE_CREATE__CAL_SC,
     GUILD_ROLE_CREATE__CAL_MC,
     GUILD_ROLE_CREATE__OPT_SC,
-    GUILD_ROLE_CREATE__OPT_MC)
-del GUILD_ROLE_CREATE__CAL_SC, \
-    GUILD_ROLE_CREATE__CAL_MC, \
-    GUILD_ROLE_CREATE__OPT_SC, \
-    GUILD_ROLE_CREATE__OPT_MC
+    GUILD_ROLE_CREATE__OPT_MC,
+)
+del (
+    GUILD_ROLE_CREATE__CAL_SC,
+    GUILD_ROLE_CREATE__CAL_MC,
+    GUILD_ROLE_CREATE__OPT_SC,
+    GUILD_ROLE_CREATE__OPT_MC,
+)
 
 
 def GUILD_ROLE_DELETE__CAL_SC(client, data):
@@ -2610,7 +2967,7 @@ def GUILD_ROLE_DELETE__CAL_MC(client, data):
     if (guild is None):
         clients = None
     else:
-        clients = filter_clients(guild.clients, INTENT_MASK_GUILDS, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILDS, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -2644,7 +3001,7 @@ def GUILD_ROLE_DELETE__OPT_MC(client, data):
     guild_id = int(data['guild_id'])
     guild = GUILDS.get(guild_id, None)
     
-    if (guild is not None) and first_client(guild.clients, INTENT_MASK_GUILDS, client) is not client:
+    if (guild is not None) and first_client(guild.iter_clients(), INTENT_MASK_GUILDS, client) is not client:
         return
     
     role_id = int(data['role_id'])
@@ -2661,11 +3018,14 @@ add_parser(
     GUILD_ROLE_DELETE__CAL_SC,
     GUILD_ROLE_DELETE__CAL_MC,
     GUILD_ROLE_DELETE__OPT_SC,
-    GUILD_ROLE_DELETE__OPT_MC)
-del GUILD_ROLE_DELETE__CAL_SC, \
-    GUILD_ROLE_DELETE__CAL_MC, \
-    GUILD_ROLE_DELETE__OPT_SC, \
-    GUILD_ROLE_DELETE__OPT_MC
+    GUILD_ROLE_DELETE__OPT_MC,
+)
+del (
+    GUILD_ROLE_DELETE__CAL_SC,
+    GUILD_ROLE_DELETE__CAL_MC,
+    GUILD_ROLE_DELETE__OPT_SC,
+    GUILD_ROLE_DELETE__OPT_MC,
+)
 
 
 def GUILD_ROLE_UPDATE__CAL_SC(client, data):
@@ -2698,7 +3058,7 @@ def GUILD_ROLE_UPDATE__CAL_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    clients = filter_clients(guild.clients, INTENT_MASK_GUILDS, client)
+    clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILDS, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -2748,7 +3108,7 @@ def GUILD_ROLE_UPDATE__OPT_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    if first_client(guild.clients, INTENT_MASK_GUILDS, client) is not client:
+    if first_client(guild.iter_clients(), INTENT_MASK_GUILDS, client) is not client:
         return
     
     role_data = data['role']
@@ -2766,11 +3126,14 @@ add_parser(
     GUILD_ROLE_UPDATE__CAL_SC,
     GUILD_ROLE_UPDATE__CAL_MC,
     GUILD_ROLE_UPDATE__OPT_SC,
-    GUILD_ROLE_UPDATE__OPT_MC)
-del GUILD_ROLE_UPDATE__CAL_SC, \
-    GUILD_ROLE_UPDATE__CAL_MC, \
-    GUILD_ROLE_UPDATE__OPT_SC, \
-    GUILD_ROLE_UPDATE__OPT_MC
+    GUILD_ROLE_UPDATE__OPT_MC,
+)
+del (
+    GUILD_ROLE_UPDATE__CAL_SC,
+    GUILD_ROLE_UPDATE__CAL_MC,
+    GUILD_ROLE_UPDATE__OPT_SC,
+    GUILD_ROLE_UPDATE__OPT_MC,
+)
 
 def WEBHOOKS_UPDATE__CAL(client, data):
     event = WebhookUpdateEvent(data)
@@ -2784,9 +3147,12 @@ add_parser(
     WEBHOOKS_UPDATE__CAL,
     WEBHOOKS_UPDATE__CAL,
     WEBHOOKS_UPDATE__OPT,
-    WEBHOOKS_UPDATE__OPT)
-del WEBHOOKS_UPDATE__CAL, \
-    WEBHOOKS_UPDATE__OPT
+    WEBHOOKS_UPDATE__OPT,
+)
+del (
+    WEBHOOKS_UPDATE__CAL,
+    WEBHOOKS_UPDATE__OPT,
+)
 
 def VOICE_STATE_UPDATE__CAL_SC(client, data):
     try:
@@ -2892,7 +3258,7 @@ def VOICE_STATE_UPDATE__CAL_MC(client, data):
         # Ignore this case
         return
     
-    clients = filter_clients(guild.clients, INTENT_MASK_GUILD_VOICE_STATES, client)
+    clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_VOICE_STATES, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -3020,7 +3386,7 @@ def VOICE_STATE_UPDATE__OPT_MC(client, data):
     except KeyError:
         return
     
-    if first_client(guild.clients, INTENT_MASK_GUILD_VOICE_STATES, client) is not client:
+    if first_client(guild.iter_clients(), INTENT_MASK_GUILD_VOICE_STATES, client) is not client:
         return
     
     user = parse_voice_state_user(data)
@@ -3062,11 +3428,14 @@ add_parser(
     VOICE_STATE_UPDATE__CAL_SC,
     VOICE_STATE_UPDATE__CAL_MC,
     VOICE_STATE_UPDATE__OPT_SC,
-    VOICE_STATE_UPDATE__OPT_MC)
-del VOICE_STATE_UPDATE__CAL_SC, \
-    VOICE_STATE_UPDATE__CAL_MC, \
-    VOICE_STATE_UPDATE__OPT_SC, \
-    VOICE_STATE_UPDATE__OPT_MC
+    VOICE_STATE_UPDATE__OPT_MC,
+)
+del (
+    VOICE_STATE_UPDATE__CAL_SC,
+    VOICE_STATE_UPDATE__CAL_MC,
+    VOICE_STATE_UPDATE__OPT_SC,
+    VOICE_STATE_UPDATE__OPT_MC,
+)
 
 
 def VOICE_SERVER_UPDATE_CAL(client, data):
@@ -3082,9 +3451,12 @@ add_parser(
     VOICE_SERVER_UPDATE_CAL,
     VOICE_SERVER_UPDATE_CAL,
     VOICE_SERVER_UPDATE__OPT,
-    VOICE_SERVER_UPDATE__OPT)
-del VOICE_SERVER_UPDATE_CAL, \
-    VOICE_SERVER_UPDATE__OPT
+    VOICE_SERVER_UPDATE__OPT,
+)
+del (
+    VOICE_SERVER_UPDATE_CAL,
+    VOICE_SERVER_UPDATE__OPT,
+)
 
 
 if CACHE_PRESENCE:
@@ -3098,7 +3470,7 @@ if CACHE_PRESENCE:
         
         user_id = int(data['user_id'])
         user = create_partial_user_from_id(user_id)
-        timestamp = DateTime.utcfromtimestamp(data.get('timestamp', None))
+        timestamp = DateTime.fromtimestamp(data.get('timestamp', None), TimeZone.utc)
         
         Task(KOKORO, client.events.typing(client, channel, user, timestamp))
     
@@ -3114,9 +3486,12 @@ add_parser(
     TYPING_START__CAL,
     TYPING_START__CAL,
     TYPING_START__OPT,
-    TYPING_START__OPT)
-del TYPING_START__CAL, \
-    TYPING_START__OPT
+    TYPING_START__OPT,
+)
+del (
+    TYPING_START__CAL,
+    TYPING_START__OPT,
+)
 
 
 def INVITE_CREATE__CAL(client, data):
@@ -3133,9 +3508,12 @@ add_parser(
     INVITE_CREATE__CAL,
     INVITE_CREATE__CAL,
     INVITE_CREATE__OPT,
-    INVITE_CREATE__OPT)
-del INVITE_CREATE__CAL, \
-    INVITE_CREATE__OPT
+    INVITE_CREATE__OPT,
+)
+del (
+    INVITE_CREATE__CAL,
+    INVITE_CREATE__OPT,
+)
 
 
 def INVITE_DELETE__CAL(client, data):
@@ -3151,9 +3529,12 @@ add_parser('INVITE_DELETE',
     INVITE_DELETE__CAL,
     INVITE_DELETE__CAL,
     INVITE_DELETE__OPT,
-    INVITE_DELETE__OPT)
-del INVITE_DELETE__CAL, \
-    INVITE_DELETE__OPT
+    INVITE_DELETE__OPT,
+)
+del (
+    INVITE_DELETE__CAL,
+    INVITE_DELETE__OPT,
+)
 
 
 def RELATIONSHIP_ADD__CAL(client, data):
@@ -3185,9 +3566,12 @@ add_parser(
     RELATIONSHIP_ADD__CAL,
     RELATIONSHIP_ADD__CAL,
     RELATIONSHIP_ADD__OPT,
-    RELATIONSHIP_ADD__OPT)
-del RELATIONSHIP_ADD__CAL, \
-    RELATIONSHIP_ADD__OPT
+    RELATIONSHIP_ADD__OPT,
+)
+del (
+    RELATIONSHIP_ADD__CAL,
+    RELATIONSHIP_ADD__OPT,
+)
 
 def RELATIONSHIP_REMOVE__CAL(client, data):
     user_id = int(data['id'])
@@ -3210,9 +3594,12 @@ add_parser(
     RELATIONSHIP_REMOVE__CAL,
     RELATIONSHIP_REMOVE__CAL,
     RELATIONSHIP_REMOVE__OPT,
-    RELATIONSHIP_REMOVE__OPT)
-del RELATIONSHIP_REMOVE__CAL, \
-    RELATIONSHIP_REMOVE__OPT
+    RELATIONSHIP_REMOVE__OPT,
+)
+del (
+    RELATIONSHIP_REMOVE__CAL,
+    RELATIONSHIP_REMOVE__OPT,
+)
 
 # Empty list.
 def PRESENCES_REPLACE(client, data):
@@ -3257,9 +3644,12 @@ add_parser(
     GIFT_CODE_UPDATE__CAL,
     GIFT_CODE_UPDATE__CAL,
     GIFT_CODE_UPDATE__OPT,
-    GIFT_CODE_UPDATE__OPT)
-del GIFT_CODE_UPDATE__CAL, \
-    GIFT_CODE_UPDATE__OPT
+    GIFT_CODE_UPDATE__OPT,
+)
+del (
+    GIFT_CODE_UPDATE__CAL,
+    GIFT_CODE_UPDATE__OPT,
+)
 
 # Hooman only event.
 def USER_ACHIEVEMENT_UPDATE(client, data):
@@ -3353,9 +3743,12 @@ add_parser(
     INTERACTION_CREATE__CAL,
     INTERACTION_CREATE__CAL,
     INTERACTION_CREATE__OPT,
-    INTERACTION_CREATE__OPT)
-del INTERACTION_CREATE__CAL, \
-    INTERACTION_CREATE__OPT
+    INTERACTION_CREATE__OPT,
+)
+del (
+    INTERACTION_CREATE__CAL,
+    INTERACTION_CREATE__OPT,
+)
 
 
 def APPLICATION_COMMAND_CREATE__CAL(client, data):
@@ -3373,9 +3766,12 @@ add_parser(
     APPLICATION_COMMAND_CREATE__CAL,
     APPLICATION_COMMAND_CREATE__CAL,
     APPLICATION_COMMAND_CREATE__OPT,
-    APPLICATION_COMMAND_CREATE__OPT)
-del APPLICATION_COMMAND_CREATE__CAL, \
-    APPLICATION_COMMAND_CREATE__OPT
+    APPLICATION_COMMAND_CREATE__OPT,
+)
+del (
+    APPLICATION_COMMAND_CREATE__CAL,
+    APPLICATION_COMMAND_CREATE__OPT,
+)
 
 
 def APPLICATION_COMMAND_UPDATE__CAL(client, data):
@@ -3408,9 +3804,12 @@ add_parser(
     APPLICATION_COMMAND_UPDATE__CAL,
     APPLICATION_COMMAND_UPDATE__CAL,
     APPLICATION_COMMAND_UPDATE__OPT,
-    APPLICATION_COMMAND_UPDATE__OPT)
-del APPLICATION_COMMAND_UPDATE__CAL, \
-    APPLICATION_COMMAND_UPDATE__OPT
+    APPLICATION_COMMAND_UPDATE__OPT,
+)
+del (
+    APPLICATION_COMMAND_UPDATE__CAL,
+    APPLICATION_COMMAND_UPDATE__OPT,
+)
 
 
 def APPLICATION_COMMAND_DELETE__CAL(client, data):
@@ -3427,9 +3826,12 @@ add_parser(
     APPLICATION_COMMAND_DELETE__CAL,
     APPLICATION_COMMAND_DELETE__CAL,
     APPLICATION_COMMAND_DELETE__OPT,
-    APPLICATION_COMMAND_DELETE__OPT)
-del APPLICATION_COMMAND_DELETE__CAL, \
-    APPLICATION_COMMAND_DELETE__OPT
+    APPLICATION_COMMAND_DELETE__OPT,
+)
+del (
+    APPLICATION_COMMAND_DELETE__CAL,
+    APPLICATION_COMMAND_DELETE__OPT,
+)
 
 
 def APPLICATION_COMMAND_PERMISSIONS_UPDATE__CAL(client, data):
@@ -3445,9 +3847,12 @@ add_parser(
     APPLICATION_COMMAND_PERMISSIONS_UPDATE__CAL,
     APPLICATION_COMMAND_PERMISSIONS_UPDATE__CAL,
     APPLICATION_COMMAND_PERMISSIONS_UPDATE__OPT,
-    APPLICATION_COMMAND_PERMISSIONS_UPDATE__OPT)
-del APPLICATION_COMMAND_PERMISSIONS_UPDATE__CAL, \
-    APPLICATION_COMMAND_PERMISSIONS_UPDATE__OPT
+    APPLICATION_COMMAND_PERMISSIONS_UPDATE__OPT,
+)
+del (
+    APPLICATION_COMMAND_PERMISSIONS_UPDATE__CAL,
+    APPLICATION_COMMAND_PERMISSIONS_UPDATE__OPT,
+)
 
 
 def STAGE_INSTANCE_CREATE__CAL(client, data):
@@ -3463,9 +3868,12 @@ add_parser(
     STAGE_INSTANCE_CREATE__CAL,
     STAGE_INSTANCE_CREATE__CAL,
     STAGE_INSTANCE_CREATE__OPT,
-    STAGE_INSTANCE_CREATE__OPT)
-del STAGE_INSTANCE_CREATE__CAL, \
-    STAGE_INSTANCE_CREATE__OPT
+    STAGE_INSTANCE_CREATE__OPT,
+)
+del (
+    STAGE_INSTANCE_CREATE__CAL,
+    STAGE_INSTANCE_CREATE__OPT,
+)
 
 
 def STAGE_INSTANCE_UPDATE__CAL_SC(client, data):
@@ -3488,7 +3896,7 @@ def STAGE_INSTANCE_UPDATE__CAL_MC(client, data):
     except KeyError:
         return
     
-    clients = filter_clients(stage.channel.clients, INTENT_MASK_GUILDS, client)
+    clients = filter_clients(stage.channel.iter_clients(), INTENT_MASK_GUILDS, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -3518,10 +3926,13 @@ add_parser(
     STAGE_INSTANCE_UPDATE__CAL_SC,
     STAGE_INSTANCE_UPDATE__CAL_MC,
     STAGE_INSTANCE_UPDATE__OPT,
-    STAGE_INSTANCE_UPDATE__OPT)
-del STAGE_INSTANCE_UPDATE__CAL_SC, \
-    STAGE_INSTANCE_UPDATE__CAL_MC, \
-    STAGE_INSTANCE_UPDATE__OPT
+    STAGE_INSTANCE_UPDATE__OPT,
+)
+del (
+    STAGE_INSTANCE_UPDATE__CAL_SC,
+    STAGE_INSTANCE_UPDATE__CAL_MC,
+    STAGE_INSTANCE_UPDATE__OPT,
+)
 
 
 def STAGE_INSTANCE_DELETE__CAL_SC(client, data):
@@ -3542,7 +3953,7 @@ def STAGE_INSTANCE_DELETE__CAL_MC(client, data):
     except KeyError:
         return
     
-    clients = filter_clients(stage.channel.clients, INTENT_MASK_GUILDS, client)
+    clients = filter_clients(stage.channel.iter_clients(), INTENT_MASK_GUILDS, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -3570,10 +3981,13 @@ add_parser(
     STAGE_INSTANCE_DELETE__CAL_SC,
     STAGE_INSTANCE_DELETE__CAL_MC,
     STAGE_INSTANCE_DELETE__OPT,
-    STAGE_INSTANCE_DELETE__OPT)
-del STAGE_INSTANCE_DELETE__CAL_SC, \
-    STAGE_INSTANCE_DELETE__CAL_MC, \
-    STAGE_INSTANCE_DELETE__OPT
+    STAGE_INSTANCE_DELETE__OPT,
+)
+del (
+    STAGE_INSTANCE_DELETE__CAL_SC,
+    STAGE_INSTANCE_DELETE__CAL_MC,
+    STAGE_INSTANCE_DELETE__OPT,
+)
 
 
 def THREAD_LIST_SYNC(client, data):
@@ -3602,7 +4016,8 @@ add_parser(
     THREAD_LIST_SYNC,
     THREAD_LIST_SYNC,
     THREAD_LIST_SYNC,
-    THREAD_LIST_SYNC)
+    THREAD_LIST_SYNC,
+)
 del THREAD_LIST_SYNC
 
 
@@ -3627,7 +4042,7 @@ def THREAD_MEMBER_UPDATE__CAL_MC(client, data):
     except KeyError:
         return
     
-    clients = filter_clients(thread_channel.clients, INTENT_MASK_GUILDS, client)
+    clients = filter_clients(thread_channel.iter_clients(), INTENT_MASK_GUILDS, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -3658,10 +4073,13 @@ add_parser(
     THREAD_MEMBER_UPDATE__CAL_SC,
     THREAD_MEMBER_UPDATE__CAL_MC,
     THREAD_MEMBER_UPDATE__OPT,
-    THREAD_MEMBER_UPDATE__OPT)
-del THREAD_MEMBER_UPDATE__CAL_SC, \
-    THREAD_MEMBER_UPDATE__CAL_MC, \
-    THREAD_MEMBER_UPDATE__OPT
+    THREAD_MEMBER_UPDATE__OPT,
+)
+del (
+    THREAD_MEMBER_UPDATE__CAL_SC,
+    THREAD_MEMBER_UPDATE__CAL_MC,
+    THREAD_MEMBER_UPDATE__OPT,
+)
 
 
 def THREAD_MEMBERS_UPDATE__CAL_SC(client, data):
@@ -3703,7 +4121,7 @@ def THREAD_MEMBERS_UPDATE__CAL_MC(client, data):
         return
     
     if client.intents & INTENT_MASK_GUILD_USERS:
-        clients = filter_clients(thread_channel.clients, INTENT_MASK_GUILD_USERS, client)
+        clients = filter_clients(thread_channel.iter_clients(), INTENT_MASK_GUILD_USERS, client)
     
         if clients.send(None) is not client:
             return
@@ -3788,7 +4206,7 @@ def THREAD_MEMBERS_UPDATE__OPT_MC(client, data):
     except KeyError:
         return
     
-    if first_client_or_me(thread_channel.clients, INTENT_MASK_GUILD_USERS, client) is not client:
+    if first_client_or_me(thread_channel.iter_clients(), INTENT_MASK_GUILD_USERS, client) is not client:
         return
     
     removed_user_ids = data.get('removed_member_ids', None)
@@ -3811,11 +4229,14 @@ add_parser(
     THREAD_MEMBERS_UPDATE__CAL_SC,
     THREAD_MEMBERS_UPDATE__CAL_MC,
     THREAD_MEMBERS_UPDATE__OPT_SC,
-    THREAD_MEMBERS_UPDATE__OPT_MC)
-del THREAD_MEMBERS_UPDATE__CAL_SC, \
-    THREAD_MEMBERS_UPDATE__CAL_MC, \
-    THREAD_MEMBERS_UPDATE__OPT_SC, \
-    THREAD_MEMBERS_UPDATE__OPT_MC
+    THREAD_MEMBERS_UPDATE__OPT_MC,
+)
+del (
+    THREAD_MEMBERS_UPDATE__CAL_SC,
+    THREAD_MEMBERS_UPDATE__CAL_MC,
+    THREAD_MEMBERS_UPDATE__OPT_SC,
+    THREAD_MEMBERS_UPDATE__OPT_MC,
+)
 
 
 def GUILD_APPLICATION_COMMAND_COUNTS_UPDATE(client, data):
@@ -3851,10 +4272,13 @@ add_parser(
     GUILD_SCHEDULED_EVENT_CREATE__CAL_SC,
     GUILD_SCHEDULED_EVENT_CREATE__CAL_MC,
     GUILD_SCHEDULED_EVENT_CREATE__OPT,
-    GUILD_SCHEDULED_EVENT_CREATE__OPT)
-del GUILD_SCHEDULED_EVENT_CREATE__CAL_SC, \
-    GUILD_SCHEDULED_EVENT_CREATE__CAL_MC, \
-    GUILD_SCHEDULED_EVENT_CREATE__OPT
+    GUILD_SCHEDULED_EVENT_CREATE__OPT,
+)
+del (
+    GUILD_SCHEDULED_EVENT_CREATE__CAL_SC,
+    GUILD_SCHEDULED_EVENT_CREATE__CAL_MC,
+    GUILD_SCHEDULED_EVENT_CREATE__OPT,
+)
 
 
 def GUILD_SCHEDULED_EVENT_DELETE__CAL_SC(client, data):
@@ -3869,7 +4293,7 @@ def GUILD_SCHEDULED_EVENT_DELETE__CAL_MC(client, data):
     if (guild is None):
         clients = None
     else:
-        clients = filter_clients(guild.clients, INTENT_MASK_GUILDS, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILDS, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -3893,11 +4317,16 @@ def GUILD_SCHEDULED_EVENT_DELETE__OPT(client, data):
         guild = GUILDS[parse_scheduled_event_guild_id(data)]
     except KeyError:
         return
-        
-    try:
-        del guild.scheduled_events[parse_scheduled_event_id(data)]
-    except KeyError:
-        pass
+    
+    scheduled_events = guild.scheduled_events
+    if (scheduled_events is not None):
+        try:
+            del scheduled_events[parse_scheduled_event_id(data)]
+        except KeyError:
+            pass
+        else:
+            if not scheduled_events:
+                guild.scheduled_events = None
 
 
 add_parser(
@@ -3905,10 +4334,13 @@ add_parser(
     GUILD_SCHEDULED_EVENT_DELETE__CAL_SC,
     GUILD_SCHEDULED_EVENT_DELETE__CAL_MC,
     GUILD_SCHEDULED_EVENT_DELETE__OPT,
-    GUILD_SCHEDULED_EVENT_DELETE__OPT)
-del GUILD_SCHEDULED_EVENT_DELETE__CAL_SC, \
-    GUILD_SCHEDULED_EVENT_DELETE__CAL_MC, \
-    GUILD_SCHEDULED_EVENT_DELETE__OPT
+    GUILD_SCHEDULED_EVENT_DELETE__OPT,
+)
+del (
+    GUILD_SCHEDULED_EVENT_DELETE__CAL_SC,
+    GUILD_SCHEDULED_EVENT_DELETE__CAL_MC,
+    GUILD_SCHEDULED_EVENT_DELETE__OPT,
+)
 
 
 def GUILD_SCHEDULED_EVENT_UPDATE__CAL_SC(client, data):
@@ -3931,7 +4363,7 @@ def GUILD_SCHEDULED_EVENT_UPDATE__CAL_MC(client, data):
     except KeyError:
         clients = None
     else:
-        clients = filter_clients(guild.clients, INTENT_MASK_GUILDS, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILDS, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -3977,7 +4409,7 @@ def GUILD_SCHEDULED_EVENT_UPDATE__OPT_MC(client, data):
     except KeyError:
         pass
     else:
-        if first_client(guild.clients, INTENT_MASK_GUILDS, client) is not client:
+        if first_client(guild.iter_clients(), INTENT_MASK_GUILDS, client) is not client:
             return
     
     scheduled_event._update_attributes(data)
@@ -3987,11 +4419,14 @@ add_parser(
     GUILD_SCHEDULED_EVENT_UPDATE__CAL_SC,
     GUILD_SCHEDULED_EVENT_UPDATE__CAL_MC,
     GUILD_SCHEDULED_EVENT_UPDATE__OPT_SC,
-    GUILD_SCHEDULED_EVENT_UPDATE__OPT_MC)
-del GUILD_SCHEDULED_EVENT_UPDATE__CAL_SC, \
-    GUILD_SCHEDULED_EVENT_UPDATE__CAL_MC, \
-    GUILD_SCHEDULED_EVENT_UPDATE__OPT_SC, \
-    GUILD_SCHEDULED_EVENT_UPDATE__OPT_MC
+    GUILD_SCHEDULED_EVENT_UPDATE__OPT_MC,
+)
+del (
+    GUILD_SCHEDULED_EVENT_UPDATE__CAL_SC,
+    GUILD_SCHEDULED_EVENT_UPDATE__CAL_MC,
+    GUILD_SCHEDULED_EVENT_UPDATE__OPT_SC,
+    GUILD_SCHEDULED_EVENT_UPDATE__OPT_MC,
+)
 
 
 def GUILD_SCHEDULED_EVENT_USER_ADD__CAL_SC(client, data):
@@ -4016,10 +4451,13 @@ add_parser(
     GUILD_SCHEDULED_EVENT_USER_ADD__CAL_SC,
     GUILD_SCHEDULED_EVENT_USER_ADD__CAL_MC,
     GUILD_SCHEDULED_EVENT_USER_ADD__OPT,
-    GUILD_SCHEDULED_EVENT_USER_ADD__OPT)
-del GUILD_SCHEDULED_EVENT_USER_ADD__CAL_SC, \
-    GUILD_SCHEDULED_EVENT_USER_ADD__CAL_MC, \
-    GUILD_SCHEDULED_EVENT_USER_ADD__OPT
+    GUILD_SCHEDULED_EVENT_USER_ADD__OPT,
+)
+del (
+    GUILD_SCHEDULED_EVENT_USER_ADD__CAL_SC,
+    GUILD_SCHEDULED_EVENT_USER_ADD__CAL_MC,
+    GUILD_SCHEDULED_EVENT_USER_ADD__OPT,
+)
 
 
 def GUILD_SCHEDULED_EVENT_USER_REMOVE__CAL_SC(client, data):
@@ -4045,45 +4483,303 @@ add_parser(
     GUILD_SCHEDULED_EVENT_USER_REMOVE__CAL_SC,
     GUILD_SCHEDULED_EVENT_USER_REMOVE__CAL_MC,
     GUILD_SCHEDULED_EVENT_USER_REMOVE__OPT,
-    GUILD_SCHEDULED_EVENT_USER_REMOVE__OPT)
-del GUILD_SCHEDULED_EVENT_USER_REMOVE__CAL_SC, \
-    GUILD_SCHEDULED_EVENT_USER_REMOVE__CAL_MC, \
-    GUILD_SCHEDULED_EVENT_USER_REMOVE__OPT
+    GUILD_SCHEDULED_EVENT_USER_REMOVE__OPT,
+)
+del (
+    GUILD_SCHEDULED_EVENT_USER_REMOVE__CAL_SC,
+    GUILD_SCHEDULED_EVENT_USER_REMOVE__CAL_MC,
+    GUILD_SCHEDULED_EVENT_USER_REMOVE__OPT,
+)
 
+
+def GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE__CAL_SC(client, data):
+    scheduled_event_id = parse_scheduled_event_occasion_overwrite_create_scheduled_event_id(data)
+    timestamp = parse_scheduled_event_occasion_overwrite_timestamp(data)
+    
+    try:
+        scheduled_event = SCHEDULED_EVENTS[scheduled_event_id]
+    except KeyError:
+        scheduled_event_occasion_overwrite = ScheduledEventOccasionOverwrite.from_data(data)
+        old_attributes = None
+    else:
+        scheduled_event_occasion_overwrite = scheduled_event_occasion_overwrite_get(scheduled_event, timestamp)
+        if scheduled_event_occasion_overwrite is None:
+            scheduled_event_occasion_overwrite = ScheduledEventOccasionOverwrite.from_data(data)
+            scheduled_event_occasion_overwrite_add(scheduled_event, scheduled_event_occasion_overwrite)
+            old_attributes = None
+        else:
+            old_attributes = scheduled_event_occasion_overwrite._difference_update_attributes(data)
+            if not old_attributes:
+                return
+    
+    guild_id = parse_scheduled_event_occasion_overwrite_create_guild_id(data)
+    
+    if old_attributes is None:
+        event = ScheduledEventOccasionOverwriteCreateEvent.from_fields(
+            guild_id,
+            scheduled_event_id,
+            scheduled_event_occasion_overwrite,
+        )
+        
+        event_handler = client.events.scheduled_event_occasion_overwrite_create
+        if (event_handler is DEFAULT_EVENT_HANDLER):
+            Task(KOKORO, event_handler(client, event))
+    
+    else:
+        event = ScheduledEventOccasionOverwriteUpdateEvent.from_fields(
+            guild_id,
+            scheduled_event_id,
+            scheduled_event_occasion_overwrite,
+        )
+        
+        event_handler = client.events.scheduled_event_occasion_overwrite_update
+        if (event_handler is DEFAULT_EVENT_HANDLER):
+            Task(KOKORO, event_handler(client, event))
+
+
+def GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE__CAL_MC(client, data):
+    guild_id = parse_scheduled_event_occasion_overwrite_create_guild_id(data)
+    try:
+        guild = GUILDS[guild_id]
+    except KeyError:
+        clients = None
+    else:
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_SCHEDULED_EVENTS, client)
+        if clients.send(None) is not client:
+            clients.close()
+            return
+    
+    scheduled_event_id = parse_scheduled_event_occasion_overwrite_create_scheduled_event_id(data)
+    timestamp = parse_scheduled_event_occasion_overwrite_timestamp(data)
+    
+    try:
+        scheduled_event = SCHEDULED_EVENTS[scheduled_event_id]
+    except KeyError:
+        scheduled_event_occasion_overwrite = ScheduledEventOccasionOverwrite.from_data(data)
+        old_attributes = None
+    else:
+        scheduled_event_occasion_overwrite = scheduled_event_occasion_overwrite_get(scheduled_event, timestamp)
+        if scheduled_event_occasion_overwrite is None:
+            scheduled_event_occasion_overwrite = ScheduledEventOccasionOverwrite.from_data(data)
+            scheduled_event_occasion_overwrite_add(scheduled_event, scheduled_event_occasion_overwrite)
+            old_attributes = None
+        else:
+            old_attributes = scheduled_event_occasion_overwrite._difference_update_attributes(data)
+            if not old_attributes:
+                if (clients is not None):
+                    clients.close()
+                return
+    
+    if old_attributes is None:
+        event = ScheduledEventOccasionOverwriteCreateEvent.from_fields(
+            guild_id,
+            scheduled_event_id,
+            scheduled_event_occasion_overwrite,
+        )
+        
+        if clients is None:
+            event_handler = client.events.scheduled_event_occasion_overwrite_create
+            if (event_handler is not DEFAULT_EVENT_HANDLER):
+                Task(KOKORO, event_handler(client, event))
+        
+        else:
+            for client_ in clients:
+                event_handler = client_.events.scheduled_event_occasion_overwrite_create
+                if (event_handler is not DEFAULT_EVENT_HANDLER):
+                    Task(KOKORO, event_handler(client_, event))
+    
+    else:
+        event = ScheduledEventOccasionOverwriteUpdateEvent.from_fields(
+            guild_id,
+            scheduled_event_id,
+            scheduled_event_occasion_overwrite,
+        )
+        
+        if clients is None:
+            event_handler = client.events.scheduled_event_occasion_overwrite_update
+            if (event_handler is not DEFAULT_EVENT_HANDLER):
+                Task(KOKORO, event_handler(client, event))
+        
+        else:
+            for client_ in clients:
+                event_handler = client_.events.scheduled_event_occasion_overwrite_update
+                if (event_handler is not DEFAULT_EVENT_HANDLER):
+                    Task(KOKORO, event_handler(client_, event))
+
+
+def GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE__OPT(client, data):
+    scheduled_event_id = parse_scheduled_event_occasion_overwrite_create_scheduled_event_id(data)
+    timestamp = parse_scheduled_event_occasion_overwrite_timestamp(data)
+    
+    try:
+        scheduled_event = SCHEDULED_EVENTS[scheduled_event_id]
+    except KeyError:
+        return
+    else:
+        scheduled_event_occasion_overwrite = scheduled_event_occasion_overwrite_get(scheduled_event, timestamp)
+        if scheduled_event_occasion_overwrite is None:
+            scheduled_event_occasion_overwrite = ScheduledEventOccasionOverwrite.from_data(data)
+            scheduled_event_occasion_overwrite_add(scheduled_event, scheduled_event_occasion_overwrite)
+        else:
+            scheduled_event_occasion_overwrite._update_attributes(data)
+
+
+add_parser(
+    'GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE',
+    GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE__CAL_SC,
+    GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE__CAL_MC,
+    GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE__OPT,
+    GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE__OPT,
+)
+del (
+    GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE__CAL_SC,
+    GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE__CAL_MC,
+    GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE__OPT,
+)
+
+
+def GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE__CAL_SC(client, data):
+    scheduled_event_id = parse_scheduled_event_occasion_overwrite_create_scheduled_event_id(data)
+    
+    try:
+        scheduled_event = SCHEDULED_EVENTS[scheduled_event_id]
+    except KeyError:
+        scheduled_event_occasion_overwrite = ScheduledEventOccasionOverwrite.from_data(data)
+    else:
+        # Do not trigger it if its cancelled already.
+        if scheduled_event.status is ScheduledEventStatus.cancelled:
+            return
+        
+        timestamp = parse_scheduled_event_occasion_overwrite_timestamp(data)
+        scheduled_event_occasion_overwrite = scheduled_event_occasion_overwrite_remove(scheduled_event, timestamp)
+        if scheduled_event_occasion_overwrite is None:
+            return
+    
+    event = ScheduledEventOccasionOverwriteDeleteEvent.from_fields(
+        parse_scheduled_event_occasion_overwrite_create_guild_id(data),
+        scheduled_event_id,
+        scheduled_event_occasion_overwrite,
+    )
+    
+    Task(KOKORO, client.events.scheduled_event_occasion_overwrite_deletelation(client, event))
+
+
+def GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE__CAL_MC(client, data):
+    guild_id = parse_scheduled_event_occasion_overwrite_create_guild_id(data)
+    try:
+        guild = GUILDS[guild_id]
+    except KeyError:
+        clients = None
+    else:
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_SCHEDULED_EVENTS, client)
+        if clients.send(None) is not client:
+            clients.close()
+            return
+    
+    
+    scheduled_event_id = parse_scheduled_event_occasion_overwrite_create_scheduled_event_id(data)
+    
+    try:
+        scheduled_event = SCHEDULED_EVENTS[scheduled_event_id]
+    except KeyError:
+        scheduled_event_occasion_overwrite = ScheduledEventOccasionOverwrite.from_data(data)
+    else:
+        # Do not trigger it if its cancelled already.
+        if scheduled_event.status is ScheduledEventStatus.cancelled:
+            if (clients is not None):
+                clients.close()
+            return
+        
+        timestamp = parse_scheduled_event_occasion_overwrite_timestamp(data)
+        scheduled_event_occasion_overwrite = scheduled_event_occasion_overwrite_remove(scheduled_event, timestamp)
+        if scheduled_event_occasion_overwrite is None:
+            if (clients is not None):
+                clients.close()
+            return
+    
+    event = ScheduledEventOccasionOverwriteDeleteEvent.from_fields(
+        guild_id,
+        scheduled_event_id,
+        scheduled_event_occasion_overwrite,
+    )
+    
+    if clients is None:
+        event_handler = client.events.scheduled_event_occasion_overwrite_deletelation
+        if (event_handler is not DEFAULT_EVENT_HANDLER):
+            Task(KOKORO, event_handler(client, event))
+    
+    else:
+        for client_ in clients:
+            event_handler = client_.events.scheduled_event_occasion_overwrite_deletelation
+            if (event_handler is not DEFAULT_EVENT_HANDLER):
+                Task(KOKORO, event_handler(client_, event))
+
+
+def GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE__OPT(client, data):
+    scheduled_event_id = parse_scheduled_event_occasion_overwrite_create_scheduled_event_id(data)
+    
+    try:
+        scheduled_event = SCHEDULED_EVENTS[scheduled_event_id]
+    except KeyError:
+        return
+    
+    # Do nothing if its cancelled already.
+    if scheduled_event.status is ScheduledEventStatus.cancelled:
+        return
+    
+    timestamp = parse_scheduled_event_occasion_overwrite_timestamp(data)
+    scheduled_event_occasion_overwrite_remove(scheduled_event, timestamp)
+
+
+add_parser(
+    'GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE',
+    GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE__CAL_SC,
+    GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE__CAL_MC,
+    GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE__OPT,
+    GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE__OPT,
+)
+del (
+    GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE__CAL_SC,
+    GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE__CAL_MC,
+    GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE__OPT,
+)
+
+
+# Embedded activity
 
 def EMBEDDED_ACTIVITY_UPDATE__CAL_SC(client, data):
-    embedded_activity_state, changes = difference_handle_embedded_activity_update_event(data)
+    embedded_activity, changes = difference_handle_embedded_activity_update_event(data)
     
     for action, value in changes:
         
         if action == EMBEDDED_ACTIVITY_UPDATE_CREATE:
             event_handler = client.events.embedded_activity_create
             if (event_handler is not DEFAULT_EVENT_HANDLER):
-                Task(KOKORO, event_handler(client, embedded_activity_state))
+                Task(KOKORO, event_handler(client, embedded_activity))
             continue
         
         if action == EMBEDDED_ACTIVITY_UPDATE_DELETE:
             event_handler = client.events.embedded_activity_delete
             if (event_handler is not DEFAULT_EVENT_HANDLER):
-                Task(KOKORO, event_handler(client, embedded_activity_state))
+                Task(KOKORO, event_handler(client, embedded_activity))
             continue
         
         if action == EMBEDDED_ACTIVITY_UPDATE_UPDATE:
             event_handler = client.events.embedded_activity_update
             if (event_handler is not DEFAULT_EVENT_HANDLER):
-                Task(KOKORO, event_handler(client, embedded_activity_state, value))
+                Task(KOKORO, event_handler(client, embedded_activity, value))
             continue
         
         if action == EMBEDDED_ACTIVITY_UPDATE_USER_ADD:
             event_handler = client.events.embedded_activity_user_add
             if (event_handler is not DEFAULT_EVENT_HANDLER):
-                Task(KOKORO, event_handler(client, embedded_activity_state, value))
+                Task(KOKORO, event_handler(client, embedded_activity, value))
             continue
         
         if action == EMBEDDED_ACTIVITY_UPDATE_USER_DELETE:
             event_handler = client.events.embedded_activity_user_delete
             if (event_handler is not DEFAULT_EVENT_HANDLER):
-                Task(KOKORO, event_handler(client, embedded_activity_state, value))
+                Task(KOKORO, event_handler(client, embedded_activity, value))
             continue
         
         # no more cases
@@ -4096,12 +4792,12 @@ def EMBEDDED_ACTIVITY_UPDATE__CAL_MC(client, data):
     except KeyError:
         clients = None
     else:
-        clients = filter_clients(guild.clients, INTENT_MASK_GUILD_EXPRESSIONS, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_EXPRESSIONS, client)
         if clients.send(None) is not client:
             clients.close()
             return
     
-    embedded_activity_state, changes = difference_handle_embedded_activity_update_event(data)
+    embedded_activity, changes = difference_handle_embedded_activity_update_event(data)
     if not changes:
         if (clients is not None):
             clients.close()
@@ -4113,31 +4809,31 @@ def EMBEDDED_ACTIVITY_UPDATE__CAL_MC(client, data):
             if action == EMBEDDED_ACTIVITY_UPDATE_CREATE:
                 event_handler = client.events.embedded_activity_create
                 if (event_handler is not DEFAULT_EVENT_HANDLER):
-                    Task(KOKORO, event_handler(client, embedded_activity_state))
+                    Task(KOKORO, event_handler(client, embedded_activity))
                 continue
             
             if action == EMBEDDED_ACTIVITY_UPDATE_DELETE:
                 event_handler = client.events.embedded_activity_delete
                 if (event_handler is not DEFAULT_EVENT_HANDLER):
-                    Task(KOKORO, event_handler(client, embedded_activity_state))
+                    Task(KOKORO, event_handler(client, embedded_activity))
                 continue
             
             if action == EMBEDDED_ACTIVITY_UPDATE_UPDATE:
                 event_handler = client.events.embedded_activity_update
                 if (event_handler is not DEFAULT_EVENT_HANDLER):
-                    Task(KOKORO, event_handler(client, embedded_activity_state, value))
+                    Task(KOKORO, event_handler(client, embedded_activity, value))
                 continue
             
             if action == EMBEDDED_ACTIVITY_UPDATE_USER_ADD:
                 event_handler = client.events.embedded_activity_user_add
                 if (event_handler is not DEFAULT_EVENT_HANDLER):
-                    Task(KOKORO, event_handler(client, embedded_activity_state, value))
+                    Task(KOKORO, event_handler(client, embedded_activity, value))
                 continue
             
             if action == EMBEDDED_ACTIVITY_UPDATE_USER_DELETE:
                 event_handler = client.events.embedded_activity_user_delete
                 if (event_handler is not DEFAULT_EVENT_HANDLER):
-                    Task(KOKORO, event_handler(client, embedded_activity_state, value))
+                    Task(KOKORO, event_handler(client, embedded_activity, value))
                 continue
             
             # no more cases
@@ -4149,31 +4845,31 @@ def EMBEDDED_ACTIVITY_UPDATE__CAL_MC(client, data):
                 if action == EMBEDDED_ACTIVITY_UPDATE_CREATE:
                     event_handler = client_.events.embedded_activity_create
                     if (event_handler is not DEFAULT_EVENT_HANDLER):
-                        Task(KOKORO, event_handler(client_, embedded_activity_state))
+                        Task(KOKORO, event_handler(client_, embedded_activity))
                     continue
                 
                 if action == EMBEDDED_ACTIVITY_UPDATE_DELETE:
                     event_handler = client_.events.embedded_activity_delete
                     if (event_handler is not DEFAULT_EVENT_HANDLER):
-                        Task(KOKORO, event_handler(client_, embedded_activity_state))
+                        Task(KOKORO, event_handler(client_, embedded_activity))
                     continue
                 
                 if action == EMBEDDED_ACTIVITY_UPDATE_UPDATE:
                     event_handler = client_.events.embedded_activity_update
                     if (event_handler is not DEFAULT_EVENT_HANDLER):
-                        Task(KOKORO, event_handler(client_, embedded_activity_state, value))
+                        Task(KOKORO, event_handler(client_, embedded_activity, value))
                     continue
                 
                 if action == EMBEDDED_ACTIVITY_UPDATE_USER_ADD:
                     event_handler = client_.events.embedded_activity_user_add
                     if (event_handler is not DEFAULT_EVENT_HANDLER):
-                        Task(KOKORO, event_handler(client_, embedded_activity_state, value))
+                        Task(KOKORO, event_handler(client_, embedded_activity, value))
                     continue
                 
                 if action == EMBEDDED_ACTIVITY_UPDATE_USER_DELETE:
                     event_handler = client_.events.embedded_activity_user_delete
                     if (event_handler is not DEFAULT_EVENT_HANDLER):
-                        Task(KOKORO, event_handler(client_, embedded_activity_state, value))
+                        Task(KOKORO, event_handler(client_, embedded_activity, value))
                     continue
                 
                 # no more cases
@@ -4190,7 +4886,7 @@ def EMBEDDED_ACTIVITY_UPDATE__OPT_MC(client, data):
     except KeyError:
         pass
     else:
-        if first_client(guild.clients, INTENT_MASK_GUILDS, client) is not client:
+        if first_client(guild.iter_clients(), INTENT_MASK_GUILDS, client) is not client:
             return
     
     handle_embedded_activity_update_event(data)
@@ -4201,11 +4897,21 @@ add_parser(
     EMBEDDED_ACTIVITY_UPDATE__CAL_SC,
     EMBEDDED_ACTIVITY_UPDATE__CAL_MC,
     EMBEDDED_ACTIVITY_UPDATE__OPT_SC,
-    EMBEDDED_ACTIVITY_UPDATE__OPT_MC)
-del EMBEDDED_ACTIVITY_UPDATE__CAL_SC, \
-    EMBEDDED_ACTIVITY_UPDATE__CAL_MC, \
-    EMBEDDED_ACTIVITY_UPDATE__OPT_SC, \
-    EMBEDDED_ACTIVITY_UPDATE__OPT_MC
+    EMBEDDED_ACTIVITY_UPDATE__OPT_MC,
+)
+add_parser(
+    'EMBEDDED_ACTIVITY_UPDATE_V2',
+    EMBEDDED_ACTIVITY_UPDATE__CAL_SC,
+    EMBEDDED_ACTIVITY_UPDATE__CAL_MC,
+    EMBEDDED_ACTIVITY_UPDATE__OPT_SC,
+    EMBEDDED_ACTIVITY_UPDATE__OPT_MC,
+)
+del (
+    EMBEDDED_ACTIVITY_UPDATE__CAL_SC,
+    EMBEDDED_ACTIVITY_UPDATE__CAL_MC,
+    EMBEDDED_ACTIVITY_UPDATE__OPT_SC,
+    EMBEDDED_ACTIVITY_UPDATE__OPT_MC,
+)
 
 
 def GUILD_APPLICATION_COMMAND_INDEX_UPDATE__CAL(client, data):
@@ -4222,9 +4928,12 @@ add_parser(
     GUILD_APPLICATION_COMMAND_INDEX_UPDATE__CAL,
     GUILD_APPLICATION_COMMAND_INDEX_UPDATE__CAL,
     GUILD_APPLICATION_COMMAND_INDEX_UPDATE__OPT,
-    GUILD_APPLICATION_COMMAND_INDEX_UPDATE__OPT)
-del GUILD_APPLICATION_COMMAND_INDEX_UPDATE__CAL, \
-    GUILD_APPLICATION_COMMAND_INDEX_UPDATE__OPT
+    GUILD_APPLICATION_COMMAND_INDEX_UPDATE__OPT,
+)
+del (
+    GUILD_APPLICATION_COMMAND_INDEX_UPDATE__CAL,
+    GUILD_APPLICATION_COMMAND_INDEX_UPDATE__OPT,
+)
 
 
 def AUTO_MODERATION_RULE_CREATE__CAL_SC(client, data):
@@ -4249,10 +4958,13 @@ add_parser(
     AUTO_MODERATION_RULE_CREATE__CAL_SC,
     AUTO_MODERATION_RULE_CREATE__CAL_MC,
     AUTO_MODERATION_RULE_CREATE__OPT,
-    AUTO_MODERATION_RULE_CREATE__OPT)
-del AUTO_MODERATION_RULE_CREATE__CAL_SC, \
-    AUTO_MODERATION_RULE_CREATE__CAL_MC, \
-    AUTO_MODERATION_RULE_CREATE__OPT
+    AUTO_MODERATION_RULE_CREATE__OPT,
+)
+del (
+    AUTO_MODERATION_RULE_CREATE__CAL_SC,
+    AUTO_MODERATION_RULE_CREATE__CAL_MC,
+    AUTO_MODERATION_RULE_CREATE__OPT,
+)
 
 
 def AUTO_MODERATION_RULE_UPDATE__CAL_SC(client, data):
@@ -4295,7 +5007,7 @@ def AUTO_MODERATION_RULE_UPDATE__CAL_MC(client, data):
             Task(KOKORO, event_handler(client, auto_moderation_rule, old_attributes))
         
     else:
-        clients = filter_clients(guild.clients, INTENT_MASK_AUTO_MODERATION_CONFIGURATION, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_AUTO_MODERATION_CONFIGURATION, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -4335,10 +5047,13 @@ add_parser(
     AUTO_MODERATION_RULE_UPDATE__CAL_SC,
     AUTO_MODERATION_RULE_UPDATE__CAL_MC,
     AUTO_MODERATION_RULE_UPDATE__OPT,
-    AUTO_MODERATION_RULE_UPDATE__OPT)
-del AUTO_MODERATION_RULE_UPDATE__CAL_SC, \
-    AUTO_MODERATION_RULE_UPDATE__CAL_MC, \
-    AUTO_MODERATION_RULE_UPDATE__OPT
+    AUTO_MODERATION_RULE_UPDATE__OPT,
+)
+del (
+    AUTO_MODERATION_RULE_UPDATE__CAL_SC,
+    AUTO_MODERATION_RULE_UPDATE__CAL_MC,
+    AUTO_MODERATION_RULE_UPDATE__OPT,
+)
 
 
 def AUTO_MODERATION_RULE_DELETE__CAL_SC(client, data):
@@ -4363,10 +5078,13 @@ add_parser(
     AUTO_MODERATION_RULE_DELETE__CAL_SC,
     AUTO_MODERATION_RULE_DELETE__CAL_MC,
     AUTO_MODERATION_RULE_DELETE__OPT,
-    AUTO_MODERATION_RULE_DELETE__OPT)
-del AUTO_MODERATION_RULE_DELETE__CAL_SC, \
-    AUTO_MODERATION_RULE_DELETE__CAL_MC, \
-    AUTO_MODERATION_RULE_DELETE__OPT
+    AUTO_MODERATION_RULE_DELETE__OPT,
+)
+del (
+    AUTO_MODERATION_RULE_DELETE__CAL_SC,
+    AUTO_MODERATION_RULE_DELETE__CAL_MC,
+    AUTO_MODERATION_RULE_DELETE__OPT,
+)
 
 
 def AUTO_MODERATION_ACTION_EXECUTION__CAL_SC(client, data):
@@ -4391,10 +5109,13 @@ add_parser(
     AUTO_MODERATION_ACTION_EXECUTION__CAL_SC,
     AUTO_MODERATION_ACTION_EXECUTION__CAL_MC,
     AUTO_MODERATION_ACTION_EXECUTION__OPT,
-    AUTO_MODERATION_ACTION_EXECUTION__OPT)
-del AUTO_MODERATION_ACTION_EXECUTION__CAL_SC, \
-    AUTO_MODERATION_ACTION_EXECUTION__CAL_MC, \
-    AUTO_MODERATION_ACTION_EXECUTION__OPT
+    AUTO_MODERATION_ACTION_EXECUTION__OPT,
+)
+del (
+    AUTO_MODERATION_ACTION_EXECUTION__CAL_SC,
+    AUTO_MODERATION_ACTION_EXECUTION__CAL_MC,
+    AUTO_MODERATION_ACTION_EXECUTION__OPT,
+)
 
 
 def VOICE_CHANNEL_EFFECT_SEND__CAL_SC(client, data):
@@ -4418,10 +5139,13 @@ add_parser(
     VOICE_CHANNEL_EFFECT_SEND__CAL_SC,
     VOICE_CHANNEL_EFFECT_SEND__CAL_MC,
     VOICE_CHANNEL_EFFECT_SEND__OPT,
-    VOICE_CHANNEL_EFFECT_SEND__OPT)
-del VOICE_CHANNEL_EFFECT_SEND__CAL_SC, \
-    VOICE_CHANNEL_EFFECT_SEND__CAL_MC, \
-    VOICE_CHANNEL_EFFECT_SEND__OPT
+    VOICE_CHANNEL_EFFECT_SEND__OPT,
+)
+del (
+    VOICE_CHANNEL_EFFECT_SEND__CAL_SC,
+    VOICE_CHANNEL_EFFECT_SEND__CAL_MC,
+    VOICE_CHANNEL_EFFECT_SEND__OPT,
+)
 
 
 def SOUNDBOARD_SOUNDS__CAL(client, data):
@@ -4438,9 +5162,12 @@ add_parser(
     SOUNDBOARD_SOUNDS__CAL,
     SOUNDBOARD_SOUNDS__CAL,
     SOUNDBOARD_SOUNDS__OPT,
-    SOUNDBOARD_SOUNDS__OPT)
-del SOUNDBOARD_SOUNDS__CAL, \
-    SOUNDBOARD_SOUNDS__OPT
+    SOUNDBOARD_SOUNDS__OPT,
+)
+del (
+    SOUNDBOARD_SOUNDS__CAL,
+    SOUNDBOARD_SOUNDS__OPT,
+)
 
 
 def GUILD_SOUNDBOARD_SOUND_CREATE__CAL(client, data):
@@ -4457,9 +5184,12 @@ add_parser(
     GUILD_SOUNDBOARD_SOUND_CREATE__CAL,
     GUILD_SOUNDBOARD_SOUND_CREATE__CAL,
     GUILD_SOUNDBOARD_SOUND_CREATE__OPT,
-    GUILD_SOUNDBOARD_SOUND_CREATE__OPT)
-del GUILD_SOUNDBOARD_SOUND_CREATE__CAL, \
-    GUILD_SOUNDBOARD_SOUND_CREATE__OPT
+    GUILD_SOUNDBOARD_SOUND_CREATE__OPT,
+)
+del (
+    GUILD_SOUNDBOARD_SOUND_CREATE__CAL,
+    GUILD_SOUNDBOARD_SOUND_CREATE__OPT,
+)
 
 
 def GUILD_SOUNDBOARD_SOUND_UPDATE__CAL__SC(client, data):
@@ -4479,7 +5209,7 @@ def GUILD_SOUNDBOARD_SOUND_UPDATE__CAL__MC(client, data):
     if guild is None:
         clients = None
     else:
-        clients = filter_clients(guild.clients, INTENT_MASK_GUILD_EXPRESSIONS, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_EXPRESSIONS, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -4510,10 +5240,13 @@ add_parser(
     GUILD_SOUNDBOARD_SOUND_UPDATE__CAL__SC,
     GUILD_SOUNDBOARD_SOUND_UPDATE__CAL__MC,
     GUILD_SOUNDBOARD_SOUND_UPDATE__OPT,
-    GUILD_SOUNDBOARD_SOUND_UPDATE__OPT)
-del GUILD_SOUNDBOARD_SOUND_UPDATE__CAL__SC, \
-    GUILD_SOUNDBOARD_SOUND_UPDATE__CAL__MC, \
-    GUILD_SOUNDBOARD_SOUND_UPDATE__OPT
+    GUILD_SOUNDBOARD_SOUND_UPDATE__OPT,
+)
+del (
+    GUILD_SOUNDBOARD_SOUND_UPDATE__CAL__SC,
+    GUILD_SOUNDBOARD_SOUND_UPDATE__CAL__MC,
+    GUILD_SOUNDBOARD_SOUND_UPDATE__OPT,
+)
 
 
 def GUILD_SOUNDBOARD_SOUND_DELETE__CAL__SC(client, data):
@@ -4527,7 +5260,7 @@ def GUILD_SOUNDBOARD_SOUND_DELETE__CAL__MC(client, data):
     if guild is None:
         clients = None
     else:
-        clients = filter_clients(guild.clients, INTENT_MASK_GUILD_EXPRESSIONS, client)
+        clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_EXPRESSIONS, client)
         if clients.send(None) is not client:
             clients.close()
             return
@@ -4554,10 +5287,13 @@ add_parser(
     GUILD_SOUNDBOARD_SOUND_DELETE__CAL__SC,
     GUILD_SOUNDBOARD_SOUND_DELETE__CAL__MC,
     GUILD_SOUNDBOARD_SOUND_DELETE__OPT,
-    GUILD_SOUNDBOARD_SOUND_DELETE__OPT)
-del GUILD_SOUNDBOARD_SOUND_DELETE__CAL__SC, \
-    GUILD_SOUNDBOARD_SOUND_DELETE__CAL__MC, \
-    GUILD_SOUNDBOARD_SOUND_DELETE__OPT
+    GUILD_SOUNDBOARD_SOUND_DELETE__OPT,
+)
+del (
+    GUILD_SOUNDBOARD_SOUND_DELETE__CAL__SC,
+    GUILD_SOUNDBOARD_SOUND_DELETE__CAL__MC,
+    GUILD_SOUNDBOARD_SOUND_DELETE__OPT,
+)
 
 
 def GUILD_SOUNDBOARD_SOUNDS_UPDATE__CAL_SC(client, data):
@@ -4604,7 +5340,7 @@ def GUILD_SOUNDBOARD_SOUNDS_UPDATE__CAL_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    clients = filter_clients(guild.clients, INTENT_MASK_GUILD_EXPRESSIONS, client)
+    clients = filter_clients(guild.iter_clients(), INTENT_MASK_GUILD_EXPRESSIONS, client)
     if clients.send(None) is not client:
         clients.close()
         return
@@ -4658,7 +5394,7 @@ def GUILD_SOUNDBOARD_SOUNDS_UPDATE__OPT_MC(client, data):
         guild_sync(client, data, None)
         return
     
-    if first_client(guild.clients, INTENT_MASK_GUILD_EXPRESSIONS, client) is not client:
+    if first_client(guild.iter_clients(), INTENT_MASK_GUILD_EXPRESSIONS, client) is not client:
         return
     
     guild._update_soundboard_sounds(data['soundboard_sounds'])
@@ -4669,11 +5405,14 @@ add_parser(
     GUILD_SOUNDBOARD_SOUNDS_UPDATE__CAL_SC,
     GUILD_SOUNDBOARD_SOUNDS_UPDATE__CAL_MC,
     GUILD_SOUNDBOARD_SOUNDS_UPDATE__OPT_SC,
-    GUILD_SOUNDBOARD_SOUNDS_UPDATE__OPT_MC)
-del GUILD_SOUNDBOARD_SOUNDS_UPDATE__CAL_SC, \
-    GUILD_SOUNDBOARD_SOUNDS_UPDATE__CAL_MC, \
-    GUILD_SOUNDBOARD_SOUNDS_UPDATE__OPT_SC, \
-    GUILD_SOUNDBOARD_SOUNDS_UPDATE__OPT_MC
+    GUILD_SOUNDBOARD_SOUNDS_UPDATE__OPT_MC,
+)
+del (
+    GUILD_SOUNDBOARD_SOUNDS_UPDATE__CAL_SC,
+    GUILD_SOUNDBOARD_SOUNDS_UPDATE__CAL_MC,
+    GUILD_SOUNDBOARD_SOUNDS_UPDATE__OPT_SC,
+    GUILD_SOUNDBOARD_SOUNDS_UPDATE__OPT_MC,
+)
 
 
 # Entitlements
@@ -4693,9 +5432,12 @@ add_parser(
     ENTITLEMENT_CREATE__CAL,
     ENTITLEMENT_CREATE__CAL,
     ENTITLEMENT_CREATE__OPT,
-    ENTITLEMENT_CREATE__OPT)
-del ENTITLEMENT_CREATE__CAL, \
-    ENTITLEMENT_CREATE__OPT
+    ENTITLEMENT_CREATE__OPT,
+)
+del (
+    ENTITLEMENT_CREATE__CAL,
+    ENTITLEMENT_CREATE__OPT,
+)
 
 
 def ENTITLEMENT_DELETE__CAL(client, data):
@@ -4718,9 +5460,12 @@ add_parser(
     ENTITLEMENT_DELETE__CAL,
     ENTITLEMENT_DELETE__CAL,
     ENTITLEMENT_DELETE__OPT,
-    ENTITLEMENT_DELETE__OPT)
-del ENTITLEMENT_DELETE__CAL, \
-    ENTITLEMENT_DELETE__OPT
+    ENTITLEMENT_DELETE__OPT,
+)
+del (
+    ENTITLEMENT_DELETE__CAL,
+    ENTITLEMENT_DELETE__OPT,
+)
 
 
 def ENTITLEMENT_UPDATE__CAL(client, data):
@@ -4750,9 +5495,12 @@ add_parser(
     ENTITLEMENT_UPDATE__CAL,
     ENTITLEMENT_UPDATE__CAL,
     ENTITLEMENT_UPDATE__OPT,
-    ENTITLEMENT_UPDATE__OPT)
-del ENTITLEMENT_UPDATE__CAL, \
-    ENTITLEMENT_UPDATE__OPT
+    ENTITLEMENT_UPDATE__OPT,
+)
+del (
+    ENTITLEMENT_UPDATE__CAL,
+    ENTITLEMENT_UPDATE__OPT,
+)
 
 
 
@@ -4769,7 +5517,7 @@ def MESSAGE_POLL_VOTE_ADD__CAL_MC(client, data):
         clients = None
     else:
         clients = filter_clients(
-            channel.clients,
+            channel.iter_clients(),
             INTENT_MASK_GUILD_POLLS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_POLLS,
             client,
         )
@@ -4806,7 +5554,7 @@ def MESSAGE_POLL_VOTE_ADD__OPT_MC(client, data):
     
     channel = message.channel
     if first_client(
-        channel.clients,
+        channel.iter_clients(),
         INTENT_MASK_GUILD_POLLS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_POLLS,
         client,
     ) is not client:
@@ -4820,11 +5568,14 @@ add_parser(
     MESSAGE_POLL_VOTE_ADD__CAL_SC,
     MESSAGE_POLL_VOTE_ADD__CAL_MC,
     MESSAGE_POLL_VOTE_ADD__OPT_SC,
-    MESSAGE_POLL_VOTE_ADD__OPT_MC)
-del MESSAGE_POLL_VOTE_ADD__CAL_SC, \
-    MESSAGE_POLL_VOTE_ADD__CAL_MC, \
-    MESSAGE_POLL_VOTE_ADD__OPT_SC, \
-    MESSAGE_POLL_VOTE_ADD__OPT_MC
+    MESSAGE_POLL_VOTE_ADD__OPT_MC,
+)
+del (
+    MESSAGE_POLL_VOTE_ADD__CAL_SC,
+    MESSAGE_POLL_VOTE_ADD__CAL_MC,
+    MESSAGE_POLL_VOTE_ADD__OPT_SC,
+    MESSAGE_POLL_VOTE_ADD__OPT_MC,
+)
 
 
 def MESSAGE_POLL_VOTE_REMOVE__CAL_SC(client, data):
@@ -4841,7 +5592,7 @@ def MESSAGE_POLL_VOTE_REMOVE__CAL_MC(client, data):
     
     else:
         clients = filter_clients(
-            channel.clients,
+            channel.iter_clients(),
             INTENT_MASK_GUILD_POLLS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_POLLS,
             client,
         )
@@ -4878,7 +5629,7 @@ def MESSAGE_POLL_VOTE_REMOVE__OPT_MC(client, data):
     
     channel = message.channel
     if first_client(
-        channel.clients,
+        channel.iter_clients(),
         INTENT_MASK_GUILD_POLLS if channel.is_in_group_guild() else INTENT_MASK_DIRECT_POLLS,
         client,
     ) is not client:
@@ -4892,8 +5643,99 @@ add_parser(
     MESSAGE_POLL_VOTE_REMOVE__CAL_SC,
     MESSAGE_POLL_VOTE_REMOVE__CAL_MC,
     MESSAGE_POLL_VOTE_REMOVE__OPT_SC,
-    MESSAGE_POLL_VOTE_REMOVE__OPT_MC)
-del MESSAGE_POLL_VOTE_REMOVE__CAL_SC, \
-    MESSAGE_POLL_VOTE_REMOVE__CAL_MC, \
-    MESSAGE_POLL_VOTE_REMOVE__OPT_SC, \
-    MESSAGE_POLL_VOTE_REMOVE__OPT_MC
+    MESSAGE_POLL_VOTE_REMOVE__OPT_MC,
+)
+del (
+    MESSAGE_POLL_VOTE_REMOVE__CAL_SC,
+    MESSAGE_POLL_VOTE_REMOVE__CAL_MC,
+    MESSAGE_POLL_VOTE_REMOVE__OPT_SC,
+    MESSAGE_POLL_VOTE_REMOVE__OPT_MC,
+)
+
+
+# Subscriptions
+
+
+def SUBSCRIPTION_CREATE__CAL(client, data):
+    subscription = Subscription.from_data(data)
+    Task(KOKORO, client.events.subscription_create(client, subscription))
+
+
+def SUBSCRIPTION_CREATE__OPT(client, data):
+    pass
+
+
+add_parser(
+    'SUBSCRIPTION_CREATE',
+    SUBSCRIPTION_CREATE__CAL,
+    SUBSCRIPTION_CREATE__CAL,
+    SUBSCRIPTION_CREATE__OPT,
+    SUBSCRIPTION_CREATE__OPT,
+)
+del (
+    SUBSCRIPTION_CREATE__CAL,
+    SUBSCRIPTION_CREATE__OPT,
+)
+
+
+def SUBSCRIPTION_DELETE__CAL(client, data):
+    subscription = Subscription.from_data(data)
+    Task(KOKORO, client.events.subscription_delete(client, subscription))
+
+
+def SUBSCRIPTION_DELETE__OPT(client, data):
+    subscription_id = parse_subscription_id(data)
+    try:
+        subscription = SUBSCRIPTIONS[subscription_id]
+    except KeyError:
+        return
+    
+    subscription.deleted = True
+
+
+add_parser(
+    'SUBSCRIPTION_DELETE',
+    SUBSCRIPTION_DELETE__CAL,
+    SUBSCRIPTION_DELETE__CAL,
+    SUBSCRIPTION_DELETE__OPT,
+    SUBSCRIPTION_DELETE__OPT,
+)
+del (
+    SUBSCRIPTION_DELETE__CAL,
+    SUBSCRIPTION_DELETE__OPT,
+)
+
+
+def SUBSCRIPTION_UPDATE__CAL(client, data):
+    subscription, is_created = Subscription.from_data_is_created(data)
+    if is_created:
+        old_attributes = None
+    else:
+        old_attributes = subscription._difference_update_attributes(data)
+        if not old_attributes:
+            return
+    
+    Task(KOKORO, client.events.subscription_update(client, subscription, old_attributes))
+
+
+def SUBSCRIPTION_UPDATE__OPT(client, data):
+    subscription_id = parse_subscription_id(data)
+    try:
+        subscription = SUBSCRIPTIONS[subscription_id]
+    except KeyError:
+        pass
+    else:
+        subscription._update_attributes(data)
+
+
+add_parser(
+    'SUBSCRIPTION_UPDATE',
+    SUBSCRIPTION_UPDATE__CAL,
+    SUBSCRIPTION_UPDATE__CAL,
+    SUBSCRIPTION_UPDATE__OPT,
+    SUBSCRIPTION_UPDATE__OPT,
+)
+del (
+    SUBSCRIPTION_UPDATE__CAL,
+    SUBSCRIPTION_UPDATE__OPT,
+)

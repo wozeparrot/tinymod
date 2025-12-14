@@ -65,6 +65,8 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | unknown_session                                                   | 10020     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
+| unknown_asset                                                     | 10021     | -         |
++-------------------------------------------------------------------+-----------+-----------+
 | unknown_approval_form                                             | 10023     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | unknown_ban                                                       | 10026     | -         |
@@ -95,9 +97,13 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | unknown_guild_template                                            | 10057     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
+| unknown_user_identity_verification                                | 10058     | -         |
++-------------------------------------------------------------------+-----------+-----------+
 | unknown_discovery_category                                        | 10059     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | unknown_sticker                                                   | 10060     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| unknown_sticker_pack                                              | 10061     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | unknown_interaction                                               | 10062     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -117,7 +123,9 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | unknown_scheduled_event_user                                      | 10071     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
-| unknown_tag                                                       | 10071     | -         |
+| unknown_tag                                                       | 10087     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| unknown_sound                                                     | 10097     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | bots_not_allowed                                                  | 20001     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -134,6 +142,8 @@ Error Codes
 | account_disabled                                                  | 20013     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | rate_limit_slowmode                                               | 20016     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| staff_required                                                    | 20017     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | team_ownership_required                                           | 20018     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -217,6 +227,8 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | rate_limit_widget_update                                          | 30042     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
+| max_soundboard_sounds                                             | 30045     | -         |
++-------------------------------------------------------------------+-----------+-----------+
 | rate_limit_edit_to_message_older_than_one_hour                    | 30046     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | max_pinned_threads_in_forum_channel                               | 30047     | -         |
@@ -235,6 +247,10 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | max_published_product_listing                                     | 30065     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
+| max_saved_messages                                                | 30074     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| max_friend_requests                                               | 30078     | -         |
++-------------------------------------------------------------------+-----------+-----------+
 | rate_limit_resource                                               | 31002     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | unauthorized                                                      | 40001     | -         |
@@ -247,11 +263,19 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | request_too_large                                                 | 40005     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
+| message_entity_too_large                                          | 40005     | -         |
++-------------------------------------------------------------------+-----------+-----------+
 | feature_disabled                                                  | 40006     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| message_entity_empty                                              | 40006     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | user_banned                                                       | 40007     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | connection_revoked                                                | 40012     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| cannot_consume_non_consumable_sku                                 | 40018     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| cannot_delete_non_test_entitlement                                | 40019     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | user_in_team                                                      | 40024     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -290,6 +314,8 @@ Error Codes
 | invites_disabled                                                  | 40069     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | entitlement_already_granted                                       | 40074     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| max_interaction_followup_messages                                 | 40094     | 5         |
 +-------------------------------------------------------------------+-----------+-----------+
 | cloudflare_block                                                  | 40333     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -403,6 +429,8 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | event_entity_type_different_from_the_entitys                      | 50091     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
+| invalid_gift_redemption_previously_owned                          | 50092     | -         |
++-------------------------------------------------------------------+-----------+-----------+
 | invalid_country_code                                              | 50095     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | cannot_friend_self                                                | 50096     | -         |
@@ -415,11 +443,17 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | activity_launch_no_access                                         | 50106     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
-| activity_launch_premium_tier                                      | 50107     | -         |
+| activity_launch_boost_level                                       | 50107     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | activity_launch_concurrent_activities                             | 50108     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | invalid_json                                                      | 50109     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| file_invalid                                                      | 50110     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| file_type_invalid                                                 | 50123     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| file_max_duration                                                 | 50124     | 5.2 s     |
 +-------------------------------------------------------------------+-----------+-----------+
 | failed_to_resize_asset_below_max_size                             | 50138     | 262144    |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -430,6 +464,8 @@ Error Codes
 | upload_file_not_found                                             | 50146     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | activity_launch_afk_channel                                       | 50147     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| emoji_invalid                                                     | 50151     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | feature_not_yet_rolled_out                                        | 50155     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -449,11 +485,25 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | cannot_send_voice_message_to_this_channel                         | 50173     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
+| user_must_be_verified                                             | 50178     | -         |
++-------------------------------------------------------------------+-----------+-----------+
 | invalid_sku_attachment_no_archives                                | 50186     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| file_duration_invalid                                             | 50192     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | invalid_gift_redemption_incorrect_user                            | 50194     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | invalid_activity_launch_incorrect_guild_size                      | 50209     | 25        |
++-------------------------------------------------------------------+-----------+-----------+
+| handler_valid_only_for_primary_entry_points                       | 50227     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| activity_does_not_support_flatform                                | 50231     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| invalid_message_create_game_friend_private_channel                | 50251     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| invalid_message_create_provisional_account_offline                | 50252     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| missing_permissions_to_use_sticker                                | 50600     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | mfa_enabled                                                       | 60001     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -490,6 +540,8 @@ Error Codes
 | relationship_invalid_discord_tag                                  | 80004     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | relationship_already_friends                                      | 80007     | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| relationship_invalid_not_confirmed                                | 80013     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | reaction_blocked                                                  | 90001     | -         |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -553,6 +605,8 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | stage_already_open                                                | 150006    | -         |
 +-------------------------------------------------------------------+-----------+-----------+
+| guild_join_request_user_ineligible                                | 150023    | -         |
++-------------------------------------------------------------------+-----------+-----------+
 | cannot_reply_without_read_message_history_permission              | 160002    | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | message_has_thread                                                | 160004    | -         |
@@ -569,7 +623,7 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | sticker_frame_rate_out_of_expected_range                          | 170006    | ?-400 ms  |
 +-------------------------------------------------------------------+-----------+-----------+
-| sticker_animation_duration_exceeds_five_second                    | 170007    | -         |
+| sticker_animation_duration_exceeds_five_second                    | 170007    | 5s        |
 +-------------------------------------------------------------------+-----------+-----------+
 | poggermode_temporarily_disabled                                   | 170008    | -         |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -614,6 +668,8 @@ Error Codes
 | cannot_enable_onboarding_requirements_not_met                     | 350000    | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | cannot_update_onboarding_requirements_not_met                     | 350001    | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| cannot_remove_read_messages_permission_of_onboarding_channel      | 350003    | -         |
 +-------------------------------------------------------------------+-----------+-----------+
 | guild_limited_access_default                                      | 400000    | -         |
 +-------------------------------------------------------------------+-----------+-----------+
@@ -661,6 +717,14 @@ Error Codes
 +-------------------------------------------------------------------+-----------+-----------+
 | dsa_appeal_request_deflection                                     | 522001    | -         |
 +-------------------------------------------------------------------+-----------+-----------+
+| content_inventory_entry_invalid_permissions                       | 560006    | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| account_revert_invalid_token                                      | 620000    | -         |
++--------------------------------------------'-----------------------+-----------+-----------+
+| account_revert_email_used                                         | 620001    | -         |
++-------------------------------------------------------------------+-----------+-----------+
+| account_revert_account_not_found                                  | 620002    | -         |
++-------------------------------------------------------------------+-----------+-----------+
 """
 unknown_account = 10001
 unknown_application = 10002
@@ -679,6 +743,7 @@ unknown_emoji = 10014
 unknown_webhook = 10015
 unknown_webhook_service = 10016
 unknown_session = 10020
+unknown_asset = 10021
 unknown_approval_form = 10023
 unknown_ban = 10026
 unknown_SKU = 10027
@@ -694,8 +759,10 @@ unknown_team_member = 10040
 unknown_stream = 10049
 unknown_guild_boost_cooldown = 10050
 unknown_guild_template = 10057
+unknown_user_identity_verification = 10058
 unknown_discovery_category = 10059
 unknown_sticker = 10060
+unknown_sticker_pack = 10061
 unknown_interaction = 10062
 unknown_application_command = 10063
 unknown_voice_state = 10065
@@ -706,6 +773,7 @@ unknown_guild_welcome_screen = 10069
 unknown_scheduled_event = 10070
 unknown_scheduled_event_user = 10071
 unknown_tag = 10087
+unknown_sound = 10097
 
 bots_not_allowed = 20001
 only_bots_allowed = 20002
@@ -715,6 +783,7 @@ account_scheduled_for_deletion = 20011
 user_not_authorized_for_application = 20012
 account_disabled = 20013
 rate_limit_slowmode = 20016
+staff_required = 20017
 team_ownership_required = 20018
 rate_limit_announcement_message_edit = 20022
 under_minimum_age = 20024
@@ -757,6 +826,7 @@ max_scheduled_events = 30038
 max_stickers = 30039
 rate_limit_prune = 30040
 rate_limit_widget_update = 30042
+max_soundboard_sounds = 30045
 rate_limit_edit_to_message_older_than_one_hour = 30046
 max_pinned_threads_in_forum_channel = 30047
 max_forum_channel_tags = 30048
@@ -766,16 +836,20 @@ max_webhooks_of_guilds = 30058
 max_blocked_users = 30059
 channels_too_large = 30061
 max_published_product_listing = 30065
+max_saved_messages = 30074
+max_friend_requests = 30078
 rate_limit_resource = 31002
 
 unauthorized = 40001
 email_verification_required = 40002
 rate_limit_private_channel_opening = 40003
 send_message_temporarily_disabled = 40004
-request_too_large = 40005
-feature_disabled = 40006
+message_entity_too_large = 40005
+message_entity_empty = 40006
 user_banned = 40007
 connection_revoked = 40012
+cannot_consume_non_consumable_sku = 40018
+cannot_delete_non_test_entitlement = 40019
 user_in_team = 40024
 team_members_must_be_verified = 40026
 team_invitation_accepted = 40027
@@ -795,6 +869,7 @@ tag_required = 40067
 user_quarantined = 40068
 invites_disabled = 40069
 entitlement_already_granted = 40074
+max_interaction_followup_messages = 40094
 cloudflare_block = 40333
 
 missing_access = 50001
@@ -852,20 +927,25 @@ invalid_thread_notification_setting = 50084
 before_value_earlier_than_creation_time = 50085
 community_and_rules_channel_cannot_be_changed_to_announcement = 50086
 event_entity_type_different_from_the_entitys = 50091
+invalid_gift_redemption_previously_owned = 50092
 invalid_country_code = 50095
 cannot_friend_self = 50096
 guild_monetization_required = 50097
 not_enough_guild_boosters = 50101
 invalid_user_settings_data = 50105
 activity_launch_no_access = 50106
-activity_launch_premium_tier = 50107
+activity_launch_boost_level = 50107
 activity_launch_concurrent_activities = 50108
 invalid_json = 50109
+file_invalid = 50110
+file_type_invalid = 50123
+file_max_duration = 50124
 failed_to_resize_asset_below_max_size = 50138
 cannot_mix_subscription_and_non_subscription_roles_for_an_emoji = 50144
 cannot_convert_emoji_between_premium_and_non_premium = 50145
 upload_file_not_found = 50146
 activity_launch_afk_channel = 50148
+emoji_invalid = 50151
 feature_not_yet_rolled_out = 50155
 voice_message_not_supports_additional_content = 50159
 voice_message_must_have_one_audio_attachment = 50160
@@ -875,9 +955,16 @@ cannot_delete_guild_subscription_integration = 50163
 new_owner_ineligible_for_subscription = 50164
 activity_launch_age_gated = 50165
 cannot_send_voice_message_to_this_channel = 50173
+user_must_be_verified = 50178
 invalid_sku_attachment_no_archives = 50186
+file_duration_invalid = 50192
 invalid_gift_redemption_incorrect_user = 50194
 invalid_activity_launch_incorrect_guild_size = 50209
+handler_valid_only_for_primary_entry_points = 50227
+activity_does_not_support_flatform = 50231
+invalid_message_create_game_friend_private_channel = 50251
+invalid_message_create_provisional_account_offline = 50252
+missing_permissions_to_use_sticker = 50600
 
 mfa_enabled = 60001
 mfa_disabled = 60002
@@ -899,6 +986,7 @@ relationship_invalid_target_bot = 80002
 relationship_invalid_target_self = 80003
 relationship_invalid_discord_tag = 80004
 relationship_already_friends = 80007
+relationship_invalid_not_confirmed = 80013
 
 reaction_blocked = 90001
 user_cannot_burst_react = 90002
@@ -936,6 +1024,7 @@ listing_join_blocked = 120002
 resource_overloaded = 130000
 
 stage_already_open = 150006
+guild_join_request_user_ineligible = 150023
 
 cannot_reply_without_read_message_history_permission = 160002
 message_has_thread = 160004
@@ -978,6 +1067,7 @@ user_limited_access_max = 349999
 
 cannot_enable_onboarding_requirements_not_met = 350000
 cannot_update_onboarding_requirements_not_met = 350001
+cannot_remove_read_messages_permission_of_onboarding_channel = 350003
 
 guild_limited_access_default = 400000
 guild_limited_access_upload = 400001
@@ -1007,17 +1097,16 @@ dsa_rsl_limited_time = 521003
 dsa_rsl_report_ineligible = 521004
 dsa_appeal_request_deflection = 522001
 
+content_inventory_entry_invalid_permissions = 560006
+
+account_revert_invalid_token = 620000
+account_revert_email_used = 620001
+account_revert_account_not_found = 620002
 
 __deprecations__ = {
-    'MFA_enabled': ('mfa_enabled', '2024 April', mfa_enabled),
-    'MFA_disabled': ('mfa_disabled', '2024 April', mfa_disabled),
-    'MFA_required': ('mfa_required', '2024 April', mfa_required),
-    'MFA_unverified': ('mfa_unverified', '2024 April', mfa_unverified),
-    'MFA_invalid_secret': ('mfa_invalid_secret', '2024 April', mfa_invalid_secret),
-    'MFA_invalid_ticket': ('mfa_invalid_ticket', '2024 April', mfa_invalid_ticket),
-    'MFA_invalid_code':  ('mfa_invalid_code', '2024 April', mfa_invalid_code),
-    'MFA_invalid_session': ('mfa_invalid_session', '2024 April', mfa_invalid_session),
-    'invalid_MFA_level': ('invalid_mfa_level', '2024 April', invalid_mfa_level),
+    'activity_launch_premium_tier': ('activity_launch_boost_level', '2025 November', activity_launch_boost_level),
+    'request_too_large': ('request_too_large', '2025 November', message_entity_too_large),
+    'feature_disabled': ('<removed>', '2025 November', 0)
 }
 
 

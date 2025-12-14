@@ -4,7 +4,7 @@ from scarletio import copy_docs
 
 from .base import InteractionMetadataBase
 from .fields import (
-    parse_custom_id, parse_components, put_custom_id_into, put_components_into, validate_custom_id, validate_components
+    parse_custom_id, parse_components, put_custom_id, put_components, validate_custom_id, validate_components
 )
 
 
@@ -14,11 +14,11 @@ class InteractionMetadataFormSubmit(InteractionMetadataBase):
     
     Parameters
     ----------
-    components : `None`, `tuple` of ``InteractionComponent``
+    components : ``None | tuple<InteractionComponent>``
         Submitted component values of a form submit interaction.
     
-    custom_id : `None`, `str`
-        Component or form interaction's custom identifier.
+    custom_id : `None | str`
+        Form interaction's custom identifier.
     """
     __slots__ = ('components', 'custom_id')
     
@@ -33,11 +33,11 @@ class InteractionMetadataFormSubmit(InteractionMetadataBase):
         
         Parameters
         ----------
-        components : `None`, `tuple` of ``InteractionComponent``, Optional (Keyword only)
+        components : ``None | iterable<InteractionComponent>``, Optional (Keyword only)
             Submitted component values of a form submit interaction.
         
-        custom_id : `None`, `str`, Optional (Keyword only)
-            Component or form interaction's custom identifier.
+        custom_id : `None | str`, Optional (Keyword only)
+            Form interaction's custom identifier.
 
         Raises
         ------
@@ -66,6 +66,15 @@ class InteractionMetadataFormSubmit(InteractionMetadataBase):
     
     
     @classmethod
+    @copy_docs(InteractionMetadataBase.from_keyword_parameters)
+    def from_keyword_parameters(cls, keyword_parameters):
+        return cls(
+            components = keyword_parameters.pop('components', ...),
+            custom_id = keyword_parameters.pop('custom_id', ...),
+        )
+    
+    
+    @classmethod
     @copy_docs(InteractionMetadataBase._create_empty)
     def _create_empty(cls):
         self = object.__new__(cls)
@@ -87,7 +96,6 @@ class InteractionMetadataFormSubmit(InteractionMetadataBase):
         return new
     
     
-    
     def copy_with(
         self,
         *,
@@ -99,11 +107,11 @@ class InteractionMetadataFormSubmit(InteractionMetadataBase):
         
         Parameters
         ----------
-        components : `None`, `tuple` of ``InteractionComponent``, Optional (Keyword only)
+        components : ``None | iterable<InteractionComponent>``, Optional (Keyword only)
             Submitted component values of a form submit interaction.
         
-        custom_id : `None`, `str`, Optional (Keyword only)
-            Component or form interaction's custom identifier.
+        custom_id : `None | str`, Optional (Keyword only)
+            Form interaction's custom identifier.
         
         Returns
         -------
@@ -137,6 +145,14 @@ class InteractionMetadataFormSubmit(InteractionMetadataBase):
         return new
     
     
+    @copy_docs(InteractionMetadataBase.copy_with_keyword_parameters)
+    def copy_with_keyword_parameters(self, keyword_parameters):
+        return self.copy_with(
+            components = keyword_parameters.pop('components', ...),
+            custom_id = keyword_parameters.pop('custom_id', ...),
+        )
+    
+    
     @classmethod
     @copy_docs(InteractionMetadataBase.from_data)
     def from_data(cls, data, guild_id = 0):
@@ -149,8 +165,8 @@ class InteractionMetadataFormSubmit(InteractionMetadataBase):
     @copy_docs(InteractionMetadataBase.to_data)
     def to_data(self, *, defaults = False, guild_id = 0):
         data = {}
-        put_components_into(self.components, data, defaults)
-        put_custom_id_into(self.custom_id, data, defaults)
+        put_components(self.components, data, defaults)
+        put_custom_id(self.custom_id, data, defaults)
         return data
     
     
@@ -212,3 +228,18 @@ class InteractionMetadataFormSubmit(InteractionMetadataBase):
             return False
         
         return True
+    
+    
+    @copy_docs(InteractionMetadataBase.iter_components)
+    def iter_components(self):
+        components = self.components
+        if (components is not None):
+            yield from components
+    
+    
+    @copy_docs(InteractionMetadataBase.iter_custom_ids_and_values)
+    def iter_custom_ids_and_values(self):
+        components = self.components
+        if (components is not None):
+            for component in components:
+                yield from component.iter_custom_ids_and_values()

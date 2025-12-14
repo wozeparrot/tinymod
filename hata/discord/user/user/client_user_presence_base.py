@@ -8,13 +8,13 @@ from ...activity import Activity, ActivityType
 
 from ..activity_change import ActivityChange
 from ..activity_update import ActivityUpdate
+from ..status_by_platform import Status, SessionPlatformType
 
 from .client_user_base import ClientUserBase
 from .fields import (
-    parse_activities, parse_status, parse_statuses, validate_activities, validate_status, validate_statuses
+    parse_activities, parse_status, parse_status_by_platform, validate_activities, validate_status, validate_status_by_platform
 )
 from .flags import UserFlag
-from .preinstanced import Status
 
 
 ACTIVITY_TYPE_CUSTOM = ActivityType.custom
@@ -27,46 +27,66 @@ class ClientUserPBase(ClientUserBase):
     
     Attributes
     ----------
-    activities : `None`, `list` of ``Activity``
+    activities : ``None | list<Activity>``
         A list of the client's activities. Defaults to `None`
+    
     avatar_hash : `int`
         The user's avatar's hash in `uint128`.
+    
     avatar_type : ``IconType``
         The user's avatar's type.
-    avatar_decoration : `None`, ``AvatarDecoration``
+    
+    avatar_decoration : ``None | AvatarDecoration``
         The user's avatar decoration.
+    
     banner_color : `None`, ``Color``
         The user's banner color if has any.
+    
     banner_hash : `int`
         The user's banner's hash in `uint128`.
+    
     banner_type : ``IconType``
         The user's banner's type.
+    
     bot : `bool`
         Whether the user is a bot or a user account.
-    clan : `None`, ``UserClan``
-        The user's primary clan.
+    
     discriminator : `int`
         The user's discriminator. Given to avoid overlapping names.
-    display_name : `None`, `str`
+    
+    display_name : `None | str`
         The user's non-unique display name.
+    
     flags : ``UserFlag``
         The user's user flags.
-    guild_profiles : `dict` of (`int`, ``GuildProfile``) items
+    
+    guild_profiles : ``dict<int, GuildProfile>``
         A dictionary, which contains the user's guild profiles. If a user is member of a guild, then it should
         have a respective guild profile accordingly.
+    
     id : `int`
         The user's unique identifier number.
+    
     name : str
         The user's name.
+    
+    name_plate : ``None | NamePlate``
+        The user's name plate.
+    
+    primary_guild_badge : ``None | GuildBadge``
+        The user's primary guild's badge.
+    
     status : `Status`
         The user's display status.
-    statuses : `None`, `dict` of (`str`, `str`) items
-        The user's statuses for each platform.
-    thread_profiles : `None`, `dict` (``Channel``, ``ThreadProfile``) items
+    
+    status_by_platform : ``None | StatusByPlatform``
+        The user's status for each platform.
+    
+    thread_profiles : ``None | dict<int, ThreadProfile>``
         A Dictionary which contains the thread profiles for the user in thread channel - thread profile relation.
         Defaults to `None`.
     """
-    __slots__ = ('activities', 'status', 'statuses')
+    __slots__ = ('activities', 'status', 'status_by_platform')
     
     def __new__(
         cls,
@@ -77,13 +97,14 @@ class ClientUserPBase(ClientUserBase):
         banner = ...,
         banner_color = ...,
         bot = ...,
-        clan = ...,
         discriminator = ...,
         display_name = ...,
         flags = ...,
         name = ...,
+        name_plate = ...,
+        primary_guild_badge = ...,
         status = ...,
-        statuses = ...,
+        status_by_platform = ...,
     ):
         """
         Creates a new partial user with the given fields.
@@ -92,30 +113,45 @@ class ClientUserPBase(ClientUserBase):
         ----------
         activities : `iterable`, `list` of ``Activity``, Optional (Keyword only)
             A list of the client's activities.
-        avatar : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        
+        avatar : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The user's avatar.
-        avatar_decoration : `None`, ``AvatarDecoration``, Optional (Keyword only)
+        
+        avatar_decoration : ``None | AvatarDecoration``, Optional (Keyword only)
             The user's avatar decoration.
-        banner : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        
+        banner : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The user's banner.
+        
         banner_color : `None`, ``Color``, `int`, Optional (Keyword only)
             The user's banner color.
-        clan : `None`, ``UserClan``, Optional (Keyword only)
-            The user's primary clan.
+        
         bot : `bool`, Optional (Keyword only)
             Whether the user is a bot or a user account.
+        
         discriminator : `str`, `int`, Optional (Keyword only)
             The user's discriminator.
-        display_name : `None`, `str`, Optional (Keyword only)
+        
+        display_name : `None | str`, Optional (Keyword only)
             The user's non-unique display name.
+        
         flags : `int`, ``UserFlag``, Optional (Keyword only)
             The user's flags.
+        
         name : `str`, Optional (Keyword only)
             The user's name.
+        
+        name_plate : ``None | NamePlate``, Optional (Keyword only)
+            The user's name plate.
+        
+        primary_guild_badge : ``None | GuildBadge``, Optional (Keyword only)
+            The user's primary guild's badge.
+        
         status : `Status`, `str`, Optional (Keyword only)
             The user's display status.
-        statuses : `None`, `dict` of (`str`, `str`) items, Optional (Keyword only)
-            The user's statuses for each platform.
+        
+        status_by_platform : ``None | StatusByPlatform``, Optional (Keyword only)
+            The user's status for each platform.
         
         Returns
         -------
@@ -140,11 +176,11 @@ class ClientUserPBase(ClientUserBase):
         else:
             status = validate_status(status)
         
-        # statuses
-        if statuses is ...:
-            statuses = None
+        # status_by_platform
+        if status_by_platform is ...:
+            status_by_platform = None
         else:
-            statuses = validate_statuses(statuses)
+            status_by_platform = validate_status_by_platform(status_by_platform)
         
         self = ClientUserBase.__new__(
             cls,
@@ -153,16 +189,17 @@ class ClientUserPBase(ClientUserBase):
             banner = banner,
             banner_color = banner_color,
             bot = bot,
-            clan = clan,
             discriminator = discriminator,
             display_name = display_name,
             flags = flags,
             name = name,
+            name_plate = name_plate,
+            primary_guild_badge = primary_guild_badge,
         )
         
         self.activities = activities
         self.status = status
-        self.statuses = statuses
+        self.status_by_platform = status_by_platform
         return self
         
     
@@ -180,11 +217,11 @@ class ClientUserPBase(ClientUserBase):
         # status
         self.status = client.status
         
-        # statuses
-        statuses = client.statuses
-        if (statuses is not None):
-            statuses = statuses.copy()
-        self.statuses = statuses
+        # status_by_platform
+        status_by_platform = client.status_by_platform
+        if (status_by_platform is not None):
+            status_by_platform = status_by_platform.copy()
+        self.status_by_platform = status_by_platform
         
         return self
     
@@ -194,7 +231,7 @@ class ClientUserPBase(ClientUserBase):
         ClientUserBase._set_default_attributes(self)
         
         self.status = Status.offline
-        self.statuses = None
+        self.status_by_platform = None
         self.activities = None
     
     
@@ -202,17 +239,17 @@ class ClientUserPBase(ClientUserBase):
     def _update_presence(self, data):
         self.activities = parse_activities(data)
         self.status = parse_status(data)
-        self.statuses = parse_statuses(data)
+        self.status_by_platform = parse_status_by_platform(data)
     
     
     @copy_docs(ClientUserBase._difference_update_presence)
     def _difference_update_presence(self, data):
         old_attributes = {}
         
-        statuses = parse_statuses(data)
-        if self.statuses != statuses:
-            old_attributes['statuses'] = self.statuses
-            self.statuses = statuses
+        status_by_platform = parse_status_by_platform(data)
+        if self.status_by_platform != status_by_platform:
+            old_attributes['status_by_platform'] = self.status_by_platform
+            self.status_by_platform = status_by_platform
             
         status = parse_status(data)
         if self.status is not status:
@@ -318,11 +355,11 @@ class ClientUserPBase(ClientUserBase):
         # status
         new.status = self.status
         
-        # statuses
-        statuses = self.statuses
-        if (statuses is not None):
-            statuses = statuses.copy()
-        new.statuses = statuses
+        # status_by_platform
+        status_by_platform = self.status_by_platform
+        if (status_by_platform is not None):
+            status_by_platform = status_by_platform.copy()
+        new.status_by_platform = status_by_platform
         
         return new
     
@@ -336,13 +373,14 @@ class ClientUserPBase(ClientUserBase):
         banner = ...,
         banner_color = ...,
         bot = ...,
-        clan = ...,
         discriminator = ...,
         display_name = ...,
         flags = ...,
         name = ...,
+        name_plate = ...,
+        primary_guild_badge = ...,
         status = ...,
-        statuses = ...,
+        status_by_platform = ...,
     ):
         """
         Copies the user with the given fields.
@@ -351,30 +389,45 @@ class ClientUserPBase(ClientUserBase):
         ----------
         activities : `iterable`, `list` of ``Activity``, Optional (Keyword only)
             A list of the client's activities.
-        avatar : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        
+        avatar : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The user's avatar.
-        avatar_decoration : `None`, ``AvatarDecoration``, Optional (Keyword only)
+        
+        avatar_decoration : ``None | AvatarDecoration``, Optional (Keyword only)
             The user's avatar decoration.
-        banner : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        
+        banner : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The user's banner.
+        
         banner_color : `None`, ``Color``, `int`, Optional (Keyword only)
             The user's banner color.
+        
         bot : `bool`, Optional (Keyword only)
             Whether the user is a bot or a user account.
-        clan : `None`, ``UserClan``, Optional (Keyword only)
-            The user's primary clan.
+        
         discriminator : `str`, `int`, Optional (Keyword only)
             The user's discriminator.
-        display_name : `None`, `str`, Optional (Keyword only)
+        
+        display_name : `None | str`, Optional (Keyword only)
             The user's non-unique display name.
+        
         flags : `int`, ``UserFlag``, Optional (Keyword only)
             The user's flags.
+        
         name : `str`, Optional (Keyword only)
             The user's name.
+        
+        name_plate : ``None | NamePlate``, Optional (Keyword only)
+            The user's name plate.
+        
+        primary_guild_badge : ``None | GuildBadge``, Optional (Keyword only)
+            The user's primary guild's badge.
+        
         status : `Status`, `str`, Optional (Keyword only)
             The user's display status.
-        statuses : `None`, `dict` of (`str`, `str`) items, Optional (Keyword only)
-            The user's statuses for each platform.
+        
+        status_by_platform : ``None | StatusByPlatform``, Optional (Keyword only)
+            The user's status for each platform.
         
         Returns
         -------
@@ -401,13 +454,13 @@ class ClientUserPBase(ClientUserBase):
         else:
             status = validate_status(status)
         
-        # statuses
-        if statuses is ...:
-            statuses = self.statuses
-            if (statuses is not None):
-                statuses = statuses.copy()
+        # status_by_platform
+        if status_by_platform is ...:
+            status_by_platform = self.status_by_platform
+            if (status_by_platform is not None):
+                status_by_platform = status_by_platform.copy()
         else:
-            statuses = validate_statuses(statuses)
+            status_by_platform = validate_status_by_platform(status_by_platform)
         
         new = ClientUserBase.copy_with(
             self,
@@ -416,16 +469,17 @@ class ClientUserPBase(ClientUserBase):
             banner = banner,
             banner_color = banner_color,
             bot = bot,
-            clan = clan,
             discriminator = discriminator,
             display_name = display_name,
             flags = flags,
             name = name,
+            name_plate = name_plate,
+            primary_guild_badge = primary_guild_badge,
         )
         
         new.activities = activities
         new.status = status
-        new.statuses = statuses
+        new.status_by_platform = status_by_platform
         return new
     
     
@@ -444,10 +498,10 @@ class ClientUserPBase(ClientUserBase):
         # status
         hash_value ^= hash(self.status)
         
-        # statuses
-        statuses = self.statuses
-        if (statuses is not None):
-            hash_value ^= hash(tuple(statuses.items()))
+        # status_by_platform
+        status_by_platform = self.status_by_platform
+        if (status_by_platform is not None):
+            hash_value ^= hash(status_by_platform)
         
         return hash_value
     
@@ -487,25 +541,20 @@ class ClientUserPBase(ClientUserBase):
     @property
     @copy_docs(ClientUserBase.platform)
     def platform(self):
-        statuses = self.statuses
-        if (statuses is not None):
-            actual_status_value = self.status.value
-            for platform, status_value in statuses.items():
-                if actual_status_value == status_value:
+        status_by_platform = self.status_by_platform
+        if (status_by_platform is not None):
+            actual_status = self.status
+            for platform, status in status_by_platform.iter_status_by_platform():
+                if actual_status is status:
                     return platform
         
-        return ''
+        return SessionPlatformType.none
     
     
     @copy_docs(ClientUserBase.get_status_by_platform)
     def get_status_by_platform(self, platform):
-        statuses = self.statuses
-        if (statuses is not None):
-            try:
-                status_value = statuses[platform]
-            except KeyError:
-                pass
-            else:
-                return Status.get(status_value)
+        status_by_platform = self.status_by_platform
+        if (status_by_platform is not None):
+            return status_by_platform[platform]
         
         return Status.offline

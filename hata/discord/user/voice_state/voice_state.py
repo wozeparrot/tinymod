@@ -8,9 +8,9 @@ from ..user import create_partial_user_from_id
 
 from .fields import (
     parse_channel_id, parse_deaf, parse_mute, parse_requested_to_speak_at, parse_self_deaf, parse_self_mute,
-    parse_self_stream, parse_self_video, parse_session_id, parse_speaker, parse_user_id, put_channel_id_into,
-    put_deaf_into, put_mute_into, put_requested_to_speak_at_into, put_self_deaf_into, put_self_mute_into,
-    put_self_stream_into, put_self_video_into, put_session_id_into, put_speaker_into, put_user_id_into,
+    parse_self_stream, parse_self_video, parse_session_id, parse_speaker, parse_user_id, put_channel_id,
+    put_deaf, put_mute, put_requested_to_speak_at, put_self_deaf, put_self_mute,
+    put_self_stream, put_self_video, put_session_id, put_speaker, put_user_id,
     validate_channel_id, validate_deaf, validate_guild_id, validate_mute, validate_requested_to_speak_at,
     validate_self_deaf, validate_self_mute, validate_self_stream, validate_self_video, validate_session_id,
     validate_speaker, validate_user_id
@@ -38,7 +38,7 @@ class VoiceState(RichAttributeErrorBaseType):
         The guild's identifier where the user is connected to.
     mute : `bool`
         Whether the user is muted.
-    requested_to_speak_at : `None`, `datetime`
+    requested_to_speak_at : `None | DateTime`
         When the user requested to speak.
         
         Only applicable in stage channels.
@@ -96,7 +96,7 @@ class VoiceState(RichAttributeErrorBaseType):
             The guild's identifier where the user is connected to.
         mute : `bool`, Optional (Keyword only)
             Whether the user is muted.
-        requested_to_speak_at : `None`, `datetime`, Optional (Keyword only)
+        requested_to_speak_at : `None | DateTime`, Optional (Keyword only)
             When the user requested to speak.
         self_deaf : `bool`, Optional (Keyword only)
             Whether the user muted everyone else.
@@ -217,7 +217,7 @@ class VoiceState(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Voice state data.
         guild_id : `int`
             The voice state's guild's identifier.
@@ -237,10 +237,12 @@ class VoiceState(RichAttributeErrorBaseType):
         if strong_cache:
             guild = GUILDS.get(guild_id, None)
             if (guild is not None):
-                try:
-                    return guild.voice_states[user_id]
-                except KeyError:
-                    pass
+                voice_states = guild.voice_states
+                if (voice_states is not None):
+                    try:
+                        return voice_states[user_id]
+                    except KeyError:
+                        pass
         
         self = object.__new__(cls)
         self._cache_user = None
@@ -259,7 +261,11 @@ class VoiceState(RichAttributeErrorBaseType):
         
         if strong_cache:
             if (guild is not None):
-                guild.voice_states[user_id] = self
+                if voice_states is None:
+                    voice_states = {}
+                    guild.voice_states = voice_states
+                
+                voice_states[user_id] = self
         
         return self
     
@@ -275,20 +281,20 @@ class VoiceState(RichAttributeErrorBaseType):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
-        put_channel_id_into(self.channel_id, data, defaults)
-        put_deaf_into(self.deaf, data, defaults)
-        put_mute_into(self.mute, data, defaults)
-        put_requested_to_speak_at_into(self.requested_to_speak_at, data, defaults)
-        put_self_deaf_into(self.self_deaf, data, defaults)
-        put_self_mute_into(self.self_mute, data, defaults)
-        put_self_stream_into(self.self_stream, data, defaults)
-        put_self_video_into(self.self_video, data, defaults)
-        put_session_id_into(self.session_id, data, defaults)
-        put_speaker_into(self.speaker, data, defaults)
-        put_user_id_into(self.user_id, data, defaults)
+        put_channel_id(self.channel_id, data, defaults)
+        put_deaf(self.deaf, data, defaults)
+        put_mute(self.mute, data, defaults)
+        put_requested_to_speak_at(self.requested_to_speak_at, data, defaults)
+        put_self_deaf(self.self_deaf, data, defaults)
+        put_self_mute(self.self_mute, data, defaults)
+        put_self_stream(self.self_stream, data, defaults)
+        put_self_video(self.self_video, data, defaults)
+        put_session_id(self.session_id, data, defaults)
+        put_speaker(self.speaker, data, defaults)
+        put_user_id(self.user_id, data, defaults)
         return data
     
     
@@ -298,7 +304,7 @@ class VoiceState(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Voice state data.
         """
         self.deaf = parse_deaf(data)
@@ -318,12 +324,12 @@ class VoiceState(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Voice state data.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dictionary is optional.
         
         Returned Data Structure
@@ -336,7 +342,7 @@ class VoiceState(RichAttributeErrorBaseType):
         +-----------------------+-----------------------+
         | mute                  | `bool`                |
         +-----------------------+-----------------------+
-        | requested_to_speak_at | `None`, `datetime`    |
+        | requested_to_speak_at | `None | DateTime`     |
         +-----------------------+-----------------------+
         | self_deaf             | `bool`                |
         +-----------------------+-----------------------+
@@ -400,7 +406,7 @@ class VoiceState(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Voice state data.
         
         Returns
@@ -417,10 +423,15 @@ class VoiceState(RichAttributeErrorBaseType):
             except KeyError:
                 pass
             else:
-                try:
-                    del guild.voice_states[self.user_id]
-                except KeyError:
-                    pass
+                voice_states = guild.voice_states
+                if (voice_states is not None):
+                    try:
+                        del voice_states[self.user_id]
+                    except KeyError:
+                        pass
+                    else:
+                        if not voice_states:
+                            guild.voice_states = None
         
         old_channel_id = self.channel_id
         self.channel_id = new_channel_id
@@ -605,7 +616,7 @@ class VoiceState(RichAttributeErrorBaseType):
             The guild's identifier where the user is connected to.
         mute : `bool`, Optional (Keyword only)
             Whether the user is muted.
-        requested_to_speak_at : `None`, `datetime`, Optional (Keyword only)
+        requested_to_speak_at : `None | DateTime`, Optional (Keyword only)
             When the user requested to speak.
         self_deaf : `bool`, Optional (Keyword only)
             Whether the user muted everyone else.
@@ -771,6 +782,6 @@ class VoiceState(RichAttributeErrorBaseType):
         
         Returns
         -------
-        guild : `None`, ``Guild``
+        guild : ``None | Guild``
         """
         return GUILDS.get(self.guild_id, None)

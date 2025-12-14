@@ -11,7 +11,7 @@ from ...channel.permission_overwrite.utils import (
 )
 from ...channel.forum_tag.utils import FORUM_TAG_FIELD_CONVERTERS
 from ...channel.channel_metadata.fields import (
-    put_status_into as put_channel_status_into, validate_status as validate_channel_status
+    put_status as put_channel_status, validate_status as validate_channel_status
 )
 from ...guild import Guild, create_partial_guild_from_id
 from ...http import DiscordApiClient
@@ -54,7 +54,7 @@ def _forum_tag_data_array_sort_key(forum_tag_data):
     
     Parameters
     ----------
-    forum_tag_data : `dict` of (`str`, `object`) items
+    forum_tag_data : `dict<str, object>`
         Forum tag data.
     
     Returns
@@ -176,7 +176,7 @@ class ClientCompoundChannelEndpoints(Compound):
         channel : ``Channel``, `int`
             The channel to edit.
         
-        channel_template : `None`, ``Channel`` = `None`, Optional
+        channel_template : ``None | Channel`` = `None`, Optional
             A channel to use as a template.
         
         **keyword_parameters : Keyword parameters
@@ -331,7 +331,7 @@ class ClientCompoundChannelEndpoints(Compound):
             The channel to be moved.
         visual_position : `int`
             The visual position where the channel should go.
-        parent : `None`, ``Channel``, Optional (Keyword only)
+        parent : ``None | Channel``, Optional (Keyword only)
             If not set, then the channel will keep it's current parent. If the parameter is set ``Guild`` or to
             `None`, then the  channel will be moved under the guild itself, Or if passed as ``Channel``,
             then the channel will be moved under it.
@@ -347,7 +347,7 @@ class ClientCompoundChannelEndpoints(Compound):
             - If parent channel would be moved under an other category.
         TypeError
             - If `channel` was isn ot movable.
-            - If `parent` was not given as `None`, ``Channel``.
+            - If `parent` was not given as ``None | Channel``.
         ConnectionError
             No internet connection.
         DiscordException
@@ -550,7 +550,7 @@ class ClientCompoundChannelEndpoints(Compound):
         channel : ``Channel``, `int`
             The channel to edit.
         
-        channel_template : `None`, ``Channel`` = `None`, Optional
+        channel_template : ``None | Channel`` = `None`, Optional
             A channel to use as a template.
         
         reason : `None`, `str` = `None`, Optional (Keyword only)
@@ -579,7 +579,7 @@ class ClientCompoundChannelEndpoints(Compound):
         default_thread_auto_archive_after : `int`, Optional (Keyword only)
             The default duration (in seconds) for newly created threads to automatically archive the themselves.
         
-        default_thread_reaction_emoji : `None`, ``Emoji``, Optional (Keyword only)
+        default_thread_reaction_emoji : ``None | Emoji``, Optional (Keyword only)
             The emoji to show in the add reaction button on a thread of the forum channel.
                 
         default_thread_slowmode : `int`, Optional (Keyword only)
@@ -597,7 +597,7 @@ class ClientCompoundChannelEndpoints(Compound):
         open_ : `bool`, Optional (Keyword only)
             Whether the thread channel is open.
         
-        parent_id : `None`, `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
         
         permission_overwrites : `None`, list` of ``PermissionOverwrite``, Optional (Keyword only)
@@ -606,7 +606,7 @@ class ClientCompoundChannelEndpoints(Compound):
         position : `int`, Optional (Keyword only)
             The channel's position.
         
-        region : `None`, ``VoiceRegion``, `str`, Optional (Keyword only)
+        region : ``None | str | VoiceRegion``, Optional (Keyword only)
             The channel's voice region.
         
         slowmode : `int`, Optional (Keyword only)
@@ -666,7 +666,7 @@ class ClientCompoundChannelEndpoints(Compound):
             If any exception was received from the Discord API.
         """
         channel_id = get_channel_id(channel, Channel.is_guild_voice)
-        data = put_channel_status_into(validate_channel_status(status), {}, True)
+        data = put_channel_status(validate_channel_status(status), {}, True)
         await self.api.channel_edit(channel_id, data, reason)
     
     
@@ -685,10 +685,10 @@ class ClientCompoundChannelEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild where the channel will be created.
         
-        channel_template : `None`, ``Channel`` = `None`, Optional
+        channel_template : ``None | Channel`` = `None`, Optional
             Channel entity to use as a template.
         
         reason : `None`, `str` = `None`, Optional (Keyword only)
@@ -711,7 +711,7 @@ class ClientCompoundChannelEndpoints(Compound):
         default_thread_auto_archive_after : `int`, Optional (Keyword only)
             The default duration (in seconds) for newly created threads to automatically archive the themselves.
         
-        default_thread_reaction_emoji : `None`, ``Emoji``, Optional (Keyword only)
+        default_thread_reaction_emoji : ``None | Emoji``, Optional (Keyword only)
             The emoji to show in the add reaction button on a thread of the forum channel.
                 
         default_thread_slowmode : `int`, Optional (Keyword only)
@@ -729,7 +729,7 @@ class ClientCompoundChannelEndpoints(Compound):
         nsfw : `bool`, Optional (Keyword only)
             Whether the channel is marked as non safe for work.
         
-        parent_id : `None`, `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
         
         permission_overwrites : `None`, list` of ``PermissionOverwrite``, Optional (Keyword only)
@@ -738,7 +738,7 @@ class ClientCompoundChannelEndpoints(Compound):
         position : `int`, Optional (Keyword only)
             The channel's position.
         
-        region : `None`, ``VoiceRegion``, `str`, Optional (Keyword only)
+        region : ``None | str | VoiceRegion``, Optional (Keyword only)
             The channel's voice region.
         
         slowmode : `int`, Optional (Keyword only)
@@ -1003,6 +1003,58 @@ class ClientCompoundChannelEndpoints(Compound):
         return PermissionOverwrite.from_data(data)
     
     
+    async def channel_get(self, channel, *, force_update = False):
+        """
+        Requests the given channel and returns it.
+        
+        This method is a coroutine.
+        
+        Parameters
+        ----------
+        channel : ``Channel``, `int`
+            The channel or its identifier to get.
+        
+        force_update : `bool` = `False`, Optional (Keyword only)
+            Whether the channel should be requested even if it supposed to be up to date.
+        
+        Returns
+        -------
+        channel : ``Channel``
+        
+        Raises
+        ------
+        TypeError
+            If `channel` was not given as ``Channel``, nor as `int`.
+        ConnectionError
+            No internet connection.
+        DiscordException
+            If any exception was received from the Discord API.
+        """
+        channel, channel_id = get_channel_and_id(channel)
+        
+        # a goto to check whether we should force update the channel.
+        while True:
+            if force_update:
+                break
+            
+            if channel is None:
+                break
+            
+            if not channel.partial:
+                return channel
+            
+            break
+        
+        data = await self.api.channel_get(channel_id)
+        
+        if channel is None:
+            channel = Channel.from_data(data, self)
+        else:
+            channel._update_attributes(data)
+        
+        return channel
+    
+    
     async def guild_channel_get_all(self, guild):
         """
         Requests the given guild's channels and if there any de-sync between the wrapper and Discord, applies the
@@ -1012,7 +1064,7 @@ class ClientCompoundChannelEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, what's channels will be requested.
         
         Returns
@@ -1061,7 +1113,7 @@ class ClientCompoundChannelEndpoints(Compound):
         
         Other Parameters
         ----------------
-        emoji : `None`, ``Emoji``, Optional (Keyword only)
+        emoji : ``None | Emoji``, Optional (Keyword only)
             The tag's emoji.
             
         moderated : `bool`, Optional (Keyword only)
@@ -1153,7 +1205,7 @@ class ClientCompoundChannelEndpoints(Compound):
         
         Other Parameters
         ----------------
-        emoji : `None`, ``Emoji``, Optional (Keyword only)
+        emoji : ``None | Emoji``, Optional (Keyword only)
             The tag's emoji.
             
         moderated : `bool`, Optional (Keyword only)

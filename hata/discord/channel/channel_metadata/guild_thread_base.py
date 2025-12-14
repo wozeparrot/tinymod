@@ -9,8 +9,8 @@ from ...utils import id_to_datetime
 from .constants import AUTO_ARCHIVE_DEFAULT, SLOWMODE_DEFAULT
 from .fields import (
     parse_archived, parse_archived_at, parse_auto_archive_after, parse_created_at, parse_open, parse_owner_id,
-    parse_slowmode, put_archived_at_into, put_archived_into, put_auto_archive_after_into, put_created_at_into,
-    put_open_into, put_owner_id_into, put_slowmode_into, validate_archived, validate_archived_at,
+    parse_slowmode, put_archived_at, put_archived, put_auto_archive_after, put_created_at,
+    put_open, put_owner_id, put_slowmode, validate_archived, validate_archived_at,
     validate_auto_archive_after, validate_created_at, validate_open, validate_owner_id, validate_slowmode
 )
 
@@ -23,13 +23,13 @@ class ChannelMetadataGuildThreadBase(ChannelMetadataGuildBase):
     
     Attributes
     ----------
-    _created_at : `None`, `datetime`
+    _created_at : `None | DateTime`
         When the channel was created.
-    _cache_permission : `None`, `dict` of (`int`, ``Permission``) items
+    _cache_permission : ``None | dict<int, Permission>``
         A `user_id` to ``Permission`` relation mapping for caching permissions. Defaults to `None`.
     archived : `bool`
         Whether the thread is archived.
-    archived_at : `None`, `datetime`
+    archived_at : `None | DateTime`
         When the thread's archive status was last changed.
     auto_archive_after : `int`
         Duration in seconds to automatically archive the thread after recent activity. Can be one of: `3600`, `86400`,
@@ -78,15 +78,15 @@ class ChannelMetadataGuildThreadBase(ChannelMetadataGuildBase):
         ----------
         archived : `bool`, Optional (Keyword only)
             Whether the thread is archived.
-        archived_at : `None`, `datetime`, Optional (Keyword only)
+        archived_at : `None | DateTime`, Optional (Keyword only)
             When the thread's archive status was last changed.
         auto_archive_after : `int`, Optional (Keyword only)
             Duration in seconds to automatically archive the thread after recent activity.
-        created_at : `None`, `datetime`, Optional (Keyword only)
+        created_at : `None | DateTime`, Optional (Keyword only)
             When the channel was created.
         name : `str`, Optional (Keyword only)
             The channel's name.
-        parent_id : `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
         open : `bool`, Optional (Keyword only)
             Whether the thread channel is open.
@@ -229,7 +229,12 @@ class ChannelMetadataGuildThreadBase(ChannelMetadataGuildBase):
             except KeyError:
                 pass
             else:
-                guild.threads[channel_entity.id] = channel_entity
+                threads = guild.threads
+                if (threads is None):
+                    threads = {}
+                    guild.threads = threads
+                
+                threads[channel_entity.id] = channel_entity
     
     
     @copy_docs(ChannelMetadataGuildBase._is_equal_same_type)
@@ -322,15 +327,15 @@ class ChannelMetadataGuildThreadBase(ChannelMetadataGuildBase):
         ----------
         archived : `bool`, Optional (Keyword only)
             Whether the thread is archived.
-        archived_at : `None`, `datetime`, Optional (Keyword only)
+        archived_at : `None | DateTime`, Optional (Keyword only)
             When the thread's archive status was last changed.
         auto_archive_after : `int`, Optional (Keyword only)
             Duration in seconds to automatically archive the thread after recent activity.
-        created_at : `None`, `datetime`, Optional (Keyword only)
+        created_at : `None | DateTime`, Optional (Keyword only)
             When the channel was created.
         name : `str`, Optional (Keyword only)
             The channel's name.
-        parent_id : `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
         open : `bool`, Optional (Keyword only)
             Whether the thread channel is open.
@@ -516,10 +521,15 @@ class ChannelMetadataGuildThreadBase(ChannelMetadataGuildBase):
         except KeyError:
             pass
         else:
-            try:
-                del guild.threads[channel_entity.id]
-            except KeyError:
-                pass
+            threads = guild.threads
+            if (threads is not None):
+                try:
+                    del threads[channel_entity.id]
+                except KeyError:
+                    pass
+                else:
+                    if not threads:
+                        guild.threads = None
         
         thread_users = self.thread_users
         if (thread_users is not None):
@@ -563,29 +573,29 @@ class ChannelMetadataGuildThreadBase(ChannelMetadataGuildBase):
         
         # archived
         if include_internals:
-            put_archived_into(self.archived, data, defaults)
+            put_archived(self.archived, data, defaults)
         
         # archived_at
         if include_internals:
-            put_archived_at_into(self.archived_at, data, defaults)
+            put_archived_at(self.archived_at, data, defaults)
         
         # auto_archive_after
-        put_auto_archive_after_into(
+        put_auto_archive_after(
             self.auto_archive_after, data, defaults, flatten_thread_metadata = not include_internals
         )
         
         # created_at
         if include_internals:
-            put_created_at_into(self._created_at, data, defaults)
+            put_created_at(self._created_at, data, defaults)
         
         # open
-        put_open_into(self.open, data, defaults, flatten_thread_metadata = not include_internals)
+        put_open(self.open, data, defaults, flatten_thread_metadata = not include_internals)
         
         # owner_id
         if include_internals:
-            put_owner_id_into(self.owner_id, data, defaults)
+            put_owner_id(self.owner_id, data, defaults)
         
         # slowmode
-        put_slowmode_into(self.slowmode, data, defaults)
+        put_slowmode(self.slowmode, data, defaults)
         
         return data

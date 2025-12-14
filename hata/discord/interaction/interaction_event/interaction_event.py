@@ -6,17 +6,24 @@ from scarletio import Future, copy_docs, export, include, shield
 
 from ...bases import DiscordEntity, EventBase
 from ...channel import Channel, ChannelType, create_partial_channel_from_id
+from ...component import ComponentType
 from ...core import (
     APPLICATION_ID_TO_CLIENT, INTERACTION_EVENT_MESSAGE_WAITERS, INTERACTION_EVENT_RESPONSE_WAITERS, KOKORO
 )
+from ...guild.guild.guild_boost_perks import LEVEL_0
 from ...localization.utils import LOCALE_DEFAULT
 from ...message import Message
 from ...permission import Permission
 from ...precreate_helpers import process_precreate_parameters, raise_extra
-from ...user import ClientUserBase, ZEROUSER
+from ...resolved import Resolved
+from ...user import ClientUserBase, ZEROUSER, create_partial_user_from_id
 from ...utils import now_as_id
 
 from ..interaction_metadata import InteractionMetadataBase
+from ..interaction_metadata.fields import (
+    validate_application_command_id, validate_application_command_name, validate_component, validate_components,
+    validate_custom_id, validate_options, validate_target_id, validate_target_type
+)
 from ..responding.constants import (
     RESPONSE_FLAG_ACKNOWLEDGED, RESPONSE_FLAG_ACKNOWLEDGING, RESPONSE_FLAG_DEFERRED, RESPONSE_FLAG_DEFERRING,
     RESPONSE_FLAG_EPHEMERAL, RESPONSE_FLAG_NONE, RESPONSE_FLAG_RESPONDED, RESPONSE_FLAG_RESPONDING
@@ -24,12 +31,13 @@ from ..responding.constants import (
 
 from .constants import DEFAULT_INTERACTION_METADATA, INTERACTION_EVENT_EXPIRE_AFTER_ID_DIFFERENCE
 from .fields import (
-    parse_application_id, parse_application_permissions, parse_channel, parse_entitlements, parse_guild, parse_id,
-    parse_message, parse_token, parse_type, parse_user, parse_user_locale, parse_user_permissions,
-    put_application_id_into, put_application_permissions_into, put_channel_into, put_entitlements_into, put_guild_into,
-    put_id_into, put_message_into, put_token_into, put_type_into, put_user_into, put_user_locale_into,
-    put_user_permissions_into, validate_application_id, validate_application_permissions, validate_channel,
-    validate_entitlements, validate_guild, validate_guild_id, validate_id, validate_interaction, validate_message,
+    parse_application_id, parse_application_permissions, parse_attachment_size_limit, parse_authorizer_user_ids,
+    parse_channel, parse_entitlements, parse_guild, parse_id, parse_message, parse_resolved, parse_token, parse_type,
+    parse_user, parse_user_locale, parse_user_permissions, put_application_id, put_application_permissions,
+    put_attachment_size_limit, put_authorizer_user_ids, put_channel, put_entitlements, put_guild, put_id, put_message,
+    put_resolved, put_token, put_type, put_user, put_user_locale, put_user_permissions, validate_application_id,
+    validate_application_permissions, validate_attachment_size_limit, validate_authorizer_user_ids, validate_channel,
+    validate_entitlements, validate_guild, validate_id, validate_interaction, validate_message, validate_resolved,
     validate_token, validate_type, validate_user, validate_user_locale, validate_user_permissions
 )
 from .preinstanced import InteractionType
@@ -40,18 +48,42 @@ create_partial_guild_from_id = include('create_partial_guild_from_id')
 
 
 PRECREATE_FIELDS = {
+    'attachment_size_limit': ('attachment_size_limit', validate_attachment_size_limit),
     'application': ('application_id', validate_application_id),
     'application_id': ('application_id', validate_application_id),
     'application_permissions': ('application_permissions', validate_application_permissions),
+    'authorizer_user_ids': ('authorizer_user_ids', validate_authorizer_user_ids),
     'channel': ('channel', validate_channel),
     'entitlements': ('entitlements', validate_entitlements),
     'guild': ('guild', validate_guild),
     'user_locale': ('user_locale', validate_user_locale),
     'message': ('message', validate_message),
+    'resolved': ('resolved', validate_resolved),
     'token': ('token', validate_token),
     'user': ('user', validate_user),
     'user_permissions': ('user_permissions', validate_user_permissions),
 }
+
+
+def _unpack_interaction_metadata_into_keyword_parameters(interaction_type, interaction_metadata, keyword_parameters):
+    if interaction_type is InteractionType.application_command:
+        keyword_parameters['application_command_id'] = interaction_metadata.application_command_id
+        keyword_parameters['application_command_name'] = interaction_metadata.application_command_name
+        keyword_parameters['options'] = interaction_metadata.options
+        keyword_parameters['target_id'] = interaction_metadata.target_id
+        keyword_parameters['target_type'] = interaction_metadata.target_type
+        
+    elif interaction_type is InteractionType.message_component:
+        keyword_parameters['component'] = interaction_metadata.component
+        
+    elif interaction_type is InteractionType.application_command_autocomplete:
+        keyword_parameters['application_command_id'] = interaction_metadata.application_command_id
+        keyword_parameters['application_command_name'] = interaction_metadata.application_command_name
+        keyword_parameters['options'] = interaction_metadata.options
+        
+    elif interaction_type is InteractionType.form_submit:
+        keyword_parameters['components'] = interaction_metadata.components
+        keyword_parameters['custom_id'] = interaction_metadata.custom_id
 
 
 @export
@@ -94,21 +126,30 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
     application_permissions : ``Permission``
         The permissions granted to the application in the guild.
     
-    entitlements : `None`, `tuple` of ``Entitlement``
+    attachment_size_limit : `int`
+        The size limit in bytes for each attachment.
+    
+    authorizer_user_ids : `None | dict<ApplicationIntegrationType, int>`
+        The users' identifier who authorized the integration.
+    
+    entitlements : ``None | tuple<Entitlement>``
         The applicable entitlements for the event's context.
         These can both target guild and user as well.
     
     channel : ``Channel``
         The channel from where the interaction was called.
     
-    guild : `None`, ``Guild``
+    guild : ``None | Guild``
         The guild from where the interaction was called from.
     
-    interaction : ``InteractionMetadataBase``
-        Contain additional details of the interaction.
-    
-    message : `None`, ``Message``
+    message : ``None | Message``
         The message from where the interaction was received. Applicable for message components.
+    
+    metadata : ``InteractionMetadataBase``
+        Interaction metadata containing its type specific fields.
+    
+    resolved : ``None | Resolved``
+        Contains the received entities.
     
     token : `str`
         Interaction's token used when responding on it.
@@ -133,8 +174,9 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
     Interaction event instances are weakreferable.
     """
     __slots__ = (
-        '_async_task', '_response_flags', 'application_id', 'application_permissions', 'entitlements', 'channel',
-        'guild', 'interaction', 'message', 'token', 'type', 'user', 'user_locale', 'user_permissions'
+        '_async_task', '_response_flags', 'application_id', 'application_permissions', 'attachment_size_limit',
+        'authorizer_user_ids', 'entitlements', 'channel', 'guild', 'message', 'metadata', 'resolved', 'token',
+        'type', 'user', 'user_locale', 'user_permissions',
     )
     
     def __new__(
@@ -142,20 +184,22 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         *,
         application_id = ...,
         application_permissions = ...,
+        attachment_size_limit = ...,
+        authorizer_user_ids = ...,
         channel = ...,
-        channel_id = ...,
         entitlements = ...,
         guild = ...,
-        guild_id = ...,
         guild_locale = ...,
         interaction = ...,
         interaction_type = ...,
         locale = ...,
         message = ...,
+        resolved = ...,
         token = ..., 
         user = ...,
         user_locale = ...,
         user_permissions = ...,
+        **keyword_parameters,
     ):
         """
         Creates a partial interaction event.
@@ -168,10 +212,12 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         application_permissions : ``Permission``, `int`, Optional (Keyword only)
             The permissions granted to the application in the guild.
         
-        channel_id : `int`, `str`, ``Channel``, Optional (Keyword only)
-            The channel's identifier from where the interaction was called.
-            
-            > Deprecated and will be removed in 2023 November.
+        attachment_size_limit : `int`, Optional (Keyword only)
+            The size limit in bytes for each attachment.
+        
+        authorizer_user_ids : `None | dict<ApplicationIntegrationType | int, int | ClientUserBase>` \
+                , Optional (Keyword only)
+            The users' identifier who authorized the integration.
         
         channel : ``Channel``, Optional (Keyword only)
             The channel from where the interaction was called.
@@ -179,14 +225,14 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         entitlements : `None`, `iterable` of ``Entitlement``, Optional (Keyword only)
             The applicable entitlements for the event's context.
         
-        guild : `None`, ``Guild``, Optional (Keyword only)
+        guild : ``None | Guild``, Optional (Keyword only)
             The guild from where the interaction was called from.
         
-        interaction : ``InteractionMetadataBase``, Optional (Keyword only)
-            Contain additional details of the interaction.
-        
-        message : `None`, ``Message``, Optional (Keyword only)
+        message : ``None | Message``, Optional (Keyword only)
             The message from where the interaction was received.
+        
+        resolved : ``None | Resolved``, Optional (Keyword only)
+            Contains the received entities.
         
         token : `str`, Optional (Keyword only)
             Interaction's token used when responding on it.
@@ -202,6 +248,36 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         
         user_permissions : ``Permission``, `int`, Optional (Keyword only)
             The user's permissions in the respective channel.
+        
+        **keyword_parameters : Keyword parameters
+            Keyword parameters defining the type specific fields of the interaction.
+        
+        Other Parameters
+        ----------------
+        application_command_id : ``None | int | ApplicationCommand``, Optional (Keyword only)
+            The represented application command's identifier number.
+        
+        application_command_name : `None | str`, Optional (Keyword only)
+            The represented application command's name.
+        
+        component : ``None | InteractionComponent``, Optional (Keyword only)
+            The interacted component.
+        
+        components : ``None | iterable<InteractionComponent>``, Optional (Keyword only)
+            Submitted component values of a form submit interaction.
+        
+        custom_id : `None | str`, Optional (Keyword only)
+            Form interaction's custom identifier.
+        
+        options : ``None | iterable<InteractionOption>``, Optional (Keyword only)
+            Application command option representations. Like sub-command or parameter.
+        
+        target_id : `int`, Optional (Keyword only)
+            The interaction's target's identifier. Applicable for context commands.
+        
+        target_type : ``None | int | ApplicationCommandTargetType``, Optional (Keyword only)
+            The invoked application command's target type.
+        
         
         Returns
         -------
@@ -225,6 +301,18 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
             application_permissions = Permission()
         else:
             application_permissions = validate_application_permissions(application_permissions)
+        
+        # attachment_size_limit
+        if attachment_size_limit is ...:
+            attachment_size_limit = LEVEL_0.attachment_size_limit
+        else:
+            attachment_size_limit = validate_attachment_size_limit(attachment_size_limit)
+        
+        # authorizer_user_ids
+        if authorizer_user_ids is ...:
+            authorizer_user_ids = None
+        else:
+            authorizer_user_ids = validate_authorizer_user_ids(authorizer_user_ids)
         
         # channel
         if channel is ...:
@@ -250,16 +338,30 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         else:
             interaction_type = validate_type(interaction_type)
         
-        if interaction is ...:
-            interaction = interaction_type.metadata_type()
-        else:
+        if interaction is not ...:
             interaction = validate_interaction(interaction, interaction_type)
+            warn(
+                (
+                    f'`{cls.__name__}.__new__`\'s `interaction` parameter is deprecated and scheduled for removal in '
+                    f'2026 February. Please pass each parameter you would pass when creating the interaction as '
+                    f'`**keyword_parameters` here.'
+                ),
+                FutureWarning,
+                    stacklevel = 2,
+            )
+            _unpack_interaction_metadata_into_keyword_parameters(interaction_type, interaction, keyword_parameters)
         
         # message
         if message is ...:
             message = None
         else:
             message = validate_message(message)
+        
+        # resolved
+        if resolved is ...:
+            resolved = None
+        else:
+            resolved = validate_resolved(resolved)
         
         # token
         if token is ...:
@@ -285,19 +387,28 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         else:
             user_permissions = validate_user_permissions(user_permissions)
         
-        # Construct
+        # metadata
+        metadata = interaction_type.metadata_type.from_keyword_parameters(keyword_parameters)
+        if keyword_parameters:
+            raise TypeError(
+                f'Extra or unused keyword parameters: {keyword_parameters!r}.'
+            )
         
+        # Construct
         self = object.__new__(cls)
         self._async_task = None
         self._response_flags = RESPONSE_FLAG_NONE
         self.id = 0
         self.application_id = application_id
         self.application_permissions = application_permissions
+        self.attachment_size_limit = attachment_size_limit
+        self.authorizer_user_ids = authorizer_user_ids
         self.channel = channel
         self.entitlements = entitlements
         self.guild = guild
-        self.interaction = interaction
         self.message = message
+        self.metadata = metadata
+        self.resolved = resolved
         self.token = token
         self.type = interaction_type
         self.user = user
@@ -313,7 +424,7 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             `INTERACTION_CREATE` dispatch event data.
         
         Returns
@@ -327,12 +438,15 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         interaction_id = parse_id(data)
         application_id = parse_application_id(data)
         application_permissions = parse_application_permissions(data)
+        attachment_size_limit = parse_attachment_size_limit(data)
+        authorizer_user_ids = parse_authorizer_user_ids(data)
         channel = parse_channel(data)
         entitlements = parse_entitlements(data)
         interaction_type = parse_type(data)
-        interaction = interaction_type.metadata_type.from_data(data['data'], 0 if guild is None else guild.id)
+        metadata = interaction_type.metadata_type.from_data(data, 0 if guild is None else guild.id)
         user_locale = parse_user_locale(data)
         message = parse_message(data)
+        resolved = parse_resolved(data, 0 if guild is None else guild.id)
         token = parse_token(data)
         user = parse_user(data, 0 if guild is None else guild.id)
         user_permissions = parse_user_permissions(data)
@@ -342,12 +456,15 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         self._response_flags = RESPONSE_FLAG_NONE
         self.application_id = application_id
         self.application_permissions = application_permissions
+        self.attachment_size_limit = attachment_size_limit
+        self.authorizer_user_ids = authorizer_user_ids
         self.channel = channel
         self.entitlements = entitlements
         self.guild = guild
-        self.interaction = interaction
         self.id = interaction_id
         self.message = message
+        self.metadata = metadata
+        self.resolved = resolved
         self.token = token
         self.type = interaction_type
         self.user = user
@@ -371,22 +488,24 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
-        data = {}
-        put_application_id_into(self.application_id, data, defaults)
-        put_application_permissions_into(self.application_permissions, data, defaults)
-        put_channel_into(self.channel, data, defaults)
-        put_entitlements_into(self.entitlements, data, defaults)
-        put_guild_into(self.guild, data, defaults)
-        put_id_into(self.id, data, defaults)
-        put_message_into(self.message, data, defaults)
-        put_token_into(self.token, data, defaults)
-        put_type_into(self.type, data, defaults)
-        put_user_into(self.user, data, defaults, guild_id = self.guild_id)
-        put_user_locale_into(self.user_locale, data, defaults)
-        put_user_permissions_into(self.user_permissions, data, defaults)
-        data['data'] = self.interaction.to_data(defaults = defaults, guild_id = self.guild_id)
+        data = self.metadata.to_data(defaults = defaults, guild_id = self.guild_id)
+        put_application_id(self.application_id, data, defaults)
+        put_application_permissions(self.application_permissions, data, defaults)
+        put_attachment_size_limit(self.attachment_size_limit, data, defaults)
+        put_authorizer_user_ids(self.authorizer_user_ids, data, defaults)
+        put_channel(self.channel, data, defaults)
+        put_entitlements(self.entitlements, data, defaults)
+        put_guild(self.guild, data, defaults)
+        put_id(self.id, data, defaults)
+        put_message(self.message, data, defaults)
+        put_resolved(self.resolved, data, defaults, guild_id = self.guild_id)
+        put_token(self.token, data, defaults)
+        put_type(self.type, data, defaults)
+        put_user(self.user, data, defaults, guild_id = self.guild_id)
+        put_user_locale(self.user_locale, data, defaults)
+        put_user_permissions(self.user_permissions, data, defaults)
         return data
     
     
@@ -409,17 +528,20 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         self._response_flags = RESPONSE_FLAG_NONE
         self.application_id = 0
         self.application_permissions = Permission()
+        self.attachment_size_limit = LEVEL_0.attachment_size_limit
+        self.authorizer_user_ids = None
         self.channel = create_partial_channel_from_id(0, ChannelType.unknown, 0)
         self.entitlements = None
         self.guild = None
         self.id = interaction_id
-        self.interaction = DEFAULT_INTERACTION_METADATA
+        self.metadata = DEFAULT_INTERACTION_METADATA
+        self.message = None
+        self.resolved = None
         self.token = ''
         self.type = InteractionType.none
         self.user = ZEROUSER
         self.user_locale = LOCALE_DEFAULT
         self.user_permissions = Permission()
-        self.message = None
         return self
     
     
@@ -428,10 +550,7 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         cls,
         interaction_id,
         *,
-        channel_id = ...,
-        guild_id = ...,
-        guild_locale = ...,
-        locale = ...,
+        interaction = ...,
         **keyword_parameters,
     ):
         """
@@ -444,11 +563,6 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         interaction_id : `int`
             The interaction's identifier.
         
-        channel_id : `int`, `str`, ``Channel``, Optional (Keyword only)
-            The channel's identifier from where the interaction was called.
-            
-            > Deprecated and will be removed in 2023 November.
-        
         **keyword_parameters : Keyword parameters
             Additional keyword parameters defining which attribute and how should be set.
         
@@ -457,32 +571,63 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         application : `int`, `str`, ``Application``, Optional (Keyword only)
             Alternative for `application_id`.
         
+        application_command_id : ``None | int | ApplicationCommand``, Optional (Keyword only)
+            The represented application command's identifier number.
+        
+        application_command_name : `None | str`, Optional (Keyword only)
+            The represented application command's name.
+        
         application_id : `int`, `str`, ``Application``, Optional (Keyword only)
             The interaction's application's identifier.
         
         application_permissions : ``Permission``, `int`, Optional (Keyword only)
             The permissions granted to the application in the guild.
         
+        attachment_size_limit : `int`, Optional (Keyword only)
+            The size limit in bytes for each attachment.
+        
+        authorizer_user_ids : `None | dict<ApplicationIntegrationType | int, int | ClientUserBase>` \
+                , Optional (Keyword only)
+            The users' identifier who authorized the integration.
+        
         channel : ``Channel``, Optional (Keyword only)
             The channel from where the interaction was called.
+        
+        component : ``None | InteractionComponent``, Optional (Keyword only)
+            The interacted component.
+        
+        components : ``None | iterable<InteractionComponent>``, Optional (Keyword only)
+            Submitted component values of a form submit interaction.
+        
+        custom_id : `None | str`, Optional (Keyword only)
+            Form interaction's custom identifier.
         
         entitlements : `None`, `iterable` of ``Entitlement``, Optional (Keyword only)
             The applicable entitlements for the event's context.
         
-        guild : `None`, ``Guild``, Optional (Keyword only)
+        guild : ``None | Guild``, Optional (Keyword only)
             The guild from where the interaction was called from.
         
-        interaction : ``InteractionMetadataBase``, Optional (Keyword only)
-            Contain additional details of the interaction.
+        interaction_type : ``InteractionType``, `int`, Optional (Keyword only)
+            The interaction's type.
         
-        message : `None`, ``Message``, Optional (Keyword only)
+        message : ``None | Message``, Optional (Keyword only)
             The message from where the interaction was received.
+        
+        options : ``None | iterable<InteractionOption>``, Optional (Keyword only)
+            Application command option representations. Like sub-command or parameter.
+        
+        resolved : ``None | Resolved``, Optional (Keyword only)
+            Contains the received entities.
+        
+        target_id : `int`, Optional (Keyword only)
+            The interaction's target's identifier. Applicable for context commands.
+        
+        target_type : ``None | int | ApplicationCommandTargetType``, Optional (Keyword only)
+            The invoked application command's target type.
         
         token : `str`, Optional (Keyword only)
             Interaction's token used when responding on it.
-        
-        type : ``InteractionType``, `int`, Optional (Keyword only)
-            The interaction's type.
         
         user : ``ClientUserBase``, Optional (Keyword only)
             The user who called the interaction.
@@ -492,7 +637,7 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         
         user_permissions : ``Permission``, `int`, Optional (Keyword only)
             The user's permissions in the respective channel.
-            
+        
         Returns
         -------
         self : `instance<cls>`
@@ -518,16 +663,21 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
                 interaction_type = validate_type(interaction_type)
                 processed.append(('type', interaction_type))
             
-            try:
-                interaction = keyword_parameters.pop('interaction')
-            except KeyError:
-                if interaction_type is not InteractionType.none:
-                    interaction = interaction_type.metadata_type()
-                    processed.append(('interaction', interaction))
-            else:
+            if interaction is not ...:
                 interaction = validate_interaction(interaction, interaction_type)
-                processed.append(('interaction', interaction))
+                warn(
+                    (
+                        f'`{cls.__name__}.precreate`\'s `interaction` parameter is deprecated and scheduled for '
+                        f'removal in 2026 February. Please pass each parameter you would pass when creating the '
+                        f'interaction as `**keyword_parameters` here.'
+                    ),
+                    FutureWarning,
+                    stacklevel = 2,
+                )
+                _unpack_interaction_metadata_into_keyword_parameters(interaction_type, interaction, keyword_parameters)
             
+            metadata = interaction_type.metadata_type.from_keyword_parameters(keyword_parameters)
+            processed.append(('metadata', metadata))
             
             extra = process_precreate_parameters(keyword_parameters, PRECREATE_FIELDS, processed)
             raise_extra(extra)
@@ -559,19 +709,36 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         new.id = 0
         new.application_id = self.application_id
         new.application_permissions = self.application_permissions
+        new.attachment_size_limit = self.attachment_size_limit
+        
+        authorizer_user_ids = self.authorizer_user_ids
+        if (authorizer_user_ids is not None):
+            authorizer_user_ids = authorizer_user_ids.copy()
+        new.authorizer_user_ids = authorizer_user_ids
+        
         new.type = self.type
         new.channel = self.channel
+        
         entitlements = self.entitlements
         if (entitlements is not None):
             entitlements = (*entitlements,)
         new.entitlements = entitlements
+        
         new.guild = self.guild
-        new.interaction = self.interaction.copy()
+        
+        new.message = self.message
+        
+        new.metadata = self.metadata.copy()
+        
+        resolved = self.resolved
+        if (resolved is not None):
+            resolved = resolved.copy()
+        new.resolved = resolved
+        
         new.token = self.token
         new.user = self.user
         new.user_locale = self.user_locale
         new.user_permissions = self.user_permissions
-        new.message = self.message
         return new
     
     
@@ -580,20 +747,20 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         *,
         application_id = ...,
         application_permissions = ...,
+        attachment_size_limit = ...,
+        authorizer_user_ids = ...,
         channel = ...,
-        channel_id = ...,
         entitlements = ...,
         guild = ...,
-        guild_id = ...,
-        guild_locale = ...,
         interaction = ...,
         interaction_type = ...,
-        locale = ...,
         message = ...,
+        resolved = ...,
         token = ..., 
         user = ...,
         user_locale = ...,
         user_permissions = ...,
+        **keyword_parameters,
     ):
         """
         Copies the interaction event modifying it's defined fields.
@@ -607,6 +774,13 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         application_permissions : ``Permission``, `int`, Optional (Keyword only)
             The permissions granted to the application in the guild.
         
+        attachment_size_limit : `int`, Optional (Keyword only)
+            The size limit in bytes for each attachment.
+        
+        authorizer_user_ids : `None | dict<ApplicationIntegrationType | int, int | ClientUserBase>` \
+                , Optional (Keyword only)
+            The users' identifier who authorized the integration.
+        
         channel : ``Channel``, Optional (Keyword only)
             The channel from where the interaction was called.
         
@@ -616,14 +790,14 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         entitlements : `None`, `iterable` of ``Entitlement``, Optional (Keyword only)
             The applicable entitlements for the event's context.
         
-        guild : `None`, ``Guild```, Optional (Keyword only)
+        guild : ``None | Guild```, Optional (Keyword only)
             The guild from where the interaction was called from.
         
-        interaction : ``InteractionMetadataBase``, Optional (Keyword only)
-            Contain additional details of the interaction.
-        
-        message : `None`, ``Message``, Optional (Keyword only)
+        message : ``None | Message``, Optional (Keyword only)
             The message from where the interaction was received.
+        
+        resolved : ``None | Resolved``, Optional (Keyword only)
+            Contains the received entities.
         
         token : `str`, Optional (Keyword only)
             Interaction's token used when responding on it.
@@ -639,6 +813,35 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         
         user_permissions : ``Permission``, `int`, Optional (Keyword only)
             The user's permissions in the respective channel.
+        
+        **keyword_parameters : Keyword parameters
+            Keyword parameters defining the type specific fields of the interaction.
+        
+        Other parameters
+        ----------------
+        application_command_id : ``None | int | ApplicationCommand``, Optional (Keyword only)
+            The represented application command's identifier number.
+        
+        application_command_name : `None | str`, Optional (Keyword only)
+            The represented application command's name.
+        
+        component : ``None | InteractionComponent``, Optional (Keyword only)
+            The interacted component.
+        
+        components : ``None | iterable<InteractionComponent>``, Optional (Keyword only)
+            Submitted component values of a form submit interaction.
+        
+        custom_id : `None | str`, Optional (Keyword only)
+            Form interaction's custom identifier.
+        
+        options : ``None | iterable<InteractionOption>``, Optional (Keyword only)
+            Application command option representations. Like sub-command or parameter.
+        
+        target_id : `int`, Optional (Keyword only)
+            The interaction's target's identifier. Applicable for context commands.
+        
+        target_type : ``None | int | ApplicationCommandTargetType``, Optional (Keyword only)
+            The invoked application command's target type.
         
         Raises
         ------
@@ -662,6 +865,21 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
             application_permissions = self.application_permissions
         else:
             application_permissions = validate_application_permissions(application_permissions)
+        
+        # attachment_size_limit
+        if attachment_size_limit is ...:
+            attachment_size_limit = self.attachment_size_limit
+        else:
+            attachment_size_limit = validate_attachment_size_limit(attachment_size_limit)
+        
+        # authorizer_user_ids
+        if authorizer_user_ids is ...:
+            authorizer_user_ids = self.authorizer_user_ids
+            if (authorizer_user_ids is not None):
+                authorizer_user_ids = authorizer_user_ids.copy()
+        
+        else:
+            authorizer_user_ids = validate_authorizer_user_ids(authorizer_user_ids)
         
         # guild
         if guild is ...:
@@ -689,19 +907,32 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         else:
             interaction_type = validate_type(interaction_type)
         
-        if interaction is ...:
-            if interaction_type is self.type:
-                interaction = self.interaction.copy()
-            else:
-                interaction = interaction_type.metadata_type()
-        else:
+        if interaction is not ...:
             interaction = validate_interaction(interaction, interaction_type)
+            warn(
+                (
+                    f'`{type(self).__name__}.copy_with`\'s `interaction` parameter is deprecated and scheduled for '
+                    f'removal in 2026 February. Please pass each parameter you would pass when creating the '
+                    f'interaction as `**keyword_parameters` here.'
+                ),
+                FutureWarning,
+                stacklevel = 2,
+            )
+            _unpack_interaction_metadata_into_keyword_parameters(interaction_type, interaction, keyword_parameters)
         
         # message
         if message is ...:
             message = self.message
         else:
             message = validate_message(message)
+        
+        # resolved
+        if resolved is ...:
+            resolved = self.resolved
+            if (resolved is not None):
+                resolved = resolved.copy()
+        else:
+            resolved = validate_resolved(resolved)
         
         # token
         if token is ...:
@@ -727,6 +958,20 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         else:
             user_permissions = validate_user_permissions(user_permissions)
         
+        
+        # metadata
+        metadata = self.metadata
+        metadata_type = interaction_type.metadata_type
+        if metadata_type is type(metadata):
+            metadata = metadata.copy_with_keyword_parameters(keyword_parameters)
+        else:
+            metadata = metadata_type.from_keyword_parameters(keyword_parameters)
+        
+        if keyword_parameters:
+            raise TypeError(
+                f'Extra or unused keyword parameters: {keyword_parameters!r}.'
+            )
+        
         # Construct
         new = object.__new__(type(self))
         new._async_task = None
@@ -734,20 +979,23 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         new.id = 0
         new.application_id = application_id
         new.application_permissions = application_permissions
+        new.attachment_size_limit = attachment_size_limit
+        new.authorizer_user_ids = authorizer_user_ids
         new.type = interaction_type
         new.channel = channel
         new.entitlements = entitlements
         new.guild = guild
-        new.interaction = interaction
+        new.metadata = metadata
+        new.message = message
+        new.resolved = resolved
         new.token = token
         new.user = user
         new.user_locale = user_locale
         new.user_permissions = user_permissions
-        new.message = message
         
         return new
-    
-    
+
+
     async def wait_for_response_message(self, *, timeout = None):
         """
         Waits for response message. Applicable for application command interactions.
@@ -790,7 +1038,7 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
     
     def __repr__(self):
         """Returns the representation of the event."""
-        repr_parts = ['<', self.__class__.__name__]
+        repr_parts = ['<', type(self).__name__]
         
         response_state_names = None
         response_state = self._response_flags
@@ -845,6 +1093,10 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         repr_parts.append(' ~ ')
         repr_parts.append(repr(metadata_type.value))
         
+        authorizer_user_ids = self.authorizer_user_ids
+        if (authorizer_user_ids is not None):
+            repr_parts.append(', authorizer_user_ids = ')
+            repr_parts.append(repr(authorizer_user_ids))
         
         guild = self.guild
         if guild is not None:
@@ -853,6 +1105,17 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
             
             repr_parts.append(', application_permissions = ')
             repr_parts.append(format(self.application_permissions, 'd'))
+        
+        # attachment_size_limit
+        if guild is None:
+            default_attachment_size_limit = LEVEL_0.attachment_size_limit
+        else:
+            default_attachment_size_limit = guild.attachment_size_limit
+        
+        attachment_size_limit = self.attachment_size_limit
+        if attachment_size_limit != default_attachment_size_limit:
+            repr_parts.append(', attachment_size_limit = ')
+            repr_parts.append(repr(attachment_size_limit))
         
         
         repr_parts.append(', channel = ')
@@ -896,9 +1159,14 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
             repr_parts.append(', guild_locale = ')
             repr_parts.append(repr(guild.locale.name))
         
-        repr_parts.append(', interaction = ')
-        repr_parts.append(repr(self.interaction))
+        repr_parts.append(', metadata = ')
+        repr_parts.append(repr(self.metadata))
         
+        # resolved
+        resolved = self.resolved
+        if (resolved is not None):
+            repr_parts.append(', resolved = ')
+            repr_parts.append(repr(resolved))
         
         repr_parts.append('>')
         return ''.join(repr_parts)
@@ -927,6 +1195,14 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         if self.application_permissions != other.application_permissions:
             return False
         
+        # attachment_size_limit
+        if self.attachment_size_limit != other.attachment_size_limit:
+            return False
+        
+        # authorizer_user_ids
+        if self.authorizer_user_ids != other.authorizer_user_ids:
+            return False
+        
         # channel
         if self.channel is not other.channel:
             return False
@@ -939,12 +1215,16 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         if self.guild is not other.guild:
             return False
         
-        # interaction
-        if self.interaction != other.interaction:
-            return False
-        
         # message
         if self.message is not other.message:
+            return False
+        
+        # interaction
+        if self.metadata != other.metadata:
+            return False
+        
+        # resolved
+        if self.resolved != other.resolved:
             return False
         
         # token
@@ -984,6 +1264,24 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         # application_permissions
         hash_value ^= self.application_permissions
         
+        # attachment_size_limit
+        guild = self.guild
+        if guild is None:
+            default_attachment_size_limit = LEVEL_0.attachment_size_limit
+        else:
+            default_attachment_size_limit = guild.attachment_size_limit
+        
+        attachment_size_limit = self.attachment_size_limit
+        if attachment_size_limit != default_attachment_size_limit:
+            hash_value ^= attachment_size_limit
+        
+        # authorizer_user_ids
+        authorizer_user_ids = self.authorizer_user_ids
+        if (authorizer_user_ids is not None):
+            hash_value ^= len(authorizer_user_ids) << 8
+            for integration_type, user_id in authorizer_user_ids.items():
+                hash_value ^= (integration_type.value << 22) & user_id
+        
         # channel
         hash_value ^= hash(self.channel)
         
@@ -993,17 +1291,21 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
             hash_value ^= hash(entitlements)
         
         # guild
-        guild = self.guild
         if (guild is not None):
             hash_value ^= hash(guild)
-        
-        # interaction
-        hash_value ^= hash(self.interaction)
         
         # message
         message = self.message
         if (message is not None):
             hash_value ^= hash(self.message)
+        
+        # interaction
+        hash_value ^= hash(self.metadata)
+        
+        # resolved
+        resolved = self.resolved
+        if (resolved is not None):
+            hash_value ^= hash(resolved)
         
         # token
         hash_value ^= hash(self.token)
@@ -1107,6 +1409,17 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         return now_as_id() > (self.id + INTERACTION_EVENT_EXPIRE_AFTER_ID_DIFFERENCE)
     
     
+    def is_response_invoking_user_only(self):
+        """
+        Returns whether the event was responded as invoking user only.
+        
+        Returns
+        -------
+        is_response_invoking_user_only : `bool`
+        """
+        return True if (self._response_flags & RESPONSE_FLAG_EPHEMERAL) else False
+    
+    
     def __len__(self):
         """Helper for unpacking if needed."""
         return 3
@@ -1120,7 +1433,7 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
         """
         yield self.type
         yield self.user
-        yield self.interaction
+        yield self.metadata
     
     
     @property
@@ -1315,173 +1628,463 @@ class InteractionEvent(DiscordEntity, EventBase, immortal = True):
     # Field Proxies
     
     @property
-    @copy_docs(InteractionMetadataBase.component_type)
-    def component_type(self):
-        return self.interaction.component_type
+    @copy_docs(InteractionMetadataBase.application_command_id)
+    def application_command_id(self):
+        return self.metadata.application_command_id
+    
+    @application_command_id.setter
+    def application_command_id(self, value):
+        self.metadata.application_command_id = validate_application_command_id(value)
+    
+    
+    @property
+    @copy_docs(InteractionMetadataBase.application_command_name)
+    def application_command_name(self):
+        return self.metadata.application_command_name
+    
+    @application_command_name.setter
+    def application_command_name(self, value):
+        self.metadata.application_command_name = validate_application_command_name(value)
     
     
     @property
     @copy_docs(InteractionMetadataBase.components)
     def components(self):
-        return self.interaction.components
+        return self.metadata.components
+    
+    @components.setter
+    def components(self, value):
+        self.metadata.components = validate_components(value)
+    
+    
+    @property
+    @copy_docs(InteractionMetadataBase.component)
+    def component(self):
+        return self.metadata.component
+    
+    @component.setter
+    def component(self, value):
+        self.metadata.component = validate_component(value)
     
     
     @property
     @copy_docs(InteractionMetadataBase.custom_id)
     def custom_id(self):
-        return self.interaction.custom_id
+        return self.metadata.custom_id
     
-    
-    @property
-    @copy_docs(InteractionMetadataBase.id)
-    def application_command_id(self):
-        return self.interaction.id
-    
-    
-    @property
-    @copy_docs(InteractionMetadataBase.name)
-    def application_command_name(self):
-        return self.interaction.name
+    @custom_id.setter
+    def custom_id(self, value):
+        self.metadata.custom_id = validate_custom_id(value)
     
     
     @property
     @copy_docs(InteractionMetadataBase.options)
     def options(self):
-        return self.interaction.options
+        return self.metadata.options
     
-    
-    @property
-    @copy_docs(InteractionMetadataBase.resolved)
-    def resolved(self):
-        return self.interaction.resolved
+    @options.setter
+    def options(self, value):
+        self.metadata.options = validate_options(value)
     
     
     @property
     @copy_docs(InteractionMetadataBase.target_id)
     def target_id(self):
-        return self.interaction.target_id
+        return self.metadata.target_id
+    
+    @target_id.setter
+    def target_id(self, value):
+        self.metadata.target_id = validate_target_id(value)
     
     
     @property
-    @copy_docs(InteractionMetadataBase.values)
-    def values(self):
-        return self.interaction.values
+    @copy_docs(InteractionMetadataBase.target_type)
+    def target_type(self):
+        return self.metadata.target_type
+    
+    @target_type.setter
+    def target_type(self, value):
+        self.metadata.target_type = validate_target_type(value)
     
     # application command
     
     @property
-    @copy_docs(InteractionMetadataBase.target)
     def target(self):
-        return self.interaction.target
+        """
+        Returns the interaction's target. Applicable if the interaction was invoked by a context command.
+        
+        Returns
+        -------
+        entity : ``None | Attachment | Channel | ClientUserBase | Role | Message``
+        """
+        target_id = self.target_id
+        if target_id:
+            return self.resolve_entity(target_id)
+    
     
     # application command autocomplete
     
     @copy_docs(InteractionMetadataBase.iter_options)
     def iter_options(self):
-        return (yield from self.interaction.iter_options())
+        return (yield from self.metadata.iter_options())
     
     
     @property
     @copy_docs(InteractionMetadataBase.focused_option)
     def focused_option(self):
-        return self.interaction.focused_option
+        return self.metadata.focused_option
     
     
     @copy_docs(InteractionMetadataBase.get_non_focused_values)
     def get_non_focused_values(self):
-        return self.interaction.get_non_focused_values()
+        return self.metadata.get_non_focused_values()
     
     
     @copy_docs(InteractionMetadataBase.get_value_of)
     def get_value_of(self, *option_names):
-        return self.interaction.get_value_of(*option_names)
-    
-    
-    @property
-    @copy_docs(InteractionMetadataBase.value)
-    def value(self):
-        return self.interaction.value
+        return self.metadata.get_value_of(*option_names)
     
     # Message component
     
-    @copy_docs(InteractionMetadataBase.iter_values)
-    def iter_values(self):
-        return (yield from self.interaction.iter_values())
-    
-    
-    @copy_docs(InteractionMetadataBase.iter_entities)
     def iter_entities(self):
-        return (yield from self.interaction.iter_entities())
+        """
+        Iterates over the entities that were selected by the user of a select component interaction.
+        
+        This method is an iterable generator.
+        
+        Yields
+        ------
+        entity : ``str | Channel | ClientUserbase | Role``
+        """
+        resolved = self.resolved
+        for custom_id, component_type, value_or_values in self.iter_custom_ids_and_values():
+            
+            iter_resolve = component_type.iter_resolve
+            if (iter_resolve is None):
+                continue
+            
+            yield from iter_resolve(resolved, value_or_values)
     
     
     @property
-    @copy_docs(InteractionMetadataBase.entities)
     def entities(self):
-        return self.interaction.entities
+        """
+        Returns the entities that were selected by the user of a select component interaction.
+        
+        Returns
+        -------
+        entities : ``list<Channel | ClientUserbase | Role>``
+        """
+        return [*self.iter_entities()]
+    
     
     # form submit
     
     @copy_docs(InteractionMetadataBase.iter_components)
     def iter_components(self):
-        return (yield from self.interaction.iter_components())
+        return (yield from self.metadata.iter_components())
     
     
     @copy_docs(InteractionMetadataBase.iter_custom_ids_and_values)
     def iter_custom_ids_and_values(self):
-        return (yield from self.interaction.iter_custom_ids_and_values())
+        return (yield from self.metadata.iter_custom_ids_and_values())
     
     
-    @copy_docs(InteractionMetadataBase.get_custom_id_value_relation)
     def get_custom_id_value_relation(self):
-        return self.interaction.get_custom_id_value_relation()
+        """
+        Returns a dictionary with `custom_id` to `value` relation.
+        
+        Returns
+        -------
+        custom_id_is_value_values_relation : `dict<str, (ComponentType, None | str | tuple<str>)>`
+        """
+        custom_id_value_relation = {}
+        
+        for custom_id, component_type, value_or_values in self.iter_custom_ids_and_values():
+            if (value_or_values is not None):
+                custom_id_value_relation[custom_id] = (component_type, value_or_values)
+        
+        return custom_id_value_relation
     
     
-    @copy_docs(InteractionMetadataBase.get_value_for)
     def get_value_for(self, custom_id_to_match):
-        return self.interaction.get_value_for(custom_id_to_match)
+        """
+        Returns the value for the given `custom_id`.
+        
+        Parameters
+        ----------
+        custom_id_to_match : `str`
+            A respective components `custom_id` to match.
+        
+        Returns
+        -------
+        is_value_values : `(ComponentType, None | str | tuple<str>)` 
+        """
+        for custom_id, component_type, value_or_values in self.iter_custom_ids_and_values():
+            if (custom_id == custom_id_to_match):
+                return component_type, value_or_values
+        
+        return ComponentType.none, None
     
     
-    @copy_docs(InteractionMetadataBase.get_match_and_value)
     def get_match_and_value(self, matcher):
-        return self.interaction.get_match_and_value(matcher)
+        """
+        Gets a `custom_id`'s value matching the given `matcher`.
+        
+        Parameters
+        ----------
+        matcher : `callable`
+            Matcher to call on a `custom_id`.
+            
+            Should accept the following parameters:
+            
+            +-----------+-----------+
+            | Name      | Type      |
+            +===========+===========+
+            | custom_id | `str`     |
+            +-----------+-----------+
+            
+            Should return non-`None` on success.
+        
+        Returns
+        -------
+        match_and_is_value_values : `(None | object, ComponentType, None | str | tuple<str>)`
+        """
+        for custom_id, component_type, value_or_values in self.iter_custom_ids_and_values():
+            match = matcher(custom_id)
+            if (match is not None):
+                return match, component_type, value_or_values
+        
+        return None, ComponentType.none, None
     
     
-    @copy_docs(InteractionMetadataBase.iter_matches_and_values)
     def iter_matches_and_values(self, matcher):
-        return (yield from self.interaction.iter_matches_and_values(matcher))
+        """
+        Gets a `custom_id`'s value matching the given `matcher`.
+        
+        This method is an iterable generator.
+        
+        Parameters
+        ----------
+        matcher : `callable`
+            Matcher to call on a `custom_id`
+            
+            Should accept the following parameters:
+            
+            +-----------+-----------+
+            | Name      | Type      |
+            +===========+===========+
+            | custom_id | `str`     |
+            +-----------+-----------+
+            
+            Should return non-`None` on success.
+        
+        Yields
+        -------
+        match_and_is_value_values : `(object, ComponentType, None | str | tuple<str>)`
+        """
+        for custom_id, component_type, value_or_values in self.iter_custom_ids_and_values():
+            match = matcher(custom_id)
+            if (match is not None):
+                yield match, component_type, value_or_values
     
     # resolved
     
-    @copy_docs(InteractionMetadataBase.resolve_attachment)
+    @copy_docs(Resolved.resolve_attachment)
     def resolve_attachment(self, attachment_id):
-        return self.interaction.resolve_attachment(attachment_id)
+        resolved = self.resolved
+        if (resolved is not None):
+            return resolved.resolve_attachment(attachment_id)
     
     
-    @copy_docs(InteractionMetadataBase.resolve_channel)
+    @copy_docs(Resolved.resolve_channel)
     def resolve_channel(self, channel_id):
-        return self.interaction.resolve_channel(channel_id)
+        resolved = self.resolved
+        if (resolved is not None):
+            return resolved.resolve_channel(channel_id)
     
     
-    @copy_docs(InteractionMetadataBase.resolve_message)
-    def resolve_message(self, message_id):
-        return self.interaction.resolve_message(message_id)
-    
-    
-    @copy_docs(InteractionMetadataBase.resolve_role)
+    @copy_docs(Resolved.resolve_role)
     def resolve_role(self, role_id):
-        return self.interaction.resolve_role(role_id)
+        resolved = self.resolved
+        if (resolved is not None):
+            return resolved.resolve_role(role_id)
     
     
-    @copy_docs(InteractionMetadataBase.resolve_user)
+    @copy_docs(Resolved.resolve_message)
+    def resolve_message(self, message_id):
+        resolved = self.resolved
+        if (resolved is not None):
+            return resolved.resolve_message(message_id)
+    
+    
+    @copy_docs(Resolved.resolve_user)
     def resolve_user(self, user_id):
-        return self.interaction.resolve_user(user_id)
+        resolved = self.resolved
+        if (resolved is not None):
+            return resolved.resolve_user(user_id)
     
     
-    @copy_docs(InteractionMetadataBase.resolve_mentionable)
+    @copy_docs(Resolved.resolve_mentionable)
     def resolve_mentionable(self, mentionable_id):
-        return self.interaction.resolve_mentionable(mentionable_id)
+        resolved = self.resolved
+        if (resolved is not None):
+            return resolved.resolve_mentionable(mentionable_id)
     
     
-    @copy_docs(InteractionMetadataBase.resolve_entity)
+    @copy_docs(Resolved.resolve_entity)
     def resolve_entity(self, entity_id):
-        return self.interaction.resolve_entity(entity_id)
+        resolved = self.resolved
+        if (resolved is not None):
+            return resolved.resolve_entity(entity_id)
+    
+    
+    # authorized_user_ids
+    
+    def get_authorizer_user_id(self, integration_type):
+        """
+        Gets the authorizer user's identifier for the given integration type.
+        
+        Parameters
+        ----------
+        integration_type : `ApplicationIntegrationType | int`
+            Integration type to query for.
+        
+        Returns
+        -------
+        user_id : `int`
+        """
+        authorizer_user_ids = self.authorizer_user_ids
+        if (authorizer_user_ids is not None):
+            try:
+                return authorizer_user_ids[integration_type]
+            except KeyError:
+                pass
+        
+        return 0
+    
+    
+    def get_authorizer_user(self, integration_type):
+        """
+        Gets the authorizer user for the given integration type.
+        
+        Parameters
+        ----------
+        integration_type : `ApplicationIntegrationType | int`
+            Integration type to query for.
+        
+        Returns
+        -------
+        user : `None | ClientUserBase`
+        """
+        user_id = self.get_authorizer_user_id(integration_type)
+        if user_id:
+            return create_partial_user_from_id(user_id)
+    
+    
+    # Deprecations
+    
+    
+    @property
+    def values(self):
+        """
+        Deprecated and scheduled for removal in 2026 February. Please use ``.iter_custom_ids_and_values`` instead.
+        """
+        warn(
+            (
+                f'`{type(self).__name__}.values` is deprecated and is scheduled for removal in 2026 February. '
+                f'Please use `.iter_custom_ids_and_values` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 2,
+        )
+        for custom_id, component_type, values_or_values in self.iter_custom_ids_and_values():
+            if values_or_values is None:
+                return
+            
+            if component_type.layout_flags.holds_value_multiple:
+                return values_or_values
+            
+            return (values_or_values,)
+    
+    
+    def iter_values(self):
+        """
+        Deprecated and scheduled for removal in 2026 February. Please use ``.iter_custom_ids_and_values`` instead.
+        """
+        warn(
+            (
+                f'`{type(self).__name__}.iter_values` is deprecated and is scheduled for removal in 2026 February. '
+                f'Please use `.iter_custom_ids_and_values` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 2,
+        )
+        for custom_id, component_type, values_or_values in self.iter_custom_ids_and_values():
+            if (values_or_values is None):
+                return
+            
+            if component_type.layout_flags.holds_value_multiple:
+                yield from values_or_values
+                return
+            
+            yield values_or_values
+            return
+    
+    
+    @property
+    def value(self):
+        """
+        Deprecated and scheduled for removal in 2026 February. Please use ``.iter_custom_ids_and_values`` instead.
+        """
+        warn(
+            (
+                f'`{type(self).__name__}.value` is deprecated and is scheduled for removal in 2026 February. '
+                f'Please use `.iter_custom_ids_and_values` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 2,
+        )
+        for custom_id, component_type, values_or_values in self.iter_custom_ids_and_values():
+            if (values_or_values is None):
+                return
+            
+            if component_type.layout_flags.holds_value_multiple:
+                return values_or_values[0]
+            
+            return values_or_values
+    
+    
+    @property
+    def component_type(self):
+        """
+        Deprecated and scheduled for removal in 2026 February. Please use ``.iter_custom_ids_and_values`` instead.
+        """
+        warn(
+            (
+                f'`{type(self).__name__}.component_type` is deprecated and is scheduled for removal in 2026 February. '
+                f'Please use `.iter_custom_ids_and_values` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 2,
+        )
+        for custom_id, component_type, values_or_values in self.iter_custom_ids_and_values():
+            return component_type
+        
+        return ComponentType.none
+    
+    
+    @property
+    def interaction(self):
+        """
+        Deprecated and scheduled for removal in 2026 February. Please use ``.metadata`` instead.
+        """
+        warn(
+            (
+                f'`{type(self).__name__}.interaction` is deprecated and is scheduled for removal in 2026 February. '
+                f'Please use `.metadata` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 2,
+        )
+        return self.metadata

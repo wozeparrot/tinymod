@@ -47,8 +47,10 @@ __all__ = (
 
 from .. import register_library_extension, register_setup_function
 
-from .event_handlers import handle_voice_client_join, handle_voice_client_move, handle_voice_client_update, \
-    handle_voice_client_leave, handle_voice_server_update, handle_voice_client_ghost, handle_voice_client_shutdown
+from .event_handlers import (
+    handle_voice_client_ghost, handle_voice_client_join, handle_voice_client_leave, handle_voice_client_move,
+    handle_voice_client_shutdown, handle_voice_client_update, handle_voice_server_update
+)
 
 def setup_ext_solarlink(client):
     """

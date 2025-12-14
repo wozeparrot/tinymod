@@ -224,7 +224,7 @@ class CheckMeta(type):
             The created class's name.
         class_parents : `tuple` of `type`
             The superclasses of the creates type.
-        class_attributes : `dict` of (`str`, `object`) items
+        class_attributes : `dict<str, object>`
             The class attributes of the created type.
         
         Returns
@@ -1675,10 +1675,10 @@ class CheckIsInVoice(CheckSingleBase):
         if guild is None:
             return False
         
-        if message.author.id in guild.voice_states:
-            return True
+        if guild.get_voice_state(message.author.id) is None:
+            return False
         
-        return False
+        return True
 
 
 class CheckIsBooster(CheckSingleBase):
@@ -1692,7 +1692,7 @@ class CheckIsBooster(CheckSingleBase):
         message = context.message
         guild = message.guild
         if guild is None:
-            return
+            return False
         
         try:
             profile = message.author.guild_profiles[guild.id]

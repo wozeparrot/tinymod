@@ -2,7 +2,7 @@ __all__ = ('get_channel_stdin', 'get_channel_stdout',)
 
 import reprlib
 from collections import deque
-from datetime import datetime, timedelta
+from datetime import datetime as DateTime, timedelta as TimeDelta, timezone as TimeZone
 
 from scarletio import CancelledError, Future, LOOP_TIME, Task, shield, sleep
 
@@ -10,7 +10,7 @@ from ...discord.core import KOKORO
 from ...discord.utils import sanitize_content
 
 
-MESSAGE_EDIT_TIMEDELTA = timedelta(seconds = 10)
+MESSAGE_EDIT_TIMEDELTA = TimeDelta(seconds = 10)
 REQUEST_RATE_LIMIT = 1.2
 
 
@@ -32,7 +32,7 @@ class ChannelOutputStream:
         The data queue.
     _last_chunk : `None`, `str`
         The last send raw chunk.
-    _last_message : `None`, ``Message``
+    _last_message : ``None | Message``
         The last sent message.
     _sanitize : `bool`
         Whether the output stream should be sanitized.
@@ -147,7 +147,7 @@ class ChannelOutputStream:
                         if last_action is None:
                             last_action = message.created_at
                         
-                        if (last_action + MESSAGE_EDIT_TIMEDELTA > datetime.utcnow()):
+                        if (last_action + MESSAGE_EDIT_TIMEDELTA > DateTime.now(TimeZone.utc)):
                             un_poll = self._last_chunk
                             should_edit = True
                         else:
@@ -303,7 +303,7 @@ class ChannelOutputStream:
         """Enters the stream returning itself."""
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exception_type, exception_value, exception_traceback):
         """Exists the stream by closing it."""
         self.close()
         return False
@@ -828,7 +828,7 @@ class ChannelInputStream:
         """Enters the stream returning itself."""
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exception_type, exception_value, exception_traceback):
         """Exists the stream by closing it."""
         self.close()
         return False

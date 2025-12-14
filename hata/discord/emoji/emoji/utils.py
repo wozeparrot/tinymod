@@ -1,8 +1,8 @@
 __all__ = (
-    'create_emoji_from_exclusive_data', 'create_emoji_from_exclusive_inline_data', 'create_partial_emoji_data',
-    'create_partial_emoji_from_data', 'create_partial_emoji_from_id', 'create_partial_emoji_from_inline_data',
-    'create_unicode_emoji', 'put_exclusive_emoji_data_into', 'put_exclusive_emoji_inline_data_into',
-    'put_partial_emoji_inline_data_into'
+    'EMOJI_FIELD_CONVERTERS', 'create_emoji_from_exclusive_data', 'create_emoji_from_exclusive_inline_data',
+    'create_partial_emoji_data', 'create_partial_emoji_from_data', 'create_partial_emoji_from_id',
+    'create_partial_emoji_from_inline_data', 'create_unicode_emoji', 'put_exclusive_emoji_data_into',
+    'put_exclusive_emoji_inline_data_into', 'put_partial_emoji_inline_data_into'
 )
 
 from scarletio import export, include
@@ -12,7 +12,19 @@ from ....utils.debug import call_debug_logger
 
 from ...core import EMOJIS, UNICODE_TO_EMOJI
 
+from .fields import put_name, put_role_ids, validate_name, validate_role_ids
 from .emoji import Emoji
+
+
+EMOJI_FIELD_CONVERTERS = {
+    'name': (validate_name, put_name),
+    'role_ids': (validate_role_ids, put_role_ids),
+    'roles': (validate_role_ids, put_role_ids),
+}
+
+EMOJI_APPLICATION_FIELD_CONVERTERS = {
+    'name': (validate_name, put_name),
+}
 
 
 Unicode = include('Unicode')
@@ -57,7 +69,7 @@ def create_partial_emoji_from_data(data):
     
     Returns
     -------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
     """
     return _create_partial_emoji_from_fields(
         data.get('name', None), data.get('id', None), data.get('animated', False),
@@ -76,7 +88,7 @@ def create_partial_emoji_from_inline_data(data):
     
     Returns
     -------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
     """
     return _create_partial_emoji_from_fields(
         data.get('emoji_name', None), data.get('emoji_id', None), data.get('emoji_animated', False)
@@ -98,7 +110,7 @@ def _create_partial_emoji_from_fields(emoji_name, emoji_id, emoji_animated):
     
     Returns
     -------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
     """
     if emoji_name is None:
         return None
@@ -177,7 +189,7 @@ def put_partial_emoji_inline_data_into(emoji, data):
     
     Parameters
     ----------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
         The emoji to serialize.
     data : `dict<str, object>`
         The data to put the emoji fields into.
@@ -217,7 +229,7 @@ def create_emoji_from_exclusive_inline_data(data):
     
     Returns
     -------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
     """
     emoji_name = data.get('emoji_name', None)
     emoji_id = data.get('emoji_id', None)
@@ -243,7 +255,7 @@ def put_exclusive_emoji_inline_data_into(emoji, data):
     
     Parameters
     ----------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
         The emoji to serialize.
     data : `dict<str, object>`
         The data to put the emoji fields into.
@@ -280,7 +292,7 @@ def create_emoji_from_exclusive_data(data):
     
     Returns
     -------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
     """
     emoji_name = data.get('name', None)
     emoji_id = data.get('id', None)
@@ -306,7 +318,7 @@ def put_exclusive_emoji_data_into(emoji, data):
     
     Parameters
     ----------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
         The emoji to serialize.
     data : `dict<str, object>`
         The data to put the emoji fields into.

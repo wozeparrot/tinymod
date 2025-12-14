@@ -16,10 +16,10 @@ from ..flags import (
     ApplicationOverlayMethodFlags
 )
 from ..preinstanced import (
-    ApplicationDiscoverabilityState, ApplicationExplicitContentFilterLevel, ApplicationIntegrationType,
-    ApplicationInteractionEventType, ApplicationInteractionVersion, ApplicationInternalGuildRestriction,
-    ApplicationMonetizationState, ApplicationRPCState, ApplicationStoreState, ApplicationType,
-    ApplicationVerificationState
+    ApplicationDiscoverabilityState, ApplicationEventWebhookEventType, ApplicationEventWebhookState,
+    ApplicationExplicitContentFilterLevel, ApplicationIntegrationType, ApplicationInteractionEventType,
+    ApplicationInteractionVersion, ApplicationInternalGuildRestriction, ApplicationMonetizationState,
+    ApplicationRPCState, ApplicationStoreState, ApplicationTheme, ApplicationType, ApplicationVerificationState
 )
 
 def _assert_fields_set(application):
@@ -32,8 +32,11 @@ def _assert_fields_set(application):
         The application to check.
     """
     vampytest.assert_instance(application, Application)
+    vampytest.assert_instance(application._cache_emojis, dict, nullable = True)
     vampytest.assert_instance(application.aliases, tuple, nullable = True)
     vampytest.assert_instance(application.approximate_guild_count, int)
+    vampytest.assert_instance(application.approximate_user_authorization_count, int)
+    vampytest.assert_instance(application.approximate_user_install_count, int)
     vampytest.assert_instance(application.bot_public, bool)
     vampytest.assert_instance(application.bot_requires_code_grant, bool)
     vampytest.assert_instance(application.cover, Icon)
@@ -48,6 +51,9 @@ def _assert_fields_set(application):
         application.embedded_activity_configuration, EmbeddedActivityConfiguration, nullable = True
     )
     vampytest.assert_instance(application.eula_id, int)
+    vampytest.assert_instance(application.event_webhook_event_types, tuple, nullable = True)
+    vampytest.assert_instance(application.event_webhook_state, ApplicationEventWebhookState)
+    vampytest.assert_instance(application.event_webhook_url, str, nullable = True)
     vampytest.assert_instance(application.executables, tuple, nullable = True)
     vampytest.assert_instance(application.explicit_content_filter_level, ApplicationExplicitContentFilterLevel)
     vampytest.assert_instance(application.flags, ApplicationFlag)
@@ -85,6 +91,7 @@ def _assert_fields_set(application):
     vampytest.assert_instance(application.store_state, ApplicationStoreState)
     vampytest.assert_instance(application.tags, tuple, nullable = True)
     vampytest.assert_instance(application.terms_of_service_url, str, nullable = True)
+    vampytest.assert_instance(application.themes, tuple, nullable = True)
     vampytest.assert_instance(application.third_party_skus, tuple, nullable = True)
     vampytest.assert_instance(application.type, ApplicationType)
     vampytest.assert_instance(application.verification_state, ApplicationVerificationState)
@@ -109,6 +116,8 @@ def test__Application__new__all_fields():
     """
     aliases = ['orin', 'rin']
     approximate_guild_count = 11
+    approximate_user_authorization_count = 21
+    approximate_user_install_count = 13
     bot_public = True
     bot_requires_code_grant = True
     cover = Icon(IconType.static, 23)
@@ -121,6 +130,12 @@ def test__Application__new__all_fields():
     discovery_eligibility_flags = ApplicationDiscoveryEligibilityFlags(9)
     embedded_activity_configuration = EmbeddedActivityConfiguration(position = 6)
     eula_id = 202211290001
+    event_webhook_event_types = [
+        ApplicationEventWebhookEventType.application_authorization,
+        ApplicationEventWebhookEventType.entitlement_create
+    ]
+    event_webhook_state = ApplicationEventWebhookState.enabled
+    event_webhook_url = 'https://orindance.party/event-webhook'
     executables = [ApplicationExecutable(name = 'Okuu')]
     explicit_content_filter_level = ApplicationExplicitContentFilterLevel.filtered
     flags = ApplicationFlag(96)
@@ -164,6 +179,7 @@ def test__Application__new__all_fields():
     store_state = ApplicationStoreState.approved
     tags = ['cat']
     terms_of_service_url = 'https://orindance.party/'
+    themes = [ApplicationTheme.action]
     third_party_skus = [ThirdPartySKU(distributor = 'Dead')]
     application_type = ApplicationType.game
     verification_state = ApplicationVerificationState.approved
@@ -172,6 +188,8 @@ def test__Application__new__all_fields():
     application = Application(
         aliases = aliases,
         approximate_guild_count = approximate_guild_count,
+        approximate_user_authorization_count = approximate_user_authorization_count,
+        approximate_user_install_count = approximate_user_install_count,
         bot_public = bot_public,
         bot_requires_code_grant = bot_requires_code_grant,
         cover = cover,
@@ -184,6 +202,9 @@ def test__Application__new__all_fields():
         discovery_eligibility_flags = discovery_eligibility_flags,
         embedded_activity_configuration = embedded_activity_configuration,
         eula_id = eula_id,
+        event_webhook_event_types = event_webhook_event_types,
+        event_webhook_state = event_webhook_state,
+        event_webhook_url = event_webhook_url,
         executables = executables,
         explicit_content_filter_level = explicit_content_filter_level,
         flags = flags,
@@ -220,6 +241,7 @@ def test__Application__new__all_fields():
         store_state = store_state,
         tags = tags,
         terms_of_service_url = terms_of_service_url,
+        themes = themes,
         third_party_skus = third_party_skus,
         application_type = application_type,
         verification_state = verification_state,
@@ -229,6 +251,8 @@ def test__Application__new__all_fields():
     
     vampytest.assert_eq(application.aliases, tuple(aliases))
     vampytest.assert_eq(application.approximate_guild_count, approximate_guild_count)
+    vampytest.assert_eq(application.approximate_user_authorization_count, approximate_user_authorization_count)
+    vampytest.assert_eq(application.approximate_user_install_count, approximate_user_install_count)
     vampytest.assert_eq(application.bot_public, bot_public)
     vampytest.assert_eq(application.bot_requires_code_grant, bot_requires_code_grant)
     vampytest.assert_eq(application.cover, cover)
@@ -241,6 +265,9 @@ def test__Application__new__all_fields():
     vampytest.assert_eq(application.discovery_eligibility_flags, discovery_eligibility_flags)
     vampytest.assert_eq(application.embedded_activity_configuration, embedded_activity_configuration)
     vampytest.assert_eq(application.eula_id, eula_id)
+    vampytest.assert_eq(application.event_webhook_event_types, tuple(event_webhook_event_types))
+    vampytest.assert_is(application.event_webhook_state, event_webhook_state)
+    vampytest.assert_eq(application.event_webhook_url, event_webhook_url)
     vampytest.assert_eq(application.executables, tuple(executables))
     vampytest.assert_is(application.explicit_content_filter_level, explicit_content_filter_level)
     vampytest.assert_eq(application.flags, flags)
@@ -277,6 +304,7 @@ def test__Application__new__all_fields():
     vampytest.assert_is(application.store_state, store_state)
     vampytest.assert_eq(application.tags, tuple(tags))
     vampytest.assert_eq(application.terms_of_service_url, terms_of_service_url)
+    vampytest.assert_eq(application.themes, tuple(themes))
     vampytest.assert_eq(application.third_party_skus, tuple(third_party_skus))
     vampytest.assert_is(application.type, application_type)
     vampytest.assert_is(application.verification_state, verification_state)
@@ -305,6 +333,8 @@ def test__Application__precreate__all_fields():
     
     aliases = ['orin', 'rin']
     approximate_guild_count = 11
+    approximate_user_authorization_count = 21
+    approximate_user_install_count = 13
     bot_public = True
     bot_requires_code_grant = True
     cover = Icon(IconType.static, 23)
@@ -317,6 +347,12 @@ def test__Application__precreate__all_fields():
     discovery_eligibility_flags = ApplicationDiscoveryEligibilityFlags(9)
     embedded_activity_configuration = EmbeddedActivityConfiguration(position = 6)
     eula_id = 202211290009
+    event_webhook_event_types = [
+        ApplicationEventWebhookEventType.application_authorization,
+        ApplicationEventWebhookEventType.entitlement_create
+    ]
+    event_webhook_state = ApplicationEventWebhookState.enabled
+    event_webhook_url = 'https://orindance.party/event-webhook'
     executables = [ApplicationExecutable(name = 'Okuu')]
     explicit_content_filter_level = ApplicationExplicitContentFilterLevel.filtered
     flags = ApplicationFlag(96)
@@ -360,6 +396,7 @@ def test__Application__precreate__all_fields():
     store_state = ApplicationStoreState.approved
     tags = ['cat']
     terms_of_service_url = 'https://orindance.party/'
+    themes = [ApplicationTheme.action]
     third_party_skus = [ThirdPartySKU(distributor = 'Dead')]
     application_type = ApplicationType.game
     verification_state = ApplicationVerificationState.approved
@@ -369,6 +406,8 @@ def test__Application__precreate__all_fields():
         application_id,
         aliases = aliases,
         approximate_guild_count = approximate_guild_count,
+        approximate_user_authorization_count = approximate_user_authorization_count,
+        approximate_user_install_count = approximate_user_install_count,
         bot_public = bot_public,
         bot_requires_code_grant = bot_requires_code_grant,
         cover = cover,
@@ -381,6 +420,9 @@ def test__Application__precreate__all_fields():
         discovery_eligibility_flags = discovery_eligibility_flags,
         embedded_activity_configuration = embedded_activity_configuration,
         eula_id = eula_id,
+        event_webhook_event_types = event_webhook_event_types,
+        event_webhook_state = event_webhook_state,
+        event_webhook_url = event_webhook_url,
         executables = executables,
         explicit_content_filter_level = explicit_content_filter_level,
         flags = flags,
@@ -417,6 +459,7 @@ def test__Application__precreate__all_fields():
         store_state = store_state,
         tags = tags,
         terms_of_service_url = terms_of_service_url,
+        themes = themes,
         third_party_skus = third_party_skus,
         application_type = application_type,
         verification_state = verification_state,
@@ -427,6 +470,8 @@ def test__Application__precreate__all_fields():
     
     vampytest.assert_eq(application.aliases, tuple(aliases))
     vampytest.assert_eq(application.approximate_guild_count, approximate_guild_count)
+    vampytest.assert_eq(application.approximate_user_authorization_count, approximate_user_authorization_count)
+    vampytest.assert_eq(application.approximate_user_install_count, approximate_user_install_count)
     vampytest.assert_eq(application.bot_public, bot_public)
     vampytest.assert_eq(application.bot_requires_code_grant, bot_requires_code_grant)
     vampytest.assert_eq(application.cover, cover)
@@ -439,6 +484,9 @@ def test__Application__precreate__all_fields():
     vampytest.assert_eq(application.discovery_eligibility_flags, discovery_eligibility_flags)
     vampytest.assert_eq(application.embedded_activity_configuration, embedded_activity_configuration)
     vampytest.assert_eq(application.eula_id, eula_id)
+    vampytest.assert_eq(application.event_webhook_event_types, tuple(event_webhook_event_types))
+    vampytest.assert_is(application.event_webhook_state, event_webhook_state)
+    vampytest.assert_eq(application.event_webhook_url, event_webhook_url)
     vampytest.assert_eq(application.executables, tuple(executables))
     vampytest.assert_is(application.explicit_content_filter_level, explicit_content_filter_level)
     vampytest.assert_eq(application.flags, flags)
@@ -475,6 +523,7 @@ def test__Application__precreate__all_fields():
     vampytest.assert_is(application.store_state, store_state)
     vampytest.assert_eq(application.tags, tuple(tags))
     vampytest.assert_eq(application.terms_of_service_url, terms_of_service_url)
+    vampytest.assert_eq(application.themes, tuple(themes))
     vampytest.assert_eq(application.third_party_skus, tuple(third_party_skus))
     vampytest.assert_is(application.type, application_type)
     vampytest.assert_is(application.verification_state, verification_state)

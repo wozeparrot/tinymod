@@ -1,6 +1,6 @@
 __all__ = ('SolarPlayer', )
 
-from datetime import datetime
+from datetime import datetime as DateTime, timezone as TimeZone
 from random import randrange
 
 from scarletio import copy_docs
@@ -19,7 +19,7 @@ class SolarPlayer(SolarPlayerBase):
     
     Attributes
     ----------
-    _forward_data : `None`, `dict` of (`str`, `object`) items
+    _forward_data : `None`, `dict<str, object>`
         Json to forward to the player's node as necessary.
     _position : `float`
         The position of the current track.
@@ -123,7 +123,7 @@ class SolarPlayer(SolarPlayerBase):
             Where the track will start in seconds.
         end_time : `float` = `0.0`, Optional
             Where the track will start in seconds.
-        **added_attributes : `dict` of (`str`, `object`)
+        **added_attributes : `dict<str, object>`
             Additional user defined attributes.
         
         Returns
@@ -572,16 +572,12 @@ class SolarPlayer(SolarPlayerBase):
         except KeyError:
             pass
         else:
-            try:
-                voice_state = guild.voice_states[node.client.id]
-            except KeyError:
-                return
-            
-            if voice_state.speaker:
+            voice_state = guild.get_voice_state(node.client.id)
+            if (voice_state is None) or voice_state.speaker:
                 return
         
         if request:
-            timestamp = datetime_to_timestamp(datetime.utcnow())
+            timestamp = datetime_to_timestamp(DateTime.now(TimeZone.utc))
         else:
             timestamp = None
         
@@ -591,7 +587,7 @@ class SolarPlayer(SolarPlayerBase):
             'channel_id': self.channel_id
         }
         
-        await node.client.api.voice_state_client_edit(guild_id, data)
+        await node.client.api.voice_state_edit_own(guild_id, data)
     
     
     async def join_audience(self):
@@ -618,12 +614,8 @@ class SolarPlayer(SolarPlayerBase):
         except KeyError:
             pass
         else:
-            try:
-                voice_state = guild.voice_states[node.client.id]
-            except KeyError:
-                return
-            
-            if not voice_state.speaker:
+            voice_state = guild.get_voice_state(node.client.id)
+            if (voice_state is None) or not voice_state.speaker:
                 return
         
         data = {
@@ -631,4 +623,4 @@ class SolarPlayer(SolarPlayerBase):
             'channel_id': self.channel_id
         }
         
-        await node.client.api.voice_state_client_edit(guild_id, data)
+        await node.client.api.voice_state_edit_own(guild_id, data)

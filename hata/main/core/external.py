@@ -42,11 +42,11 @@ def _save_external_command_routes(command_routes):
     
     Parameters
     ----------
-    command_routes : `set` of `str`
+    command_routes : `set<str>`
     """
     content = '\n'.join(sorted(command_routes))
     
-    with open(EXTERNAL_IMPORT_ROUTES_FILE, 'w') as file:
+    with open(EXTERNAL_IMPORT_ROUTES_FILE, 'w', encoding = 'utf-8') as file:
         file.write(content)
 
 
@@ -65,7 +65,7 @@ def get_external_command_routes(*, fix_errors = True):
         return command_routes
     
     
-    with open(EXTERNAL_IMPORT_ROUTES_FILE, 'r') as file:
+    with open(EXTERNAL_IMPORT_ROUTES_FILE, 'r', encoding = 'utf-8') as file:
         content = file.read()
     
     error_found = False

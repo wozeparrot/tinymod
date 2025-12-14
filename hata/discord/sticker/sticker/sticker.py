@@ -1,10 +1,8 @@
 __all__ = ('Sticker', )
 
-import warnings
-
 from ...bases import DiscordEntity
 from ...core import GUILDS, STICKERS, STICKER_PACKS
-from ...http import urls as module_urls
+from ...http.urls import build_sticker_url, build_sticker_url_as
 from ...precreate_helpers import process_precreate_parameters_and_raise_extra
 from ...user import ZEROUSER
 from ...utils import DATETIME_FORMAT_CODE
@@ -12,9 +10,9 @@ from ...utils import DATETIME_FORMAT_CODE
 from .constants import SORT_VALUE_DEFAULT
 from .fields import (
     parse_available, parse_description, parse_format, parse_guild_id, parse_id, parse_name, parse_pack_id,
-    parse_sort_value, parse_tags, parse_type, parse_user, put_available_into, put_description_into, put_format_into,
-    put_guild_id_into, put_id_into, put_name_into, put_pack_id_into, put_sort_value_into, put_tags_into, put_type_into,
-    put_user_into, validate_available, validate_description, validate_format, validate_guild_id, validate_id,
+    parse_sort_value, parse_tags, parse_type, parse_user, put_available, put_description, put_format,
+    put_guild_id, put_id, put_name, put_pack_id, put_sort_value, put_tags, put_type,
+    put_user, validate_available, validate_description, validate_format, validate_guild_id, validate_id,
     validate_name, validate_pack_id, validate_sort_value, validate_tags, validate_type, validate_user
 )
 from .preinstanced import StickerFormat, StickerType
@@ -196,7 +194,7 @@ class Sticker(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Sticker data.
         
         Returns
@@ -238,45 +236,6 @@ class Sticker(DiscordEntity, immortal = True):
         return self
     
     
-    @classmethod
-    def from_partial_data(cls, data):
-        """
-        Creates a sticker from the given partial sticker data.
-        
-        Parameters
-        ----------
-        data : `dict` of (`str`, `object`) items
-            Sticker data.
-        
-        Returns
-        -------
-        sticker : `instance<cls>`
-        """
-        warnings.warn(
-            (
-                f'`{cls.__name__}.from_partial_data` is deprecate and will be removed in 2023 December. '
-                f'Please use `create_partial_sticker_data` instead.'
-            ),
-            FutureWarning,
-        )
-        
-        sticker_id = parse_id(data)
-        
-        try:
-            self = STICKERS[sticker_id]
-        except KeyError:
-            self = cls._create_empty(sticker_id)
-            STICKERS[sticker_id] = self
-        else:
-            if not self.partial:
-                return self
-        
-        self.format = parse_format(data)
-        self.name = parse_name(data)
-        
-        return self
-    
-    
     def to_data(self, *, defaults = False, include_internals = False):
         """
         Converts the sticker to a json serializable object.
@@ -290,52 +249,28 @@ class Sticker(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
         
-        put_description_into(self.description, data, defaults)
-        put_name_into(self.name, data, defaults)
-        put_tags_into(self.tags, data, defaults)
+        put_description(self.description, data, defaults)
+        put_name(self.name, data, defaults)
+        put_tags(self.tags, data, defaults)
         
         if include_internals:
-            put_available_into(self.available, data, defaults)
-            put_sort_value_into(self.sort_value, data, defaults)
-            put_format_into(self.format, data, defaults)
-            put_guild_id_into(self.guild_id, data, defaults)
-            put_id_into(self.id, data, defaults)
-            put_pack_id_into(self.pack_id, data, defaults)
-            put_sort_value_into(self.sort_value, data, defaults)
-            put_type_into(self.type, data, defaults)
-            put_user_into(self.user, data, defaults)
+            put_available(self.available, data, defaults)
+            put_sort_value(self.sort_value, data, defaults)
+            put_format(self.format, data, defaults)
+            put_guild_id(self.guild_id, data, defaults)
+            put_id(self.id, data, defaults)
+            put_pack_id(self.pack_id, data, defaults)
+            put_sort_value(self.sort_value, data, defaults)
+            put_type(self.type, data, defaults)
+            put_user(self.user, data, defaults)
         
         return data
     
-
-    def to_partial_data(self):
-        """
-        Tries to convert the sticker to a json serializable dictionary representing a partial sticker.
-        
-        Returns
-        -------
-        data : `dict` of (`str`, `object`)
-        """
-        warnings.warn(
-            (
-                f'`{self.__class__.__name__}.to_partial_data` is deprecate and will be removed in 2023 December. '
-                f'Please use `create_partial_sticker_data` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        data = {}
-        put_format_into(self.format, data, True)
-        put_id_into(self.id, data, True)
-        put_name_into(self.name, data, True)
-        return data
     
-
     @classmethod
     def precreate(cls, sticker_id, **keyword_parameters):
         """
@@ -356,9 +291,9 @@ class Sticker(DiscordEntity, immortal = True):
             Whether the sticker is available.
         description : `None`, `str`, Optional (Keyword only)
             The sticker's description.
-        guild : ``Guild``, `int`, Optional (Keyword only)
+        guild : ``int | Guild``, Optional (Keyword only)
             Alternative for `guild_id`.
-        guild_id : ``Guild``, `int`, Optional (Keyword only)
+        guild_id : ``int | Guild``, Optional (Keyword only)
              The sticker's guild's identifier.
         name : `str`, Optional (Keyword only)
             The sticker's name.
@@ -721,17 +656,13 @@ class Sticker(DiscordEntity, immortal = True):
         return True
     
     
-    url = property(module_urls.sticker_url)
-    url_as = module_urls.sticker_url_as
-    
-    
     def _set_attributes(self, data):
         """
         Sets the attributes of the sticker from the given data.
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Sticker data.
         """
         self.format = parse_format(data)
@@ -749,7 +680,7 @@ class Sticker(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Sticker data.
         """
         self.available = parse_available(data)
@@ -771,12 +702,12 @@ class Sticker(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Sticker data.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dictionary is optional.
             
             +-----------------------+-----------------------------------+
@@ -1047,3 +978,34 @@ class Sticker(DiscordEntity, immortal = True):
             return False
         
         return (tag in self.tags)
+    
+    
+    @property
+    def url(self):
+        """
+        Returns the sticker's url. If the sticker has no url, returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_sticker_url(self.id, self.format)
+    
+    
+    def url_as(self, size = None, preview = False):
+        """
+        Returns the sticker's url. If the sticker has no url, returns `None`.
+        
+        Parameters
+        ----------
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the icon's url.
+        
+        preview : `bool` = `False`, Optional
+            Whether preview url should be generated.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_sticker_url_as(self.id, self.format, size, preview)

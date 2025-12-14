@@ -28,7 +28,7 @@ def parse_emoji(text):
     
     Returns
     -------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
     """
     parsed = EMOJI_RP.fullmatch(text)
     if (parsed is not None):
@@ -144,7 +144,6 @@ def parse_all_emojis(text):
     if text is None:
         return set()
     return {*_iter_parse_all_emojis(text)}
-    
 
 
 def _parse_emojis_ordered(text, parser):
@@ -222,7 +221,7 @@ def parse_reaction(text):
     
     Returns
     -------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
     """
     try:
         emoji = UNICODE_TO_EMOJI[text]

@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
@@ -14,6 +14,7 @@ from ...embed_thumbnail import EmbedThumbnail
 from ...embed_video import EmbedVideo
 
 from ..embed import Embed
+from ..flags import EmbedFlag
 from ..preinstanced import EmbedType
 
 from .test__Embed__constructor import _assert_fields_set
@@ -28,11 +29,12 @@ def test__Embed__from_data():
     description = 'embed description'
     embed_type = EmbedType.video
     fields = [EmbedField('komeiji', 'koishi'), EmbedField('komeiji', 'satori', inline = True)]
+    flags = EmbedFlag(3)
     footer = EmbedFooter('footer text')
     image = EmbedImage('attachment://image')
     provider = EmbedProvider('provider name')
     thumbnail = EmbedThumbnail('attachment://thumbnail')
-    timestamp = DateTime(2016, 5, 5)
+    timestamp = DateTime(2016, 5, 5, tzinfo = TimeZone.utc)
     title = 'embed title'
     url = 'https://orindance.party/'
     video = EmbedVideo('attachment://video')
@@ -43,6 +45,7 @@ def test__Embed__from_data():
         'description': description,
         'type': embed_type.value,
         'fields': [field.to_data(defaults = True, include_internals = True) for field in fields],
+        'flags': flags,
         'footer': footer.to_data(defaults = True, include_internals = True),
         'image': image.to_data(defaults = True, include_internals = True),
         'provider': provider.to_data(defaults = True, include_internals = True),
@@ -60,6 +63,7 @@ def test__Embed__from_data():
     vampytest.assert_eq(embed.color, color)
     vampytest.assert_eq(embed.description, description)
     vampytest.assert_eq(embed.fields, fields)
+    vampytest.assert_eq(embed.flags, flags)
     vampytest.assert_eq(embed.footer, footer)
     vampytest.assert_eq(embed.image, image)
     vampytest.assert_eq(embed.provider, provider)
@@ -82,11 +86,12 @@ def test__Embed__to_data():
     description = 'embed description'
     embed_type = EmbedType.video
     fields = [EmbedField('komeiji', 'koishi'), EmbedField('komeiji', 'satori', inline = True)]
+    flags = EmbedFlag(3)
     footer = EmbedFooter('footer text')
     image = EmbedImage('attachment://image')
     provider = EmbedProvider('provider name')
     thumbnail = EmbedThumbnail('attachment://thumbnail')
-    timestamp = DateTime(2016, 5, 5)
+    timestamp = DateTime(2016, 5, 5, tzinfo = TimeZone.utc)
     title = 'embed title'
     url = 'https://orindance.party/'
     video = EmbedVideo('attachment://video')
@@ -97,6 +102,7 @@ def test__Embed__to_data():
         description = description,
         embed_type = embed_type,
         fields = fields,
+        flags = flags,
         footer = footer,
         image = image,
         provider = provider,
@@ -113,6 +119,7 @@ def test__Embed__to_data():
         'description': description,
         'type': embed_type.value,
         'fields': [field.to_data(defaults = True, include_internals = True) for field in fields],
+        'flags': flags,
         'footer': footer.to_data(defaults = True, include_internals = True),
         'image': image.to_data(defaults = True, include_internals = True),
         'provider': provider.to_data(defaults = True, include_internals = True),

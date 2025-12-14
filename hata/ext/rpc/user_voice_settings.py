@@ -13,7 +13,7 @@ class UserVoiceSettings:
     audio_balance : `None`, ``AudioBalance``
         Audio balance.
     
-    user_id : `None`, `int`
+    user_id : `None | int`
         The user's identifier.
     
     volume : `None`, `float`
@@ -25,7 +25,7 @@ class UserVoiceSettings:
     
     def __repr__(self):
         """Returns the user voice setting's representation."""
-        repr_parts = ['<', self.__class__.__name__, ' user_id = ', repr(self.user_id), '>']
+        repr_parts = ['<', type(self).__name__, ' user_id = ', repr(self.user_id), '>']
         return ''.join(repr_parts)
     
     
@@ -36,17 +36,17 @@ class UserVoiceSettings:
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             User voice settings data.
         
         Returns
         -------
-        self : ``UserVoiceSettings``
+        self : `instance<cls>`
         """
         mute = data['mute']
         audio_balance = AudioBalance.from_data(data['pan'])
         user_id = int(data['user_id'])
-        volume = data['volume']*0.01
+        volume = data['volume'] * 0.01
         
         self = object.__new__(cls)
         self.mute = mute
@@ -144,7 +144,7 @@ class AudioBalance:
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
         
@@ -166,12 +166,12 @@ class AudioBalance:
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Audio balance data.
         
         Returns
         -------
-        self : ``AudioBalance``
+        self : `instance<cls>`
         """
         left = data['left']
         right = data['right']

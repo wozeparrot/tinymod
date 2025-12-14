@@ -1,6 +1,6 @@
 __all__ = ()
 
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 from scarletio import Compound
 
@@ -39,6 +39,9 @@ class ClientCompoundClientEndpoints(Compound):
         avatar : `None`, `bytes-like`, Optional (Keyword only)
             An `'jpg'`, `'png'`, `'webp'` image's raw data. If the client is premium account, then it can be
             `'gif'` as well. By passing `None` you can remove the client's current avatar.
+        
+        avatar_decoration : ``None | AvatarDecoration``, Optional (Keyword only)
+            The client's new avatar decoration.
         
         banner : `None`, `bytes-like`, Optional (Keyword only)
             An `'jpg'`, `'png'`, `'webp'`, 'gif'` image's raw data. By passing `None` you can remove the client's
@@ -86,7 +89,7 @@ class ClientCompoundClientEndpoints(Compound):
         
         Parameters
         ----------
-        guild : `None`, `int`, ``Guild``
+        guild : ``None | int | Guild``
             The guild where the client's nickname will be changed. If `guild` is given as `None`, then the function
             returns instantly.
         
@@ -98,14 +101,26 @@ class ClientCompoundClientEndpoints(Compound):
         
         Other Parameters
         ----------------
-        nick : `None`, `str`, Optional (Keyword only)
-            The client's new nickname. Pass it as `None` to remove it. Empty strings are interpreted as `None`.
-        
         avatar : `None`, `bytes-like`, Optional (Keyword only)
             The client's new guild specific avatar.
             
             Can be a `'jpg'`, `'png'`, `'webp'` image's raw data. If the client is premium account, then it can be
             `'gif'` as well. By passing `None` you can remove the client's current avatar.
+        
+        avatar_decoration : ``None | AvatarDecoration``, Optional (Keyword only)
+            The client's new avatar decoration.
+        
+        banner : `None`, `bytes-like`, Optional (Keyword only)
+            The client's new guild specific banner.
+            
+            Can be a `'jpg'`, `'png'`, `'webp'` and `'gif'`image's raw data.
+            By passing `None` you can remove the client's current banner.
+        
+        bio : `None | str`, Optional (Keyword only)
+            The client's new guild specific bio.
+        
+        nick : `None`, `str`, Optional (Keyword only)
+            The client's new nickname. Pass it as `None` to remove it. Empty strings are interpreted as `None`.
         
         Raises
         ------
@@ -158,7 +173,7 @@ class ClientCompoundClientEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild from where the client will leave.
         
         Raises
@@ -201,7 +216,7 @@ class ClientCompoundClientEndpoints(Compound):
         guild_id, channel_id = get_channel_guild_id_and_id(channel, Channel.is_guild_stage)
         
         if request:
-            timestamp = datetime_to_timestamp(DateTime.utcnow())
+            timestamp = datetime_to_timestamp(DateTime.now(TimeZone.utc))
         else:
             timestamp = None
         
@@ -211,7 +226,7 @@ class ClientCompoundClientEndpoints(Compound):
             'channel_id': channel_id
         }
         
-        await self.api.voice_state_client_edit(guild_id, data)
+        await self.api.voice_state_edit_own(guild_id, data)
     
     
     async def join_audience(self, channel):
@@ -243,7 +258,7 @@ class ClientCompoundClientEndpoints(Compound):
             'channel_id': channel_id
         }
         
-        await self.api.voice_state_client_edit(guild_id, data)
+        await self.api.voice_state_edit_own(guild_id, data)
     
     
     async def application_edit_own(self, application_template = None, **keyword_parameters):
@@ -252,7 +267,7 @@ class ClientCompoundClientEndpoints(Compound):
         
         Parameters
         ----------
-        application : `None`, ``Application`` = `None`, Optional
+        application : ``None | Application`` = `None`, Optional
             Application entity to use as a template.
         
         **keyword_parameters : Keyword parameters

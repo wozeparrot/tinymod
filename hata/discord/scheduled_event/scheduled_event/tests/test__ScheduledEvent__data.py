@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
@@ -6,7 +6,10 @@ from ....bases import Icon, IconType
 from ....client import Client
 from ....guild import Guild
 from ....user import User
-from ....utils import datetime_to_timestamp
+from ....utils import datetime_to_id, datetime_to_timestamp
+
+from ...schedule import Schedule
+from ...scheduled_event_occasion_overwrite import ScheduledEventOccasionOverwrite
 
 from ..preinstanced import PrivacyLevel, ScheduledEventEntityType, ScheduledEventStatus
 from ..scheduled_event import ScheduledEvent
@@ -14,7 +17,7 @@ from ..scheduled_event import ScheduledEvent
 from .test__ScheduledEvent__constructor import _assert_fields_set
 
 
-def test__ScheduledEvent__from_data__0():
+def test__ScheduledEvent__from_data__default():
     """
     Tests whether ``ScheduledEvent.from_data`` works as intended.
     
@@ -22,14 +25,23 @@ def test__ScheduledEvent__from_data__0():
     """
     scheduled_event_id = 202303160011
     
+    occasion_overwrites = [
+        ScheduledEventOccasionOverwrite(
+            timestamp = DateTime(2016, 5, 14, 13, 0, 0, tzinfo = TimeZone.utc),
+        ),
+        ScheduledEventOccasionOverwrite(
+            timestamp = DateTime(2016, 5, 16, 13, 10, 0, tzinfo = TimeZone.utc),
+        ),
+    ]
     channel_id = 202303160012
     description = 'koishi'
-    end = DateTime(2016, 3, 10)
+    end = DateTime(2016, 3, 10, tzinfo = TimeZone.utc)
     entity_type = ScheduledEventEntityType.location
     image = Icon(IconType.static, 45)
     name = 'komeiji'
     privacy_level = PrivacyLevel.public
-    start = DateTime(2017, 4, 6)
+    schedule = Schedule(occurrence_spacing = 2)
+    start = DateTime(2017, 4, 6, tzinfo = TimeZone.utc)
     status = ScheduledEventStatus.active
     location = 'hell'
     
@@ -41,6 +53,12 @@ def test__ScheduledEvent__from_data__0():
     
     data = {
         'id': str(scheduled_event_id),
+        'guild_scheduled_event_exceptions': [
+            {
+                "event_id": str(scheduled_event_id),
+                **occasion_overwrite.to_data(defaults = True, include_internals = True),
+            } for occasion_overwrite in occasion_overwrites
+        ],
         'channel_id': str(channel_id),
         'description': description,
         'scheduled_end_time': datetime_to_timestamp(end),
@@ -48,6 +66,7 @@ def test__ScheduledEvent__from_data__0():
         'image': image.as_base_16_hash,
         'name': name,
         'privacy_level': privacy_level.value,
+        'recurrence_rule': schedule.to_data(defaults = True, start = start),
         'scheduled_start_time': datetime_to_timestamp(start),
         'status': status.value,
         'entity_metadata': entity_type.metadata_type(location = location).to_data(defaults = True),
@@ -63,6 +82,7 @@ def test__ScheduledEvent__from_data__0():
     
     vampytest.assert_eq(scheduled_event.id, scheduled_event_id)
     
+    vampytest.assert_eq(scheduled_event.occasion_overwrites, tuple(occasion_overwrites))
     vampytest.assert_eq(scheduled_event.channel_id, channel_id)
     vampytest.assert_eq(scheduled_event.description, description)
     vampytest.assert_eq(scheduled_event.end, end)
@@ -71,6 +91,7 @@ def test__ScheduledEvent__from_data__0():
     vampytest.assert_eq(scheduled_event.image, image)
     vampytest.assert_eq(scheduled_event.name, name)
     vampytest.assert_is(scheduled_event.privacy_level, privacy_level)
+    vampytest.assert_eq(scheduled_event.schedule, schedule.copy_with(start = start))
     vampytest.assert_eq(scheduled_event.start, start)
     vampytest.assert_is(scheduled_event.status, status)
         
@@ -81,7 +102,7 @@ def test__ScheduledEvent__from_data__0():
     vampytest.assert_eq(scheduled_event.user_count, user_count)
 
 
-def test__ScheduledEvent__from_data__1():
+def test__ScheduledEvent__from_data__global_caching():
     """
     Tests whether ``ScheduledEvent.from_data`` works as intended.
     
@@ -99,7 +120,7 @@ def test__ScheduledEvent__from_data__1():
     vampytest.assert_is(scheduled_event, test_scheduled_event)
 
 
-def test__ScheduledEvent__from_data__2():
+def test__ScheduledEvent__from_data__caching_under_guild():
     """
     Tests whether ``ScheduledEvent.from_data`` works as intended.
     
@@ -120,7 +141,7 @@ def test__ScheduledEvent__from_data__2():
     vampytest.assert_eq(guild.scheduled_events, {scheduled_event_id: scheduled_event})
 
 
-def test__ScheduledEvent__from_data__3():
+def test__ScheduledEvent__from_data__no_strong_cache():
     """
     Tests whether ``ScheduledEvent.from_data`` works as intended.
     
@@ -138,7 +159,7 @@ def test__ScheduledEvent__from_data__3():
     
     scheduled_event = ScheduledEvent.from_data(data, strong_cache = False)
     
-    vampytest.assert_eq(guild.scheduled_events, {})
+    vampytest.assert_eq(guild.scheduled_events, None)
 
 
 def test__ScheduledEvent__to_data():
@@ -149,14 +170,23 @@ def test__ScheduledEvent__to_data():
     """
     scheduled_event_id = 202303160021
     
+    occasion_overwrites = [
+        ScheduledEventOccasionOverwrite(
+            timestamp = DateTime(2016, 5, 14, 13, 0, 0, tzinfo = TimeZone.utc),
+        ),
+        ScheduledEventOccasionOverwrite(
+            timestamp = DateTime(2016, 5, 16, 13, 10, 0, tzinfo = TimeZone.utc),
+        ),
+    ]
     channel_id = 202303160022
     description = 'koishi'
-    end = DateTime(2016, 3, 10)
+    end = DateTime(2016, 3, 10, tzinfo = TimeZone.utc)
     entity_type = ScheduledEventEntityType.location
     image = Icon(IconType.static, 45)
     name = 'komeiji'
     privacy_level = PrivacyLevel.public
-    start = DateTime(2017, 4, 6)
+    schedule = Schedule(occurrence_spacing = 2)
+    start = DateTime(2017, 4, 6, tzinfo = TimeZone.utc)
     status = ScheduledEventStatus.active
     location = 'hell'
     
@@ -169,6 +199,7 @@ def test__ScheduledEvent__to_data():
     
     scheduled_event = ScheduledEvent.precreate(
         scheduled_event_id,
+        occasion_overwrites = occasion_overwrites,
         channel_id = channel_id,
         description = description,
         end = end,
@@ -176,6 +207,7 @@ def test__ScheduledEvent__to_data():
         image = image,
         name = name,
         privacy_level = privacy_level,
+        schedule = schedule,
         start = start,
         status = status,
         location = location,
@@ -188,6 +220,12 @@ def test__ScheduledEvent__to_data():
     
     expected_output = {
         'id': str(scheduled_event_id),
+        'guild_scheduled_event_exceptions': [
+            {
+                "event_id": str(scheduled_event_id),
+                **occasion_overwrite.to_data(defaults = True, include_internals = True),
+            } for occasion_overwrite in occasion_overwrites
+        ],
         'channel_id': str(channel_id),
         'description': description,
         'scheduled_end_time': datetime_to_timestamp(end),
@@ -195,6 +233,7 @@ def test__ScheduledEvent__to_data():
         'image': image.as_base_16_hash,
         'name': name,
         'privacy_level': privacy_level.value,
+        'recurrence_rule': schedule.to_data(defaults = True, start = start),
         'scheduled_start_time': datetime_to_timestamp(start),
         'status': status.value,
         'entity_metadata': entity_type.metadata_type(location = location).to_data(defaults = True),
@@ -215,17 +254,28 @@ def test__ScheduledEvent__set_attributes():
     """
     Tests whether ``ScheduledEvent._set_attributes`` works as intended.
     """
+    scheduled_event_id = 202506210032
+    
     channel_id = 202303160028
     description = 'koishi'
-    end = DateTime(2016, 3, 10)
+    end = DateTime(2016, 3, 10, tzinfo = TimeZone.utc)
     entity_type = ScheduledEventEntityType.location
     image = Icon(IconType.static, 45)
     name = 'komeiji'
     privacy_level = PrivacyLevel.public
-    start = DateTime(2017, 4, 6)
+    schedule = Schedule(occurrence_spacing = 2)
+    start = DateTime(2017, 4, 6, tzinfo = TimeZone.utc)
     status = ScheduledEventStatus.active
     location = 'hell'
     
+    occasion_overwrites = [
+        ScheduledEventOccasionOverwrite(
+            timestamp = DateTime(2016, 5, 14, 13, 0, 0, tzinfo = TimeZone.utc),
+        ),
+        ScheduledEventOccasionOverwrite(
+            timestamp = DateTime(2016, 5, 16, 13, 10, 0, tzinfo = TimeZone.utc),
+        ),
+    ]
     creator = User.precreate(202303160029, name = 'Orin')
     entity_id = 202303160030
     guild_id = 202303160031
@@ -233,6 +283,12 @@ def test__ScheduledEvent__set_attributes():
     user_count = 66
     
     data = {
+        'guild_scheduled_event_exceptions': [
+            {
+                "event_id": str(scheduled_event_id),
+                **occasion_overwrite.to_data(defaults = True, include_internals = True),
+            } for occasion_overwrite in occasion_overwrites
+        ],
         'channel_id': str(channel_id),
         'description': description,
         'scheduled_end_time': datetime_to_timestamp(end),
@@ -240,6 +296,7 @@ def test__ScheduledEvent__set_attributes():
         'image': image.as_base_16_hash,
         'name': name,
         'privacy_level': privacy_level.value,
+        'recurrence_rule': schedule.to_data(defaults = True, start = start),
         'scheduled_start_time': datetime_to_timestamp(start),
         'status': status.value,
         'entity_metadata': entity_type.metadata_type(location = location).to_data(defaults = True),
@@ -253,6 +310,7 @@ def test__ScheduledEvent__set_attributes():
     scheduled_event = ScheduledEvent()
     scheduled_event._set_attributes(data)
     
+    vampytest.assert_eq(scheduled_event.occasion_overwrites, tuple(occasion_overwrites))
     vampytest.assert_eq(scheduled_event.channel_id, channel_id)
     vampytest.assert_eq(scheduled_event.description, description)
     vampytest.assert_eq(scheduled_event.end, end)
@@ -261,6 +319,7 @@ def test__ScheduledEvent__set_attributes():
     vampytest.assert_eq(scheduled_event.image, image)
     vampytest.assert_eq(scheduled_event.name, name)
     vampytest.assert_is(scheduled_event.privacy_level, privacy_level)
+    vampytest.assert_eq(scheduled_event.schedule, schedule.copy_with(start = start))
     vampytest.assert_eq(scheduled_event.start, start)
     vampytest.assert_is(scheduled_event.status, status)
         
@@ -277,12 +336,13 @@ def test__ScheduledEvent__update_attributes():
     """
     channel_id = 202303160034
     description = 'koishi'
-    end = DateTime(2016, 3, 10)
+    end = DateTime(2016, 3, 10, tzinfo = TimeZone.utc)
     entity_type = ScheduledEventEntityType.location
     image = Icon(IconType.static, 45)
     name = 'komeiji'
     privacy_level = PrivacyLevel.public
-    start = DateTime(2017, 4, 6)
+    schedule = Schedule(occurrence_spacing = 2)
+    start = DateTime(2017, 4, 6, tzinfo = TimeZone.utc)
     status = ScheduledEventStatus.active
     location = 'hell'
     
@@ -297,6 +357,7 @@ def test__ScheduledEvent__update_attributes():
         'image': image.as_base_16_hash,
         'name': name,
         'privacy_level': privacy_level.value,
+        'recurrence_rule': schedule.to_data(defaults = True, start = start),
         'scheduled_start_time': datetime_to_timestamp(start),
         'status': status.value,
         'entity_metadata': entity_type.metadata_type(location = location).to_data(defaults = True),
@@ -315,6 +376,7 @@ def test__ScheduledEvent__update_attributes():
     vampytest.assert_eq(scheduled_event.image, image)
     vampytest.assert_eq(scheduled_event.name, name)
     vampytest.assert_is(scheduled_event.privacy_level, privacy_level)
+    vampytest.assert_eq(scheduled_event.schedule, schedule.copy_with(start = start))
     vampytest.assert_eq(scheduled_event.start, start)
     vampytest.assert_is(scheduled_event.status, status)
         
@@ -346,12 +408,13 @@ def test__ScheduledEvent__difference_update_attributes():
     
     old_channel_id = 202303160039
     old_description = 'koishi'
-    old_end = DateTime(2016, 3, 10)
+    old_end = DateTime(2016, 3, 10, tzinfo = TimeZone.utc)
     old_entity_type = ScheduledEventEntityType.location
     old_image = Icon(IconType.static, 45)
     old_name = 'komeiji'
     old_privacy_level = PrivacyLevel.public
-    old_start = DateTime(2017, 4, 6)
+    old_schedule = Schedule(occurrence_spacing = 2)
+    old_start = DateTime(2017, 4, 6, tzinfo = TimeZone.utc)
     old_status = ScheduledEventStatus.active
     old_location = 'hell'
     
@@ -361,12 +424,13 @@ def test__ScheduledEvent__difference_update_attributes():
     
     new_channel_id = 202303160043
     new_description = 'yakumo'
-    new_end = DateTime(2016, 4, 10)
+    new_end = DateTime(2016, 4, 10, tzinfo = TimeZone.utc)
     new_entity_type = ScheduledEventEntityType.stage
     new_image = Icon(IconType.animated, 46)
     new_name = 'yukari'
     new_privacy_level = PrivacyLevel.guild_only
-    new_start = DateTime(2017, 5, 6)
+    new_schedule = Schedule(occurrence_spacing = 3)
+    new_start = DateTime(2017, 5, 6, tzinfo = TimeZone.utc)
     new_status = ScheduledEventStatus.cancelled
     new_speaker_ids = [202303160044, 202303160045]
     
@@ -382,6 +446,7 @@ def test__ScheduledEvent__difference_update_attributes():
         image = old_image,
         name = old_name,
         privacy_level = old_privacy_level,
+        schedule = old_schedule,
         start = old_start,
         status = old_status,
         location = old_location,
@@ -397,6 +462,7 @@ def test__ScheduledEvent__difference_update_attributes():
         'image': new_image.as_base_16_hash,
         'name': new_name,
         'privacy_level': new_privacy_level.value,
+        'recurrence_rule': new_schedule.to_data(defaults = True, start = new_start),
         'scheduled_start_time': datetime_to_timestamp(new_start),
         'status': new_status.value,
         'entity_metadata': new_entity_type.metadata_type(speaker_ids = new_speaker_ids).to_data(defaults = True),
@@ -416,6 +482,7 @@ def test__ScheduledEvent__difference_update_attributes():
     vampytest.assert_eq(scheduled_event.image, new_image)
     vampytest.assert_eq(scheduled_event.name, new_name)
     vampytest.assert_is(scheduled_event.privacy_level, new_privacy_level)
+    vampytest.assert_eq(scheduled_event.schedule, new_schedule.copy_with(start = new_start))
     vampytest.assert_eq(scheduled_event.start, new_start)
     vampytest.assert_is(scheduled_event.status, new_status)
         
@@ -433,6 +500,7 @@ def test__ScheduledEvent__difference_update_attributes():
             'image': old_image,
             'name': old_name,
             'privacy_level': old_privacy_level,
+            'schedule': old_schedule,
             'start': old_start,
             'status': old_status,
             'entity_id': old_entity_id,
@@ -442,7 +510,7 @@ def test__ScheduledEvent__difference_update_attributes():
 
 
 
-def test__ScheduledEvent__create_from_data_and_delete__0():
+def test__ScheduledEvent__create_from_data_and_delete__cached():
     """
     Tests whether ``ScheduledEvent._create_from_data_and_delete`` works as intended.
     
@@ -457,9 +525,8 @@ def test__ScheduledEvent__create_from_data_and_delete__0():
         user_count = 69
         
         cached_scheduled_event = ScheduledEvent.precreate(scheduled_event_id, guild_id = guild_id)
-        guild = Guild.precreate(guild_id)
+        guild = Guild.precreate(guild_id, scheduled_events = [cached_scheduled_event])
         guild.clients = [client]
-        guild.scheduled_events[scheduled_event_id] = cached_scheduled_event
         
         data = {
             'id': str(scheduled_event_id),
@@ -470,7 +537,7 @@ def test__ScheduledEvent__create_from_data_and_delete__0():
         scheduled_event = ScheduledEvent._create_from_data_and_delete(data)
         _assert_fields_set(scheduled_event)
         
-        vampytest.assert_eq(guild.scheduled_events, {})
+        vampytest.assert_eq(guild.scheduled_events, None)
         vampytest.assert_is(cached_scheduled_event, scheduled_event)
         
         vampytest.assert_eq(scheduled_event.user_count, user_count)
@@ -481,7 +548,7 @@ def test__ScheduledEvent__create_from_data_and_delete__0():
         client = None
 
 
-def test__ScheduledEvent__create_from_data_and_delete__1():
+def test__ScheduledEvent__create_from_data_and_delete__not_cached():
     """
     Tests whether ``ScheduledEvent._create_from_data_and_delete`` works as intended.
     
@@ -502,14 +569,14 @@ def test__ScheduledEvent__create_from_data_and_delete__1():
     scheduled_event = ScheduledEvent._create_from_data_and_delete(data)
     _assert_fields_set(scheduled_event)
     
-    vampytest.assert_eq(guild.scheduled_events, {})
+    vampytest.assert_eq(guild.scheduled_events, None)
     vampytest.assert_eq(scheduled_event.user_count, user_count)
     
     test_scheduled_event = ScheduledEvent.from_data(data)
     vampytest.assert_is(scheduled_event, test_scheduled_event)
 
 
-def test__ScheduledEvent__from_data_is_created__0():
+def test__ScheduledEvent__from_data_is_created__not_cached():
     """
     Tests whether ``ScheduledEvent.from_data_is_created`` works as intended.
     
@@ -538,7 +605,7 @@ def test__ScheduledEvent__from_data_is_created__0():
     vampytest.assert_is(scheduled_event, test_scheduled_event)
 
 
-def test__ScheduledEvent__from_data_is_created__1():
+def test__ScheduledEvent__from_data_is_created__cached():
     """
     Tests whether ``ScheduledEvent.from_data_is_created`` works as intended.
     
@@ -553,9 +620,8 @@ def test__ScheduledEvent__from_data_is_created__1():
         user_count = 69
         
         cached_scheduled_event = ScheduledEvent.precreate(scheduled_event_id, guild_id = guild_id)
-        guild = Guild.precreate(guild_id)
+        guild = Guild.precreate(guild_id, scheduled_events = [cached_scheduled_event])
         guild.clients = [client]
-        guild.scheduled_events[scheduled_event_id] = cached_scheduled_event
         
         data = {
             'id': str(scheduled_event_id),

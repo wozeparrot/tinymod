@@ -29,10 +29,12 @@ def test__validate_message(input_value):
     
     Returns
     -------
-    output : `None`, ``Message``
+    output : ``None | Message``
     
     Raises
     ------
     TypeError
     """
-    return validate_message(input_value)
+    output = validate_message(input_value)
+    vampytest.assert_instance(output, Message, nullable = True)
+    return output

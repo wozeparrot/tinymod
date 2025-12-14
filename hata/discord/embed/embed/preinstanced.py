@@ -3,7 +3,7 @@ __all__ = ('EmbedType',)
 from ...bases import Preinstance as P, PreinstancedBase
 
 
-class EmbedType(PreinstancedBase):
+class EmbedType(PreinstancedBase, value_type = str):
     """
     Represents an embed's type.
     
@@ -11,23 +11,16 @@ class EmbedType(PreinstancedBase):
     ----------
     name : `str`
         The embed type's name.
+    
     value : `str`
         The discord side identifier value of the embed type.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`str`, ``EmbedType``) items
-        Stores the predefined embed types in `value` - `embed_type` relation.
-        This container is accessed when converting an embed type to it's representation.
-    VALUE_TYPE : `type` = `str`
-        The embed types' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the embed types.
-    
-    Each predefined embed type instance can also be accessed as class attribute:
+    Type Attributes
+    ---------------
+    Each predefined embed type instance can also be accessed as type attribute:
     
     +-------------------------------+-------------------------------+-------------------------------+
-    | Class attribute name          | Name                          | Value                         |
+    | Type attribute name           | Name                          | Value                         |
     +===============================+===============================+===============================+
     | application_news              | application news              | application_news              |
     +-------------------------------+-------------------------------+-------------------------------+
@@ -42,6 +35,8 @@ class EmbedType(PreinstancedBase):
     | gifv                          | gifv                          | gifv                          |
     +-------------------------------+-------------------------------+-------------------------------+
     | image                         | image                         | image                         |
+    +-------------------------------+-------------------------------+-------------------------------+
+    | poll_result                   | poll result                   | poll_result                   |
     +-------------------------------+-------------------------------+-------------------------------+
     | post_preview                  | post preview                  | post_preview                  |
     +-------------------------------+-------------------------------+-------------------------------+
@@ -58,9 +53,6 @@ class EmbedType(PreinstancedBase):
     | video                         | video                         | video                         |
     +-------------------------------+-------------------------------+-------------------------------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = str
-    
     __slots__ = ()
     
     # predefined
@@ -71,6 +63,7 @@ class EmbedType(PreinstancedBase):
     gift = P('gift', 'gift')
     gifv = P('gifv', 'gifv')
     image = P('image', 'image')
+    poll_result = P('poll_result', 'poll result')
     post_preview = P('post_preview', 'post preview')
     link = P('link', 'link')
     rich = P('rich', 'rich')

@@ -6,8 +6,9 @@ from ...field_parsers import (
     nullable_functional_parser_factory
 )
 from ...field_putters import (
-    bool_optional_putter_factory, entity_id_putter_factory, flag_optional_putter_factory, force_string_putter_factory,
-    int_putter_factory, nullable_functional_optional_putter_factory, string_flag_putter_factory
+    bool_optional_putter_factory, entity_id_putter_factory, entity_putter_factory, flag_optional_putter_factory,
+    force_string_putter_factory, int_putter_factory, nullable_functional_optional_putter_factory,
+    string_flag_putter_factory
 )
 from ...field_validators import (
     bool_validator_factory, default_entity_validator_factory, entity_id_validator_factory, flag_validator_factory,
@@ -17,6 +18,7 @@ from ...field_validators import (
 from ...permission import Permission
 from ...permission.constants import PERMISSION_KEY
 
+from ..role_color_configuration import RoleColorConfiguration
 from ..role_manager_metadata import RoleManagerMetadataBase
 from ..role_manager_metadata.constants import (
     APPLICATION_ROLE_CONNECTION_KEY, BOOSTER_KEY, BOT_ID_KEY, INTEGRATION_ID_KEY, SUBSCRIPTION_LISTING_ID_KEY
@@ -29,14 +31,46 @@ from .preinstanced import RoleManagerType
 # color
 
 parse_color = flag_parser_factory('color', Color)
-put_color_into = flag_optional_putter_factory('color', Color())
+put_color = flag_optional_putter_factory('color', Color())
 validate_color = flag_validator_factory('color', Color)
+
+
+# color_configuration
+
+def parse_color_configuration(data):
+    """
+    Parses color configuration out from the given data.
+    
+    Parameters
+    ----------
+    data : `dict<str, object>`
+        Data to parse from.
+    
+    Returns
+    -------
+    color_configuration : ``ColorConfiguration``
+    """
+    role_color_configuration_data = data.get('colors', None)
+    if (role_color_configuration_data is not None):
+        return RoleColorConfiguration.from_data(role_color_configuration_data)
+    
+    return RoleColorConfiguration.create_from_color_primary(parse_color(data))
+
+
+put_color_configuration = entity_putter_factory('colors', RoleColorConfiguration)
+validate_color_configuration = default_entity_validator_factory(
+    'color_configuration',
+    RoleColorConfiguration,
+    default_factory = lambda : RoleColorConfiguration.create_empty(),
+)
+
 
 # flags
 
 parse_flags = flag_parser_factory('flags', RoleFlag)
-put_flags_into = flag_optional_putter_factory('flags', RoleFlag())
+put_flags = flag_optional_putter_factory('flags', RoleFlag())
 validate_flags = flag_validator_factory('flags', RoleFlag)
+
 
 # guild_id
 
@@ -45,7 +79,7 @@ validate_guild_id = entity_id_validator_factory('guild_id', NotImplemented, incl
 # id
 
 parse_id = entity_id_parser_factory('id')
-put_id_into = entity_id_putter_factory('id')
+put_id = entity_id_putter_factory('id')
 validate_id = entity_id_validator_factory('role_id')
 
 # manager_metadata
@@ -66,7 +100,7 @@ def parse_manager(data):
     
     Parameters
     ----------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Role data.
     
     Returns
@@ -121,7 +155,7 @@ def parse_manager(data):
     return manager_type, manager_metadata
 
 
-def put_manager_into(manager, data, defaults):
+def put_manager(manager, data, defaults):
     """
     Puts the role's manager into the given data.
     
@@ -130,7 +164,7 @@ def put_manager_into(manager, data, defaults):
     manager : `tuple` (``RoleManagerType``, ``RoleManagerMetadataBase``)
         The role's manager as a tuple containing it's identifier and type.
     
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Role data.
     
     defaults : `bool`
@@ -138,7 +172,7 @@ def put_manager_into(manager, data, defaults):
     
     Returns
     -------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
     """
     manager_type, manager_metadata = manager
     
@@ -206,25 +240,25 @@ def validate_manager(manager):
 # mentionable
 
 parse_mentionable = bool_parser_factory('mentionable', False)
-put_mentionable_into = bool_optional_putter_factory('mentionable', False)
+put_mentionable = bool_optional_putter_factory('mentionable', False)
 validate_mentionable = bool_validator_factory('mentionable', False)
 
 # name
 
 parse_name = force_string_parser_factory('name')
-put_name_into = force_string_putter_factory('name')
+put_name = force_string_putter_factory('name')
 validate_name = force_string_validator_factory('name', NAME_LENGTH_MIN, NAME_LENGTH_MAX)
 
 # permissions
 
 parse_permissions = flag_parser_factory(PERMISSION_KEY, Permission)
-put_permissions_into = string_flag_putter_factory(PERMISSION_KEY)
+put_permissions = string_flag_putter_factory(PERMISSION_KEY)
 validate_permissions = flag_validator_factory('permission', Permission)
 
 # position
 
 parse_position = int_parser_factory('position', 0)
-put_position_into = int_putter_factory('position')
+put_position = int_putter_factory('position')
 validate_position = int_conditional_validator_factory(
     'position',
     0,
@@ -235,7 +269,7 @@ validate_position = int_conditional_validator_factory(
 # separated
 
 parse_separated = bool_parser_factory('hoist', False)
-put_separated_into = bool_optional_putter_factory('hoist', False)
+put_separated = bool_optional_putter_factory('hoist', False)
 validate_separated = bool_validator_factory('separated', False)
 
 # unicode_emoji
@@ -243,7 +277,7 @@ validate_separated = bool_validator_factory('separated', False)
 parse_unicode_emoji = nullable_functional_parser_factory(
     'unicode_emoji', NotImplemented, include = 'create_unicode_emoji'
 )
-put_unicode_emoji_into = nullable_functional_optional_putter_factory('unicode_emoji', lambda emoji: emoji.unicode)
+put_unicode_emoji = nullable_functional_optional_putter_factory('unicode_emoji', lambda emoji: emoji.unicode)
 validate_unicode_emoji = nullable_entity_conditional_validator_factory(
     'unicode_emoji', NotImplemented, lambda emoji: emoji.is_unicode_emoji(), 'unicode emoji', include = 'Emoji'
 )

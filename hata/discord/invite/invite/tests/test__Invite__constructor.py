@@ -1,10 +1,11 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
 from ....application import Application
 from ....channel import Channel
-from ....guild import Guild
+from ....guild import Guild, GuildActivityOverview
+from ....permission import Permission
 from ....user import ClientUserBase, User
 
 from ..flags import InviteFlag
@@ -31,6 +32,7 @@ def _assert_fields_set(invite):
     vampytest.assert_instance(invite.created_at, DateTime, nullable = True)
     vampytest.assert_instance(invite.flags, InviteFlag)
     vampytest.assert_instance(invite.guild, Guild, nullable = True)
+    vampytest.assert_instance(invite.guild_activity_overview, GuildActivityOverview, nullable = True)
     vampytest.assert_instance(invite.inviter, ClientUserBase)
     vampytest.assert_instance(invite.max_age, int, nullable = True)
     vampytest.assert_instance(invite.max_uses, int, nullable = True)
@@ -39,6 +41,7 @@ def _assert_fields_set(invite):
     vampytest.assert_instance(invite.target_user, ClientUserBase, nullable = True)
     vampytest.assert_instance(invite.temporary, bool)
     vampytest.assert_instance(invite.type, InviteType)
+    vampytest.assert_instance(invite.user_permissions, Permission)
     vampytest.assert_instance(invite.uses, int, nullable = True)
 
 
@@ -135,9 +138,10 @@ def test__Invite__precreate__all_fields():
     approximate_user_count = 13
     code = '202308060071'
     channel = Channel.precreate(202308060072)
-    created_at = DateTime(2016, 5, 14)
+    created_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     flags = InviteFlag(11)
     guild = Guild.precreate(202308060073)
+    guild_activity_overview = GuildActivityOverview.precreate(202308060073)
     inviter = User.precreate(202308060074)
     max_age = 3600
     max_uses = 100
@@ -146,6 +150,9 @@ def test__Invite__precreate__all_fields():
     target_user = User.precreate(202308060076)
     temporary = True
     invite_type = InviteType.guild
+    user_permissions = Permission().update_by_keys(
+        change_nickname = True,
+    )
     uses = 69
     
     invite = Invite.precreate(
@@ -156,6 +163,7 @@ def test__Invite__precreate__all_fields():
         created_at = created_at,
         flags = flags,
         guild = guild,
+        guild_activity_overview = guild_activity_overview,
         inviter = inviter,
         max_age = max_age,
         max_uses = max_uses,
@@ -164,6 +172,7 @@ def test__Invite__precreate__all_fields():
         target_user = target_user,
         temporary = temporary,
         invite_type = invite_type,
+        user_permissions = user_permissions,
         uses = uses,
     )
     _assert_fields_set(invite)
@@ -175,6 +184,7 @@ def test__Invite__precreate__all_fields():
     vampytest.assert_eq(invite.created_at, created_at)
     vampytest.assert_eq(invite.flags, flags)
     vampytest.assert_is(invite.guild, guild)
+    vampytest.assert_eq(invite.guild_activity_overview, guild_activity_overview)
     vampytest.assert_is(invite.inviter, inviter)
     vampytest.assert_eq(invite.max_age, max_age)
     vampytest.assert_eq(invite.max_uses, max_uses)
@@ -183,4 +193,5 @@ def test__Invite__precreate__all_fields():
     vampytest.assert_is(invite.target_user, target_user)
     vampytest.assert_eq(invite.temporary, temporary)
     vampytest.assert_is(invite.type, invite_type)
+    vampytest.assert_eq(invite.user_permissions, user_permissions)
     vampytest.assert_eq(invite.uses, uses)

@@ -1,15 +1,18 @@
 __all__ = ()
 
-from ...field_parsers import entity_id_parser_factory
-from ...field_putters import entity_id_optional_putter_factory
-from ...field_validators import entity_id_validator_factory, force_date_time_validator_factory
+from ...field_validators import force_date_time_validator_factory
+from ...sticker import create_partial_sticker_data
 from ...utils import DISCORD_EPOCH_START, datetime_to_timestamp, timestamp_to_datetime
 
-from ..message import MessageFlag
+from ..message import MessageFlag, MessageType
 from ..message.fields import (
-    parse_attachments as _parse_attachments, parse_content as _parse_content, parse_edited_at as _parse_edited_at,
-    parse_embeds as _parse_embeds, parse_flags as _parse_flags, validate_attachments, validate_content,
-    validate_edited_at, validate_embeds, validate_flags
+    parse_attachments as _parse_attachments, parse_components as _parse_components, parse_content as _parse_content,
+    parse_edited_at as _parse_edited_at, parse_embeds as _parse_embeds, parse_flags as _parse_flags,
+    parse_mentioned_role_ids as _parse_mentioned_role_ids, parse_mentioned_users as _parse_mentioned_users,
+    parse_soundboard_sounds as _parse_soundboard_sounds, parse_stickers as _parse_stickers, parse_type as _parse_type,
+    put_soundboard_sounds as _put_soundboard_sounds, validate_attachments, validate_components,
+    validate_content, validate_edited_at, validate_embeds, validate_flags, validate_mentioned_role_ids,
+    validate_mentioned_users, validate_soundboard_sounds, validate_stickers, validate_type
 )
 
 
@@ -26,7 +29,7 @@ def parse_attachments(data):
     
     Returns
     -------
-    attachments : `None | tuple<Attachment>`
+    attachments : ``None | tuple<Attachment>``
     """
     message_data = data.get('message', None)
     if message_data is None:
@@ -35,13 +38,13 @@ def parse_attachments(data):
     return _parse_attachments(message_data)
 
 
-def put_attachments_into(attachments, data, defaults):
+def put_attachments(attachments, data, defaults):
     """
     Serializes the given attachments into the given data.
     
     Parameters
     ----------
-    attachments : `None | tuple<Attachment>`
+    attachments : ``None | tuple<Attachment>``
         The attachments to serialize.
     data : `dict<str, object>`
         Reaction event data.
@@ -70,6 +73,66 @@ def put_attachments_into(attachments, data, defaults):
     return data
 
 
+# components
+
+def parse_components(data):
+    """
+    Parses out components value from the given data.
+    
+    Parameters
+    ----------
+    data : `dict<str, object>`
+        Data to parse from.
+    
+    Returns
+    -------
+    components : ``None | tuple<Component>``
+    """
+    message_data = data.get('message', None)
+    if message_data is None:
+        return None
+    
+    return _parse_components(message_data)
+
+
+def put_components(components, data, defaults):
+    """
+    Serializes the given components into the given data.
+    
+    Parameters
+    ----------
+    components : ``None | tuple<Component>``
+        The components to serialize.
+    
+    data : `dict<str, object>`
+        Reaction event data.
+    
+    defaults : `bool`
+        Whether fields with their default values should be included as well.
+    
+    Returns
+    -------
+    data : `dict<str, object>`
+    """
+    if (components is not None) or defaults:
+        message_data = data.get('message', None)
+        if message_data is None:
+            message_data = {}
+            data['message'] = message_data
+        
+        if components is None:
+            component_datas = []
+        else:
+            component_datas = [
+                component.to_data(defaults = defaults, include_internals = True)
+                for component in components
+            ]
+        
+        message_data['components'] = component_datas
+    
+    return data
+
+
 # content
 
 def parse_content(data):
@@ -92,7 +155,7 @@ def parse_content(data):
     return _parse_content(message_data)
 
 
-def put_content_into(content, data, defaults):
+def put_content(content, data, defaults):
     """
     Serializes the given content into the given data.
     
@@ -149,7 +212,7 @@ def parse_created_at(data):
     return timestamp_to_datetime(created_at)
 
 
-def put_created_at_into(created_at, data, defaults):
+def put_created_at(created_at, data, defaults):
     """
     Serializes the given created at value into the given data.
     
@@ -201,7 +264,7 @@ def parse_edited_at(data):
     return _parse_edited_at(message_data)
 
 
-def put_edited_at_into(edited_at, data, defaults):
+def put_edited_at(edited_at, data, defaults):
     """
     Serializes the given created at value into the given data.
     
@@ -247,7 +310,7 @@ def parse_embeds(data):
     
     Returns
     -------
-    embeds : `None | tuple<Embed>`
+    embeds : ``None | tuple<Embed>``
     """
     message_data = data.get('message', None)
     if message_data is None:
@@ -256,13 +319,13 @@ def parse_embeds(data):
     return _parse_embeds(message_data)
 
 
-def put_embeds_into(embeds, data, defaults):
+def put_embeds(embeds, data, defaults):
     """
     Serializes the given embeds into the given data.
     
     Parameters
     ----------
-    embeds : `None | tuple<Embed>`
+    embeds : ``None | tuple<Embed>``
         The embeds to serialize.
     data : `dict<str, object>`
         Reaction event data.
@@ -311,7 +374,7 @@ def parse_flags(data):
     return _parse_flags(message_data)
 
 
-def put_flags_into(flags, data, defaults):
+def put_flags(flags, data, defaults):
     """
     Serializes the given flags into the given data.
     
@@ -339,8 +402,283 @@ def put_flags_into(flags, data, defaults):
     return data
 
 
-# guild_id
+# mentioned_users
 
-parse_guild_id = entity_id_parser_factory('guild_id')
-put_guild_id_into = entity_id_optional_putter_factory('guild_id')
-validate_guild_id = entity_id_validator_factory('guild_id', NotImplemented, include = 'Guild')
+def parse_mentioned_users(data, guild_id = 0):
+    """
+    Parses out mentioned users value from the given data.
+    
+    Parameters
+    ----------
+    data : `dict<str, object>`
+        Data to parse from.
+    guild_id : `int` = `0`, Optional (Keyword only)
+        The guild's id where the message was created at.
+    
+    Returns
+    -------
+    message_mentioned_users : ``None | tuple<ClientUserBase>``
+    """
+    message_data = data.get('message', None)
+    if message_data is None:
+        return None
+    
+    return _parse_mentioned_users(message_data, guild_id)
+
+
+def put_mentioned_users(mentioned_users, data, defaults, *, guild_id = 0):
+    """
+    Serializes the given mentioned users into the given data.
+    
+    Parameters
+    ----------
+    mentioned_users : ``None | tuple<ClientUserBase>``
+        The mentioned users to serialize.
+    data : `dict<str, object>`
+        Reaction event data.
+    defaults : `bool`
+        Whether fields with their default values should be included as well.
+    guild_id : `int` = `0`, Optional (Keyword only)
+        The guild's id where the message was created at.
+    
+    Returns
+    -------
+    data : `dict<str, object>`
+    """
+    if (mentioned_users is not None) or defaults:
+        message_data = data.get('message', None)
+        if message_data is None:
+            message_data = {}
+            data['message'] = message_data
+    
+        user_mention_datas = []
+        
+        if (mentioned_users is not None):
+            for user in mentioned_users:
+                user_data = user.to_data(defaults = defaults, include_internals = True)
+                
+                if guild_id:
+                    try:
+                        guild_profile = user.guild_profiles[guild_id]
+                    except KeyError:
+                        pass
+                    else:
+                        user_data['member'] = guild_profile.to_data(defaults = defaults, include_internals = True)
+                
+                user_mention_datas.append(user_data)
+        
+        message_data['mentions'] = user_mention_datas
+    
+    return data
+
+
+# mentioned_role_ids
+
+def parse_mentioned_role_ids(data):
+    """
+    Parses out mentioned role ids value from the given data.
+    
+    Parameters
+    ----------
+    data : `dict<str, object>`
+        Data to parse from.
+    
+    Returns
+    -------
+    mentioned_role_ids : ``MessageFlag``
+    """
+    message_data = data.get('message', None)
+    if message_data is None:
+        return None
+    
+    return _parse_mentioned_role_ids(message_data)
+
+
+def put_mentioned_role_ids(mentioned_role_ids, data, defaults):
+    """
+    Serializes the given mentioned_role_ids into the given data.
+    
+    Parameters
+    ----------
+    mentioned_role_ids : ``MessageFlag``
+        The mentioned_role_ids to serialize.
+    data : `dict<str, object>`
+        Reaction event data.
+    defaults : `bool`
+        Whether fields with their default values should be included as well.
+    
+    Returns
+    -------
+    data : `dict<str, object>`
+    """
+    if mentioned_role_ids or defaults:
+        message_data = data.get('message', None)
+        if message_data is None:
+            message_data = {}
+            data['message'] = message_data
+        
+        if mentioned_role_ids is None:
+            role_id_array = []
+        else:
+            role_id_array = [str(role_id) for role_id in mentioned_role_ids]
+            
+        message_data['mention_roles'] = role_id_array
+    
+    return data
+
+
+# soundboard_sounds
+
+def parse_soundboard_sounds(data):
+    """
+    Parses out soundboard_sounds value from the given data.
+    
+    Parameters
+    ----------
+    data : `dict<str, object>`
+        Data to parse from.
+    
+    Returns
+    -------
+    soundboard_sounds : ``None | tuple<SoundboardSound>``
+    """
+    message_data = data.get('message', None)
+    if message_data is None:
+        return None
+    
+    return _parse_soundboard_sounds(message_data)
+
+
+def put_soundboard_sounds(soundboard_sounds, data, defaults):
+    """
+    Serializes the given soundboard_sounds into the given data.
+    
+    Parameters
+    ----------
+    soundboard_sounds : ``None | tuple<SoundboardSound>``
+        The soundboard_sounds to serialize.
+    
+    data : `dict<str, object>`
+        Reaction event data.
+    
+    defaults : `bool`
+        Whether fields with their default values should be included as well.
+    
+    Returns
+    -------
+    data : `dict<str, object>`
+    """
+    if (soundboard_sounds is not None) or defaults:
+        message_data = data.get('message', None)
+        if message_data is None:
+            message_data = {}
+            data['message'] = message_data
+        
+        _put_soundboard_sounds(soundboard_sounds, message_data, defaults)
+    
+    return data
+
+
+# stickers
+
+def parse_stickers(data):
+    """
+    Parses out stickers value from the given data.
+    
+    Parameters
+    ----------
+    data : `dict<str, object>`
+        Data to parse from.
+    
+    Returns
+    -------
+    stickers : `None | tuple<Sticker>`
+    """
+    message_data = data.get('message', None)
+    if message_data is None:
+        return None
+    
+    return _parse_stickers(message_data)
+
+
+def put_stickers(stickers, data, defaults):
+    """
+    Serializes the given stickers into the given data.
+    
+    Parameters
+    ----------
+    stickers : `None | tuple<Sticker>`
+        The stickers to serialize.
+    data : `dict<str, object>`
+        Reaction event data.
+    defaults : `bool`
+        Whether fields with their default values should be included as well.
+    
+    Returns
+    -------
+    data : `dict<str, object>`
+    """
+    if (stickers is not None) or defaults:
+        message_data = data.get('message', None)
+        if message_data is None:
+            message_data = {}
+            data['message'] = message_data
+        
+        if stickers is None:
+            sticker_datas = []
+        else:
+            sticker_datas = [create_partial_sticker_data(sticker) for sticker in stickers]
+        
+        message_data['sticker_items'] = sticker_datas
+    
+    return data
+
+
+# type
+
+def parse_type(data):
+    """
+    Parses out type value from the given data.
+    
+    Parameters
+    ----------
+    data : `dict<str, object>`
+        Data to parse from.
+    
+    Returns
+    -------
+    message_type : ``MessageType``
+    """
+    message_data = data.get('message', None)
+    if message_data is None:
+        return MessageType.default
+    
+    return _parse_type(message_data)
+
+
+def put_type(message_type, data, defaults):
+    """
+    Serializes the given type into the given data.
+    
+    Parameters
+    ----------
+    message_type : ``MessageType``
+        The type to serialize.
+    data : `dict<str, object>`
+        Reaction event data.
+    defaults : `bool`
+        Whether fields with their default values should be included as well.
+    
+    Returns
+    -------
+    data : `dict<str, object>`
+    """
+    if (message_type is not MessageType.default) or defaults:
+        message_data = data.get('message', None)
+        if message_data is None:
+            message_data = {}
+            data['message'] = message_data
+        
+        message_data['type'] = message_type.value
+    
+    return data

@@ -2,7 +2,7 @@ __all__ = ()
 
 from scarletio import include_with_callback, set_docs
 
-from .utils import timestamp_to_datetime
+from .utils import timestamp_to_datetime, unix_time_to_datetime
 
 
 def entity_id_parser_factory(field_key):
@@ -26,7 +26,7 @@ def entity_id_parser_factory(field_key):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -43,10 +43,11 @@ def entity_id_parser_factory(field_key):
         
         return entity_id
     
+    
     return parser
 
 
-def entity_id_array_parser_factory(field_key):
+def entity_id_array_parser_factory(field_key, *, ordered = True):
     """
     Returns a new entity id array parser.
     
@@ -55,11 +56,39 @@ def entity_id_array_parser_factory(field_key):
     field_key : `str`
         The field's key used in payload.
     
+    ordered : `bool` = `True`, Optional (Keyword only)
+        Whether the output should be ordered.
+    
     Returns
     -------
     parser : `FunctionType`
     """
-    def parser(data):
+    if ordered:
+        def parser(data):
+            nonlocal field_key
+                    
+            entity_id_array = data.get(field_key, None)
+            if (entity_id_array is None) or (not entity_id_array):
+                entity_id_array = None
+            else:
+                entity_id_array = tuple(sorted(int(entity_id) for entity_id in entity_id_array))
+            
+            return entity_id_array
+    
+    else:
+        def parser(data):
+            nonlocal field_key
+                    
+            entity_id_array = data.get(field_key, None)
+            if (entity_id_array is None) or (not entity_id_array):
+                entity_id_array = None
+            else:
+                entity_id_array = (*(int(entity_id) for entity_id in entity_id_array),)
+            
+            return entity_id_array
+    
+    set_docs(
+        parser,
         """
         Parses out an entity id field from the given data.
         
@@ -67,23 +96,14 @@ def entity_id_array_parser_factory(field_key):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
         -------
-        entity_id_array : `None`, `tuple` of `int`
+        entity_id_array : `None | tuple<int>`
         """
-        nonlocal field_key
-                
-        entity_id_array = data.get(field_key, None)
-        if (entity_id_array is None) or (not entity_id_array):
-            entity_id_array = None
-        else:
-            entity_id_array = tuple(sorted(int(entity_id) for entity_id in entity_id_array))
-        
-        return entity_id_array
-    
+    )
     return parser
 
 
@@ -124,7 +144,7 @@ def preinstanced_parser_factory(
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -140,7 +160,7 @@ def preinstanced_parser_factory(
         except KeyError:
             preinstanced = default_value
         else:
-            preinstanced = preinstanced_type.get(value)
+            preinstanced = preinstanced_type(value)
         
         return preinstanced
     
@@ -187,7 +207,7 @@ def preinstanced_array_parser_factory(field_key, preinstanced_type, *, include =
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -201,7 +221,7 @@ def preinstanced_array_parser_factory(field_key, preinstanced_type, *, include =
         if (value_array is None) or (not value_array):
             preinstanced_array = None
         else:
-            preinstanced_array = tuple(sorted(preinstanced_type.get(value) for value in value_array))
+            preinstanced_array = tuple(sorted(preinstanced_type(value) for value in value_array))
         
         return preinstanced_array
     
@@ -294,7 +314,7 @@ def int_postprocess_parser_factory(field_key, default_value, postprocessor):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -344,7 +364,7 @@ def flag_parser_factory(field_key, flag_type, *, default_value = ...):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -389,7 +409,7 @@ def nullable_flag_parser_factory(field_key, flag_type):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -432,7 +452,7 @@ def negated_bool_parser_factory(field_key, default_value):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -477,6 +497,7 @@ def default_date_time_parser_factory(field_key, default):
     ----------
     field_key : `str`
         The field's key used in payload.
+    
     default : `object`
         Default value to return if the field is not present (or null) in the data.
     
@@ -492,12 +513,12 @@ def default_date_time_parser_factory(field_key, default):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
         -------
-        field_value : `None`, `DateTime`
+        field_value : `None | DateTime`
         """
         nonlocal default
         nonlocal field_key
@@ -505,6 +526,65 @@ def default_date_time_parser_factory(field_key, default):
         timestamp = data.get(field_key, None)
         if (timestamp is not None):
             return timestamp_to_datetime(timestamp)
+        
+        return default
+    
+    return parser
+
+
+def nullable_unix_time_parser_factory(field_key):
+    """
+    Returns a new nullable unix time parser.
+    
+    Parameters
+    ----------
+    field_key : `str`
+        The field's key used in payload.
+    
+    Returns
+    -------
+    parser : `FunctionType`
+    """
+    return default_unix_time_parser_factory(field_key, None)
+
+
+def default_unix_time_parser_factory(field_key, default):
+    """
+    Returns a new defaulted unix time parser.
+    
+    Parameters
+    ----------
+    field_key : `str`
+        The field's key used in payload.
+    
+    default : `object`
+        Default value to return if the field is not present (or null) in the data.
+    
+    Returns
+    -------
+    parser : `FunctionType`
+    """
+    def parser(data):
+        """
+        Parses out a unix time from the given payload.
+        
+        > This function is generated.
+        
+        Parameters
+        ----------
+        data : `dict<str, object>`
+            Entity data.
+        
+        Returns
+        -------
+        field_value : `None | DateTime`
+        """
+        nonlocal default
+        nonlocal field_key
+        
+        timestamp = data.get(field_key, None)
+        if (timestamp is not None):
+            return unix_time_to_datetime(timestamp)
         
         return default
     
@@ -532,7 +612,7 @@ def force_string_parser_factory(field_key):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -571,7 +651,7 @@ def field_parser_factory(field_key):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -612,7 +692,7 @@ def _field_parser_factory(field_key, default_value):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -653,7 +733,7 @@ def nullable_string_parser_factory(field_key):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -671,7 +751,7 @@ def nullable_string_parser_factory(field_key):
     return parser
 
 
-def nullable_sorted_array_parser_factory(field_key):
+def nullable_array_parser_factory(field_key, *, ordered = True):
     """
     Returns a nullable sorted object array parser.
     
@@ -679,6 +759,79 @@ def nullable_sorted_array_parser_factory(field_key):
     ----------
     field_key : `str`
         The field's key used in payload.
+    
+    ordered : `bool` = `True`, Optional (Keyword only)
+        Whether the array should be sorted.
+    
+    Returns
+    -------
+    parser : `FunctionType`
+    """
+    if ordered:
+        def parser(data):
+            """
+            Parses out a nullable sorted object array from the given payload.
+            
+            > This function is generated.
+            
+            Parameters
+            ----------
+            data : `dict<str, object>`
+                Data to parse from.
+            
+            Returns
+            -------
+            sorted_array : `None | tuple<object>`
+            """
+            nonlocal field_key
+            
+            raw_object_array = data.get(field_key, None)
+            if (raw_object_array is None) or (not raw_object_array):
+                object_array = None
+            else:
+                object_array = tuple(sorted(raw_object_array))
+            
+            return object_array
+    
+    else:
+        def parser(data):
+            """
+            Parses out a nullable object array from the given payload.
+            
+            > This function is generated.
+            
+            Parameters
+            ----------
+            data : `dict<str, object>`
+                Data to parse from.
+            
+            Returns
+            -------
+            sorted_array : `None | tuple<object>`
+            """
+            nonlocal field_key
+            
+            raw_object_array = data.get(field_key, None)
+            if (raw_object_array is None) or (not raw_object_array):
+                object_array = None
+            else:
+                object_array = tuple(raw_object_array)
+            
+            return object_array
+    
+    return parser
+
+
+def nullable_sorted_array_postprocess_parser_factory(field_key, postprocessor):
+    """
+    Returns a nullable sorted object array parser with postprocessor applied on each value.
+    
+    Parameters
+    ----------
+    field_key : `str`
+        The field's key used in payload.
+    postprocessor : `callable`
+        Postprocessor to call on the field.
     
     Returns
     -------
@@ -692,7 +845,7 @@ def nullable_sorted_array_parser_factory(field_key):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -700,12 +853,13 @@ def nullable_sorted_array_parser_factory(field_key):
         sorted_array : `None`, `tuple` of `object`
         """
         nonlocal field_key
+        nonlocal postprocessor
         
         raw_object_array = data.get(field_key, None)
         if (raw_object_array is None) or (not raw_object_array):
             object_array = None
         else:
-            object_array = tuple(sorted(raw_object_array))
+            object_array = tuple(sorted(postprocessor(value) for value in raw_object_array))
         
         return object_array
     
@@ -737,7 +891,7 @@ def nullable_entity_array_parser_factory(field_key, entity_type, *, include = No
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -870,7 +1024,7 @@ def default_entity_parser_factory(field_key, entity_type, *, default = ..., defa
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -909,12 +1063,12 @@ def functional_parser_factory(field_key, function, *, include = None):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
         -------
-        field_value : `None`, `object`
+        field_value : `None | object`
         """
         nonlocal field_key
         nonlocal function
@@ -959,12 +1113,12 @@ def nullable_functional_parser_factory(field_key, function, *, include = None):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
         -------
-        field_value : `None`, `object`
+        field_value : `None | object`
         """
         nonlocal field_key
         nonlocal function
@@ -1047,7 +1201,7 @@ def nullable_functional_array_parser_factory(field_key, function, *, do_sort = F
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -1093,7 +1247,7 @@ def nullable_object_array_parser_factory(field_key, object_type, *, include = No
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
@@ -1143,12 +1297,12 @@ def nullable_int_parser_factory(field_key):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Entity data.
         
         Returns
         -------
-        field_value : `None`, `int`
+        field_value : `None | int`
         """
         nonlocal field_key
         

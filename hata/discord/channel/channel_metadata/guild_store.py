@@ -5,7 +5,7 @@ from scarletio import copy_docs
 from ...permission import Permission
 from ...permission.permission import PERMISSION_MASK_VIEW_CHANNEL, PERMISSION_NONE, PERMISSION_TEXT_AND_VOICE_DENY
 
-from .fields import parse_nsfw, put_nsfw_into, validate_nsfw
+from .fields import parse_nsfw, put_nsfw, validate_nsfw
 
 from .guild_main_base import ChannelMetadataGuildMainBase
 
@@ -16,13 +16,13 @@ class ChannelMetadataGuildStore(ChannelMetadataGuildMainBase):
     
     Attributes
     ----------
-    _cache_permission : `None`, `dict` of (`int`, ``Permission``) items
+    _cache_permission : ``None | dict<int, Permission>``
         A `user_id` to ``Permission`` relation mapping for caching permissions. Defaults to `None`.
     name : `str`
         The channel's name.
     parent_id : `int`
         The channel's parent's identifier.
-    permission_overwrites :`None`,  `dict` of (`int`, ``PermissionOverwrite``) items
+    permission_overwrites : ``None | dict<int, PermissionOverwrite>``
         The channel's permission overwrites.
     position : `int`
         The channel's position.
@@ -55,9 +55,9 @@ class ChannelMetadataGuildStore(ChannelMetadataGuildMainBase):
             The channel's name.
         nsfw : `bool`, Optional (Keyword only)
             Whether the channel is marked as non safe for work.
-        parent_id : `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
-        permission_overwrites : `None`, `iterable` of ``PermissionOverwrite``, Optional (Keyword only)
+        permission_overwrites : ``None | iterable<PermissionOverwrite>``, Optional (Keyword only)
             The channel's permission overwrites.
         position : `int`, Optional (Keyword only)
             The channel's position.
@@ -169,9 +169,9 @@ class ChannelMetadataGuildStore(ChannelMetadataGuildMainBase):
             The channel's name.
         nsfw : `bool`, Optional (Keyword only)
             Whether the channel is marked as non safe for work.
-        parent_id : `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
-        permission_overwrites : `None`, `iterable` of ``PermissionOverwrite``, Optional (Keyword only)
+        permission_overwrites : ``None | iterable<PermissionOverwrite>``, Optional (Keyword only)
             The channel's permission overwrites.
         position : `int`, Optional (Keyword only)
             The channel's position.
@@ -256,6 +256,6 @@ class ChannelMetadataGuildStore(ChannelMetadataGuildMainBase):
     def to_data(self, *, defaults = False, include_internals = False):
         data = ChannelMetadataGuildMainBase.to_data(self, defaults = defaults, include_internals = include_internals)
         
-        put_nsfw_into(self.nsfw, data, defaults)
+        put_nsfw(self.nsfw, data, defaults)
         
         return data

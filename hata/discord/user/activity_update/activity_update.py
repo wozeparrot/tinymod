@@ -18,30 +18,34 @@ class ActivityUpdate(RichAttributeErrorBaseType):
     activity : ``Activity``
         The updated activity.
     
-    old_attributes : `dict` of (`str`, `object`) items
+    old_attributes : `dict<str, object>`
         The changed attributes of the activity in `attribute-name` - `old-value` relation. Can contain any of the
         following items:
         
         +-------------------+-----------------------------------+
         | Keys              | Values                            |
         +===================+===================================+
-        | assets            | `None`, ``ActivityAssets``        |
+        | assets            | ``None | ActivityAssets``         |
         +-------------------+-----------------------------------+
-        | created_at        | `datetime`                        |
+        | buttons           | `None | tuple<str>`               |
+        +-------------------+-----------------------------------+
+        | created_at        | `DateTime`                        |
         +-------------------+-----------------------------------+
         | details           | `None`, `str`                     |
         +-------------------+-----------------------------------+
-        | emoji             | `None`, ``Emoji``                 |
+        | emoji             | ``None | Emoji``                  |
         +-------------------+-----------------------------------+
         | flags             | ``ActivityFlag``                  |
+        +-------------------+-----------------------------------+
+        | hang_type         | ``HangType``                      |
         +-------------------+-----------------------------------+
         | name              | `str`                             |
         +-------------------+-----------------------------------+
         | metadata          | ``ActivityMetadataBase``          |
         +-------------------+-----------------------------------+
-        | party             | `None`, ``ActivityParty``         |
+        | party             | ``None | ActivityParty``          |
         +-------------------+-----------------------------------+
-        | secrets           | `None`, ``ActivitySecrets``       |
+        | secrets           | ``None | ActivitySecrets``        |
         +-------------------+-----------------------------------+
         | session_id        | `None`, `str`                     |
         +-------------------+-----------------------------------+
@@ -49,7 +53,7 @@ class ActivityUpdate(RichAttributeErrorBaseType):
         +-------------------+-----------------------------------+
         | sync_id           | `None`, `str`                     |
         +-------------------+-----------------------------------+
-        | timestamps        | `None`, `ActivityTimestamps``     |
+        | timestamps        | ``None | ActivityTimestamps``     |
         +-------------------+-----------------------------------+
         | url               | `None`, `str`                     |
         +-------------------+-----------------------------------+
@@ -65,7 +69,7 @@ class ActivityUpdate(RichAttributeErrorBaseType):
         activity : ``Activity``, Optional (Keyword only)
             The updated activity.
         
-        old_attributes : `None`, `dict` of (`str`, `object`) items, Optional (Keyword only)
+        old_attributes : `None`, `dict<str, object>`, Optional (Keyword only)
             The changed attributes of the activity.
         
         Raises
@@ -101,7 +105,7 @@ class ActivityUpdate(RichAttributeErrorBaseType):
         ----------
         activity : ``Activity``
             The updated activity.
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             The changed attributes of the activity.
         
         Returns
@@ -197,7 +201,7 @@ class ActivityUpdate(RichAttributeErrorBaseType):
         activity : ``Activity``, Optional (Keyword only)
             The updated activity.
         
-        old_attributes : `None`, `dict` of (`str`, `object`) items, Optional (Keyword only)
+        old_attributes : `None`, `dict<str, object>`, Optional (Keyword only)
             The changed attributes of the activity.
         
         Returns

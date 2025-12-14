@@ -5,7 +5,7 @@ from scarletio import RichAttributeErrorBaseType
 from ...utils import DISCORD_EPOCH_START
 
 from .fields import (
-    parse_flags, parse_joined_at, put_flags_into, put_joined_at_into, validate_flags, validate_joined_at
+    parse_flags, parse_joined_at, put_flags, put_joined_at, validate_flags, validate_joined_at
 )
 from .flags import ThreadProfileFlag
 
@@ -17,7 +17,7 @@ class ThreadProfile(RichAttributeErrorBaseType):
     
     Attributes
     ----------
-    joined_at : `None`, `datetime`
+    joined_at : `None | DateTime`
         The date when the user joined the thread.
     flags : ``ThreadProfileFlag``
         user specific settings of the profile.
@@ -33,7 +33,7 @@ class ThreadProfile(RichAttributeErrorBaseType):
         ----------
         flags : ``ThreadProfileFlag``, `int`, Optional (Keyword only)
             user specific settings of the profile.
-        joined_at : `None`, `datetime`, Optional (Keyword only)
+        joined_at : `None | DateTime`, Optional (Keyword only)
             The date when the user joined the thread.
         
         Raises
@@ -105,7 +105,7 @@ class ThreadProfile(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Received thread profile data.
         
         Returns
@@ -132,15 +132,15 @@ class ThreadProfile(RichAttributeErrorBaseType):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
         
-        put_flags_into(self.flags, data, defaults)
+        put_flags(self.flags, data, defaults)
         
         # joined_at
         if include_internals:
-            put_joined_at_into(self.joined_at, data, defaults)
+            put_joined_at(self.joined_at, data, defaults)
         
         return data
     
@@ -151,7 +151,7 @@ class ThreadProfile(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Received thread profile data.
         """
         self.flags = parse_flags(data)
@@ -164,12 +164,12 @@ class ThreadProfile(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Data received from Discord.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dict is optional.
         
         Returned Data Structure
@@ -197,7 +197,7 @@ class ThreadProfile(RichAttributeErrorBaseType):
         
         Returns
         -------
-        new : `instance<type<self>>
+        new : `instance<type<self>>`
         """
         new = object.__new__(type(self))
         new.flags = self.flags
@@ -213,7 +213,7 @@ class ThreadProfile(RichAttributeErrorBaseType):
         ----------
         flags : ``ThreadProfileFlag``, `int`, Optional (Keyword only)
             user specific settings of the profile.
-        joined_at : `None`, `datetime`, Optional (Keyword only)
+        joined_at : `None | DateTime`, Optional (Keyword only)
             The date when the user joined the thread.
         
         Returns

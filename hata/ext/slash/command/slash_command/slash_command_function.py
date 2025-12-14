@@ -1,12 +1,12 @@
 __all__ = ('SlashCommandFunction',)
 
-from scarletio import WeakReferer, RichAttributeErrorBaseType, copy_docs
+from scarletio import RichAttributeErrorBaseType, copy_docs
 
 from .....discord.application_command import ApplicationCommandOption, ApplicationCommandOptionType
 from .....discord.client import Client
 from .....discord.interaction import InteractionEvent
 
-from ...converters import InternalParameterConverter, SlashCommandParameterConverter
+from ...converters import ParameterConverterInternal, ParameterConverterSlashCommand
 from ...exceptions import handle_command_exception
 
 from ...interfaces.autocomplete import AutocompleteInterface
@@ -16,8 +16,6 @@ from ...interfaces.self_reference import SelfReferenceInterface
 from ...responding import process_command_coroutine
 
 from ..command_base import CommandBase
-
-from .slash_command_parameter_auto_completer import SlashCommandParameterAutoCompleter
 
 
 class SlashCommandFunction(
@@ -32,24 +30,22 @@ class SlashCommandFunction(
     
     Attributes
     ----------
-    _auto_completers : `None`, `list` of ``SlashCommandParameterAutoCompleter``
+    _auto_completers : `None | list<SlashCommandParameterAutoCompleter>`
         Auto completer functions.
     
     _command_function : `async-callable˛
         The command's function to call.
     
-    _exception_handlers : `None`, `list` of `CoroutineFunction`
+    _exception_handlers : `None | list<CoroutineFunction>`
         Exception handlers added with ``.error`` to the interaction handler.
-        
-        Same as ``Slasher._exception_handlers``.
     
-    _parameter_converters : `tuple` of ``ParameterConverter``
+    _parameter_converters : `tuple<ParameterConverterBase>`
         Parsers to parse command parameters.
     
-    _parent_reference : `None`, ``WeakReferer`` to (``SlashCommand``,``SlashCommandCategory``)
+    _parent_reference : `None | WeakReferer<SelfReferenceInterface>
         Reference to the parent application command or category.
     
-    _self_reference : `None`, ``WeakReferer``
+    _self_reference : `None | WeakReferer<instance>`
         Back reference to the slasher application command function.
         
         Used by auto completers to access the parent entity.
@@ -63,7 +59,7 @@ class SlashCommandFunction(
     name : `str`
         The name of the slash command. It's length can be in range [1:32].
     
-    response_modifier : `None`, ``ResponseModifier``
+    response_modifier : `None | ResponseModifier`
         Modifies values returned and yielded to command coroutine processor.
     """
     __slots__ = (
@@ -71,28 +67,33 @@ class SlashCommandFunction(
         '_parent_reference', '_self_reference', 'description', 'default', 'name', 'response_modifier'
     )
     
-    def __new__(cls, command_function, parameter_converters, name, description, response_modifier, default):
+    def __new__(cls, function, parameter_converters, name, description, response_modifier, default):
         """
         Creates a new ``SlashCommandFunction`` with the given parameters.
         
         Parameters
         ----------
-        command_function : `async-callable`
+        function : `async-callable`
             The command's function to call.
-        parameter_converters : `tuple` of ``ParameterConverter``
+        
+        parameter_converters : `tuple<ParameterConverterBase>`
             Parsers to parse command parameters.
+        
         name : `str`
             The name of the slash command.
+        
         description : `str`
             The slash command's description.
-        response_modifier : `None`, ``ResponseModifier``
+        
+        response_modifier : `None<ResponseModifier>`
             Modifies values returned and yielded to command coroutine processor.
+        
         default : `bool`
             Whether the command is the default command in it's category.
         """
         self = object.__new__(cls)
         self._auto_completers = None
-        self._command_function = command_function
+        self._command_function = function
         self._parameter_converters = parameter_converters
         self.response_modifier = response_modifier
         self.description = description
@@ -108,294 +109,48 @@ class SlashCommandFunction(
         return self
     
     
-    async def invoke(self, client, interaction_event, options):
-        """
-        Calls the slash command function.
-        
-        This method is a coroutine.
-        
-        Parameters
-        ----------
-        client : ``Client``
-            The respective client who received the event.
-        interaction_event : ``InteractionEvent``
-            The received interaction event.
-        options : `None`, `list` of ``InteractionEventChoice``
-            Options bound to the function.
-        
-        Raises
-        ------
-        SlashCommandParameterConversionError
-            Exception occurred meanwhile parsing parameter.
-        """
-        parameters = []
-        
-        parameter_relation = {}
-        if (options is not None):
-            for option in options:
-                parameter_relation[option.name] = option.value
-        
-        for parameter_converter in self._parameter_converters:
-            if isinstance(parameter_converter, InternalParameterConverter):
-                value = None
-            else:
-                value = parameter_relation.get(parameter_converter.name, None)
-            
-            try:
-                parameter = await parameter_converter(client, interaction_event, value)
-            except GeneratorExit:
-                raise
-            
-            except BaseException as err:
-                exception = err
-            
-            else:
-                parameters.append(parameter)
-                continue
-                
-            await handle_command_exception(
-                self,
-                client,
-                interaction_event,
-                exception,
-            )
-            return
-            
-        
-        command_coroutine = self._command_function(*parameters)
-        
-        try:
-            await process_command_coroutine(
-                client,
-                interaction_event,
-                self.response_modifier,
-                command_coroutine,
-            )
-        except GeneratorExit:
-            raise
-        
-        except BaseException as err:
-            exception = err
-        
-        else:
-            return
-        
-        await handle_command_exception(
-            self,
-            client,
-            interaction_event,
-            exception,
-        )
-        return
-    
-    
-    async def invoke_auto_completion(self, client, interaction_event, auto_complete_option):
-        """
-        Calls the respective auto completion function of the command.
-        
-        This method is a coroutine.
-        
-        Parameters
-        ----------
-        client : ``Client``
-            The respective client who received the event.
-        interaction_event : ``InteractionEvent``
-            The received interaction event.
-        auto_complete_option : ``ApplicationCommandAutocompleteInteraction``, \
-                ``ApplicationCommandAutocompleteInteractionOption``
-            The option to autocomplete.
-        """
-        focused_option = auto_complete_option.focused_option
-        if (focused_option is None):
-            return
-        
-        parameter_name = focused_option.name
-        
-        for parameter_converter in self._parameter_converters:
-            if isinstance(parameter_converter, SlashCommandParameterConverter):
-                if parameter_converter.name == parameter_name:
-                    break
-        else:
-            return
-        
-        auto_completer = parameter_converter.auto_completer
-        if (auto_completer is not None):
-            await auto_completer.invoke(client, interaction_event)
-        
-    
-    def _get_auto_completable_parameters(self):
-        """
-        Gets the auto completable parameter converters of the application command function.
-        
-        Returns
-        -------
-        parameter_converters : `list` of ``SlashCommandParameterConverter``
-        """
-        auto_completable_parameters = set()
-        
-        for parameter_converter in self._parameter_converters:
-            if (
-                isinstance(parameter_converter, SlashCommandParameterConverter) and
-                parameter_converter.can_auto_complete()
-            ):
-                auto_completable_parameters.add(parameter_converter)
-        
-        return auto_completable_parameters
-    
     def __repr__(self):
         """Returns the application command option's representation."""
-        repr_parts = [
-            '<', self.__class__.__name__,
-            ' name = ', repr(self.name),
-            ', description = ', repr(self.description),
-        ]
+        repr_parts = ['<', type(self).__name__]
         
-        if self.default:
-            repr_parts.append(', default = True')
+        # name
+        repr_parts.append(' name = ')
+        repr_parts.append(repr(self.name))
         
+        # description
+        repr_parts.append(', description = ')
+        repr_parts.append(repr(self.description))
+        
+        # default
+        default = self.default
+        if default:
+            repr_parts.append(', default = ')
+            repr_parts.append(repr(default))
+        
+        # response_modifier
         response_modifier = self.response_modifier
         if (response_modifier is not None):
             repr_parts.append(', response_modifier = ')
             repr_parts.append(repr(response_modifier))
         
-        repr_parts.append('>')
-        
-        return ''.join(repr_parts)
-    
-    
-    def __format__(self, code):
-        """Formats the slash command function in a format string."""
-        if not code:
-            return str(self)
-        
-        if code == 'm':
-            return self.mention
-        
-        raise ValueError(
-            f'Unknown format code {code!r} for {self.__class__.__name__}; {self!r}. '
-            f'Available format codes: {""!r}, {"m"!r}.'
-        )
-    
-    
-    def as_option(self):
-        """
-        Returns the slash command function as an application command option.
-        
-        Returns
-        -------
-        option : ``ApplicationCommandOption``
-        """
-        parameter_converters = self._parameter_converters
-        options = None
-        for parameter_converter in parameter_converters:
-            option = parameter_converter.as_option()
-            if (option is not None):
-                if options is None:
-                    options = []
-                
-                options.append(option)
-        
-        return ApplicationCommandOption(
-            self.name,
-            self.description,
-            ApplicationCommandOptionType.sub_command,
-            options = options,
-            default = self.default,
-        )
-    
-    
-    def copy(self):
-        """
-        Copies the slash command function.
-        
-        Returns
-        -------
-        self : ``SlashCommandFunction``
-        """
-        new = object.__new__(type(self))
-        
         # _auto_completers
         auto_completers = self._auto_completers
         if (auto_completers is not None):
-            auto_completers = auto_completers.copy()
-        new._auto_completers = auto_completers
-        
-        # _command_function
-        new._command_function = self._command_function
+            repr_parts.append(', auto_completers = ')
+            repr_parts.append(repr(auto_completers))
         
         # _exception_handlers
         exception_handlers = self._exception_handlers
         if (exception_handlers is not None):
-            exception_handlers = exception_handlers.copy()
-        new._exception_handlers = exception_handlers
-        
-        # _parameter_converters
-        new._parameter_converters = self._parameter_converters
-        
-        # _parent_reference
-        new._parent_reference = None
-        
-        # _self_reference
-        new._self_reference = None
-        
-        # default
-        new.default = self.default
-        
-        # description
-        new.description = self.description
-        
-        # name
-        new.name = self.name
-        
-        # response_modifier
-        new.response_modifier = self.response_modifier
-        
-        return self
-    
-    
-    def __eq__(self, other):
-        """Returns whether the two slash command functions are equal."""
-        if type(self) is not type(other):
-            return False
-        
-        # _auto_completers
-        if self._auto_completers != other._auto_completers:
-            return False
+            repr_parts.append(', exception_handlers = ')
+            repr_parts.append(repr(exception_handlers))
         
         # _command_function
-        if self._command_function != other._command_function:
-            return False
+        repr_parts.append(', command_function = ')
+        repr_parts.append(repr(self._command_function))
         
-        # _exception_handlers
-        if self._exception_handlers != other._exception_handlers:
-            return False
-        
-        # _parameter_converters
-        # Internal field
-        
-        # _parent_reference
-        # Internal field
-        
-        # _self_reference
-        # Internal field
-        
-        # default
-        if self.default != other.default:
-            return False
-        
-        # description
-        if self.description != other.description:
-            return False
-        
-        # name
-        if self.name != other.name:
-            return False
-        
-        # response_modifier
-        if self.response_modifier != other.response_modifier:
-            return False
-        
-        return True
+        repr_parts.append('>')
+        return ''.join(repr_parts)
     
     
     def __hash__(self):
@@ -456,9 +211,261 @@ class SlashCommandFunction(
         return hash_value
     
     
+    def __eq__(self, other):
+        """Returns whether the two slash command functions are equal."""
+        if type(self) is not type(other):
+            return NotImplemented
+        
+        # _auto_completers
+        if self._auto_completers != other._auto_completers:
+            return False
+        
+        # _command_function
+        if self._command_function != other._command_function:
+            return False
+        
+        # _exception_handlers
+        if self._exception_handlers != other._exception_handlers:
+            return False
+        
+        # _parameter_converters
+        # Internal field
+        
+        # _parent_reference
+        # Internal field
+        
+        # _self_reference
+        # Internal field
+        
+        # default
+        if self.default != other.default:
+            return False
+        
+        # description
+        if self.description != other.description:
+            return False
+        
+        # name
+        if self.name != other.name:
+            return False
+        
+        # response_modifier
+        if self.response_modifier != other.response_modifier:
+            return False
+        
+        return True
+    
+    
+    def __format__(self, code):
+        """Formats the slash command function in a format string."""
+        if not code:
+            return str(self)
+        
+        if code == 'm':
+            return self.mention
+        
+        raise ValueError(
+            f'Unknown format code {code!r} for {type(self).__name__}; {self!r}. '
+            f'Available format codes: {""!r}, {"m"!r}.'
+        )
+    
+    
+    async def invoke(self, client, interaction_event, options):
+        """
+        Calls the slash command function.
+        
+        This method is a coroutine.
+        
+        Parameters
+        ----------
+        client : ``Client``
+            The respective client who received the event.
+        
+        interaction_event : ``InteractionEvent``
+            The received interaction event.
+        
+        options : `None | list<InteractionEventChoice>``
+            Options bound to the function.
+        
+        Raises
+        ------
+        SlashCommandParameterConversionError
+            Exception occurred meanwhile parsing parameter.
+        """
+        parameters = []
+        
+        parameter_relation = {}
+        if (options is not None):
+            for option in options:
+                parameter_relation[option.name] = option.value
+        
+        for parameter_converter in self._parameter_converters:
+            if isinstance(parameter_converter, ParameterConverterInternal):
+                value = None
+            else:
+                value = parameter_relation.get(parameter_converter.name, None)
+            
+            try:
+                parameter = await parameter_converter(client, interaction_event, value)
+            except GeneratorExit:
+                raise
+            
+            except BaseException as err:
+                exception = err
+            
+            else:
+                parameters.append(parameter)
+                continue
+            
+            try:
+                await handle_command_exception(
+                    self,
+                    client,
+                    interaction_event,
+                    exception,
+                )
+            finally:
+                exception = None
+            return
+            
+        
+        command_coroutine = self._command_function(*parameters)
+        
+        try:
+            await process_command_coroutine(
+                client,
+                interaction_event,
+                self.response_modifier,
+                command_coroutine,
+            )
+        except GeneratorExit:
+            raise
+        
+        except BaseException as err:
+            exception = err
+        
+        else:
+            return
+        
+        try:
+            await handle_command_exception(
+                self,
+                client,
+                interaction_event,
+                exception,
+            )
+        finally:
+            exception = None
+        return
+    
+    
+    async def invoke_auto_completion(self, client, interaction_event, auto_complete_option):
+        """
+        Calls the respective auto completion function of the command.
+        
+        This method is a coroutine.
+        
+        Parameters
+        ----------
+        client : ``Client``
+            The respective client who received the event.
+        
+        interaction_event : ``InteractionEvent``
+            The received interaction event.
+        
+        auto_complete_option : `InteractionMetadataApplicationCommandAutocomplete | InteractionOption`
+            The option to autocomplete.
+        """
+        focused_option = auto_complete_option.focused_option
+        if (focused_option is None):
+            return
+        
+        parameter_name = focused_option.name
+        
+        for parameter_converter in self._parameter_converters:
+            if isinstance(parameter_converter, ParameterConverterSlashCommand):
+                if parameter_converter.name == parameter_name:
+                    break
+        else:
+            return
+        
+        auto_completer = parameter_converter.auto_completer
+        if (auto_completer is not None):
+            await auto_completer.invoke(client, interaction_event)
+    
+    
+    def copy(self):
+        """
+        Copies the slash command function.
+        
+        Returns
+        -------
+        self : ``SlashCommandFunction``
+        """
+        new = object.__new__(type(self))
+        
+        # _auto_completers
+        auto_completers = self._auto_completers
+        if (auto_completers is not None):
+            auto_completers = auto_completers.copy()
+        new._auto_completers = auto_completers
+        
+        # _command_function
+        new._command_function = self._command_function
+        
+        # _exception_handlers
+        exception_handlers = self._exception_handlers
+        if (exception_handlers is not None):
+            exception_handlers = exception_handlers.copy()
+        new._exception_handlers = exception_handlers
+        
+        # _parameter_converters
+        new._parameter_converters = self._parameter_converters
+        
+        # _parent_reference
+        new._parent_reference = None
+        
+        # _self_reference
+        new._self_reference = None
+        
+        # default
+        new.default = self.default
+        
+        # description
+        new.description = self.description
+        
+        # name
+        new.name = self.name
+        
+        # response_modifier
+        new.response_modifier = self.response_modifier
+        
+        return self
+    
+    
     @copy_docs(CommandInterface.get_command_function)
     def get_command_function(self):
         return self._command_function
+    
+    
+    def _get_auto_completable_parameters(self):
+        """
+        Gets the auto completable parameter converters of the application command function.
+        
+        Returns
+        -------
+        parameter_converters : `list` of ``ParameterConverterSlashCommand``
+        """
+        auto_completable_parameters = set()
+        
+        for parameter_converter in self._parameter_converters:
+            if (
+                isinstance(parameter_converter, ParameterConverterSlashCommand) and
+                parameter_converter.can_be_auto_completed()
+            ):
+                auto_completable_parameters.add(parameter_converter)
+        
+        return auto_completable_parameters
     
     
     @copy_docs(AutocompleteInterface._register_auto_completer)
@@ -483,7 +490,7 @@ class SlashCommandFunction(
     
     def _try_resolve_auto_completer(self, auto_completer):
         """
-        Tries to register auto completer to the slasher application command function.
+        Tries to register auto completer the instance.
         
         Parameters
         ----------
@@ -503,6 +510,33 @@ class SlashCommandFunction(
             resolved += parameter_converter.register_auto_completer(auto_completer)
         
         return resolved
+    
+    
+    def as_option(self):
+        """
+        Returns the slash command function as an application command option.
+        
+        Returns
+        -------
+        option : ``ApplicationCommandOption``
+        """
+        parameter_converters = self._parameter_converters
+        options = None
+        for parameter_converter in parameter_converters:
+            option = parameter_converter.as_option()
+            if (option is not None):
+                if options is None:
+                    options = []
+                
+                options.append(option)
+        
+        return ApplicationCommandOption(
+            self.name,
+            self.description,
+            ApplicationCommandOptionType.sub_command,
+            options = options,
+            default = self.default,
+        )
     
 
     # ---- Mention ----

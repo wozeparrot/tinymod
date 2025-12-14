@@ -2,13 +2,11 @@ __all__ = ('EmbedVideo',)
 
 from scarletio import copy_docs
 
-from ...utils import url_cutter
-
 from ..embed_field_base import EmbedFieldBase
 
 from .fields import (
-    parse_height, parse_proxy_url, parse_url, parse_width, put_height_into, put_proxy_url_into, put_url_into,
-    put_width_into, validate_url
+    parse_height, parse_proxy_url, parse_url, parse_width, put_height, put_proxy_url, put_url,
+    put_width, validate_url
 )
 
 
@@ -75,7 +73,7 @@ class EmbedVideo(EmbedFieldBase):
         if url is None:
             repr_parts.append('null')
         else:
-            repr_parts.append(repr(url_cutter(url)))
+            repr_parts.append(repr(url))
         
         width = self.width
         height = self.height
@@ -100,18 +98,19 @@ class EmbedVideo(EmbedFieldBase):
     
     @copy_docs(EmbedFieldBase._is_equal_same_type)
     def _is_equal_same_type(self, other):
-        # height
-        # Receive only | check `.url` instead
-        
-        # proxy_url
-        # Receive only | check `.url` instead
-        
         # url
         if self.url != other.url:
             return False
         
-        # width
-        # Receive only | check `.url` instead
+        # proxy_url -> ignore
+        if (self.proxy_url is not None) and (other.proxy_url is not None):
+            # height
+            if self.height != other.height:
+                return False
+            
+            # width
+            if self.width != other.width:
+                return False
         
         return True
     
@@ -131,12 +130,12 @@ class EmbedVideo(EmbedFieldBase):
     def to_data(self, *, defaults = False, include_internals = False):
         data = {}
         
-        put_url_into(self.url, data, defaults)
+        put_url(self.url, data, defaults)
         
         if include_internals:
-            put_height_into(self.height, data, defaults)
-            put_proxy_url_into(self.proxy_url, data, defaults)
-            put_width_into(self.width, data, defaults)
+            put_height(self.height, data, defaults)
+            put_proxy_url(self.proxy_url, data, defaults)
+            put_width(self.width, data, defaults)
         
         return data
     

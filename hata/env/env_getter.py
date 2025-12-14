@@ -16,7 +16,7 @@ class EnvGetter(RichAttributeErrorBaseType):
     
     Attributes
     ----------
-    _captured : `None, `list<(int, str)>`
+    _captured : `None | list<(int, str)>`
         Captured errors.
     _entered : `int`
         Whether the getter is entered as a context manager. If not, it will propagate the errors instantly.
@@ -73,17 +73,19 @@ class EnvGetter(RichAttributeErrorBaseType):
         return self
     
     
-    def __exit__(self, exception_type, exception, exception_traceback):
+    def __exit__(self, exception_type, exception_value, exception_traceback):
         """
         Exits the context manager.
         
         Parameters
         ----------
-        exception_type : `None`, `type<BaseException>`
+        exception_type : `None | type<BaseException>`
             The occurred exception's type if any.
-        exception : `None`, `BaseException`
+        
+        exception_value : `None | BaseException`
             The occurred exception if any.
-        exception_traceback : `None`, `TracebackType`
+        
+        exception_traceback : `None | TracebackType`
             the exception's traceback if any.
         
         Returns
@@ -264,8 +266,7 @@ class EnvGetter(RichAttributeErrorBaseType):
         
         Returns
         -------
-        error_type : `int`
-        error_message : `None`, `str`
+        error_type_and_error_message : `(int, None | str)`
         """
         captured = self._captured
         if captured is None:

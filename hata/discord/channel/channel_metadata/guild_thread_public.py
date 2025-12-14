@@ -3,7 +3,7 @@ __all__ = ('ChannelMetadataGuildThreadPublic',)
 from scarletio import copy_docs
 
 from .fields import (
-    parse_applied_tag_ids, parse_flags, put_applied_tag_ids_into, put_flags_into, validate_applied_tag_ids,
+    parse_applied_tag_ids, parse_flags, put_applied_tag_ids, put_flags, validate_applied_tag_ids,
     validate_flags
 )
 from .flags import ChannelFlag
@@ -17,15 +17,15 @@ class ChannelMetadataGuildThreadPublic(ChannelMetadataGuildThreadBase):
     
     Attributes
     ----------
-    _created_at : `None`, `datetime`
+    _created_at : `None | DateTime`
         When the channel was created.
-    _cache_permission : `None`, `dict` of (`int`, ``Permission``) items
+    _cache_permission : ``None | dict<int, Permission>``
         A `user_id` to ``Permission`` relation mapping for caching permissions. Defaults to `None`.
-    applied_tag_ids : `None`, `tuple` of `int`
+    applied_tag_ids : `None | tuple<int>`
          The tags' identifier which have been applied to the thread. Applicable for threads of a forum.
     archived : `bool`
         Whether the thread s archived.
-    archived_at : `None`, `datetime`
+    archived_at : `None | DateTime`
         When the thread's archive status was last changed.
     auto_archive_after : `int`
         Duration in seconds to automatically archive the thread after recent activity. Can be one of: `3600`, `86400`,
@@ -78,17 +78,17 @@ class ChannelMetadataGuildThreadPublic(ChannelMetadataGuildThreadBase):
              The tags' identifier which have been applied to the thread.
         archived : `bool`, Optional (Keyword only)
             Whether the thread is archived.
-        archived_at : `None`, `datetime`, Optional (Keyword only)
+        archived_at : `None | DateTime`, Optional (Keyword only)
             When the thread's archive status was last changed.
         auto_archive_after : `int`, Optional (Keyword only)
             Duration in seconds to automatically archive the thread after recent activity.
         flags : ``ChannelFlag``, `int`, Optional (Keyword only)
             The channel's flags.
-        created_at : `None`, `datetime`, Optional (Keyword only)
+        created_at : `None | DateTime`, Optional (Keyword only)
             When the channel was created.
         name : `str`, Optional (Keyword only)
             The channel's name.
-        parent_id : `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
         open : `bool`, Optional (Keyword only)
             Whether the thread channel is open.
@@ -220,17 +220,17 @@ class ChannelMetadataGuildThreadPublic(ChannelMetadataGuildThreadBase):
              The tags' identifier which have been applied to the thread.
         archived : `bool`, Optional (Keyword only)
             Whether the thread is archived.
-        archived_at : `None`, `datetime`, Optional (Keyword only)
+        archived_at : `None | DateTime`, Optional (Keyword only)
             When the thread's archive status was last changed.
         auto_archive_after : `int`, Optional (Keyword only)
             Duration in seconds to automatically archive the thread after recent activity.
         flags : ``ChannelFlag``, `int`, Optional (Keyword only)
             The channel's flags.
-        created_at : `None`, `datetime`, Optional (Keyword only)
+        created_at : `None | DateTime`, Optional (Keyword only)
             When the channel was created.
         name : `str`, Optional (Keyword only)
             The channel's name.
-        parent_id : `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
         open : `bool`, Optional (Keyword only)
             Whether the thread channel is open.
@@ -335,9 +335,9 @@ class ChannelMetadataGuildThreadPublic(ChannelMetadataGuildThreadBase):
         data = ChannelMetadataGuildThreadBase.to_data(self, defaults = defaults, include_internals = include_internals)
         
         # applied_tag_ids
-        put_applied_tag_ids_into(self.applied_tag_ids, data, defaults)
+        put_applied_tag_ids(self.applied_tag_ids, data, defaults)
         
         # flags
-        put_flags_into(self.flags, data, defaults)
+        put_flags(self.flags, data, defaults)
         
         return data

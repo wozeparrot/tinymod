@@ -6,7 +6,7 @@ from ...utils import DATETIME_FORMAT_CODE
 
 from ..activity_field_base import ActivityFieldBase
 
-from .fields import parse_end, parse_start, put_end_into, put_start_into, validate_end, validate_start
+from .fields import parse_end, parse_start, put_end, put_start, validate_end, validate_start
 
 
 class ActivityTimestamps(ActivityFieldBase):
@@ -15,9 +15,10 @@ class ActivityTimestamps(ActivityFieldBase):
     
     Attributes
     ----------
-    end : `None`, `datetime`
+    end : `None | DateTime`
         When the activity ends.
-    start : `None`, `datetime`
+    
+    start : `None | DateTime`
        When the activity starts.
     """
     __slots__ = ('end', 'start',)
@@ -28,9 +29,9 @@ class ActivityTimestamps(ActivityFieldBase):
         
         Parameters
         ----------
-        end : `None`, `datetime`, Optional (Keyword only)
+        end : `None | DateTime`, Optional (Keyword only)
             When the activity ends. 
-        start : `None`, `datetime`, Optional (Keyword only)
+        start : `None | DateTime`, Optional (Keyword only)
            When the activity starts.
        
         Raises
@@ -71,8 +72,8 @@ class ActivityTimestamps(ActivityFieldBase):
     @copy_docs(ActivityFieldBase.to_data)
     def to_data(self, *, defaults = False):
         data = {}
-        put_end_into(self.end, data, defaults)
-        put_start_into(self.start, data, defaults)
+        put_end(self.end, data, defaults)
+        put_start(self.start, data, defaults)
         return data
     
     
@@ -80,7 +81,7 @@ class ActivityTimestamps(ActivityFieldBase):
     def __repr__(self):
         repr_parts = [
             '<',
-            self.__class__.__name__,
+            type(self).__name__,
         ]
         
         start = self.start
@@ -97,7 +98,7 @@ class ActivityTimestamps(ActivityFieldBase):
                 repr_parts.append(',')
             
             repr_parts.append(' end = ')
-            repr_parts.append(format(start, DATETIME_FORMAT_CODE))
+            repr_parts.append(format(end, DATETIME_FORMAT_CODE))
         
         repr_parts.append('>')
         
@@ -162,9 +163,9 @@ class ActivityTimestamps(ActivityFieldBase):
         
         Parameters
         ----------
-        end : `None`, `datetime`, Optional (Keyword only)
+        end : `None | DateTime`, Optional (Keyword only)
             When the activity ends. 
-        start : `None`, `datetime`, Optional (Keyword only)
+        start : `None | DateTime`, Optional (Keyword only)
            When the activity starts.
         
         Returns

@@ -223,7 +223,7 @@ def get_attribute_section_mentioned_names(section_content):
     
     Returns
     -------
-    names : `set` of `str`
+    names : `set<str>`
         The parsed names from the respective section.
     """
     names = set()
@@ -814,7 +814,7 @@ class AttributeSection:
         ----------
         title : `str`
             The title of the represented section.
-        mentioned_names : `set` of `str`
+        mentioned_names : `set<str>`
             Mentioned attribute names at the attribute section.
         object_ : ``TypeUnit``
             The owner type-unit.
@@ -980,8 +980,8 @@ class AttributeSection:
         
         return Structure(title, prefixed_title, children)
 
-PARAMETER_NAME_RP = re.compile('(\*{0,2}[a-zA-Z_]+[a-zA-Z_0-9]*)(?: *\: *(.+)?)?')
-PARAMETER_OPTIONALITY_RP = re.compile('(.*?)(?:,? *([Oo]ptional)(?:,? *\(?([Kk]eyword [Oo]nly)\)?)?)?')
+PARAMETER_NAME_RP = re.compile('(\\*{0,2}[a-zA-Z_]+[a-zA-Z_0-9]*)(?: *\\: *(.+)?)?')
+PARAMETER_OPTIONALITY_RP = re.compile('(.*?)(?:,? *([Oo]ptional)(?:,? *\\(?([Kk]eyword [Oo]nly)\\)?)?)?')
 PARAMETER_DEFAULT_START_RP = re.compile('(.*?) *= *(.*?)')
 
 PARAMETER_SHIFT_NAME = 0
@@ -1191,8 +1191,9 @@ class ParameterSubSection:
             
             description = self.description
             if (description is not None):
-                yield from sub_section_serializer(description, parent.object, get_parent_path_of(parent.path),
-                    create_relative_sectioned_link)
+                yield from sub_section_serializer(
+                    description, parent.object, get_parent_path_of(parent.path), create_relative_sectioned_link
+                )
             
             yield '</td>'
         

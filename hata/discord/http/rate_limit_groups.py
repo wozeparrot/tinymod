@@ -124,6 +124,13 @@ Shared Groups
     - Limit : `6`
     - Resets after : `5.0`
 
+- GROUP_VOICE_STATE_ACTION
+    - Used by : `voice_state_get_own`, `voice_state_edit_own`, `voice_state_get` , `voice_state_edit`
+    - Limiter : `GLOBAL`
+    - Limit : `15`
+    - Resets after : `5.0`
+
+
 Group Details
 -----------
 - oauth2_token
@@ -201,6 +208,14 @@ Group Details
     - Limit : `5`
     - Resets after : `5.0`
 
+- embedded_activity_get
+    - Endpoint : `/applications/{application_id}/activity-instances/{embedded_activity_id}`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `500`
+    - Resets after : `1.0`
+
 - application_command_global_get_all
     - Endpoint : `/applications/{application_id}/commands`
     - Method : `GET`
@@ -249,6 +264,54 @@ Group Details
     - Limit : `5`
     - Resets after : `20.0`
 
+- emoji_get_all_application
+    - Endpoint : `/applications/{application_id}/emojis`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `5`
+    - Resets after : `1.0`
+
+- emoji_create_application
+    - Endpoint : `/applications/{application_id}/emojis`
+    - Method : `POST`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `1`
+    - Resets after : `1.5`
+
+- emoji_delete_application
+    - Endpoint : `/applications/{application_id}/emojis/{emoji_id}`
+    - Method : `DELETE`
+    - Required auth : `bot`
+    - Limiter : `UNLIMITED`
+    - Limit : `UN`
+    - Resets after : `UN`
+
+- emoji_get_application
+    - Endpoint : `/applications/{application_id}/emojis/{emoji_id}`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `10`
+    - Resets after : `1.0`
+
+- emoji_edit_application
+    - Endpoint : `/applications/{application_id}/emojis/{emoji_id}`
+    - Method : `PATCH`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `10`
+    - Resets after : `10.0`
+
+- emoji_create_application
+    - Endpoint : `/applications/{application_id}/emojis/{emoji_id}`
+    - Method : `POST`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `UN`
+    - Resets after : `UN`
+
 - entitlement_get_chunk
     - Endpoint : `/applications/{application_id}/entitlements`
     - Method : `GET`
@@ -272,6 +335,14 @@ Group Details
     - Limiter : `GLOBAL`
     - Limit : `6`
     - Resets after : `5.0`
+
+- entitlement_get
+    - Endpoint : `/applications/{application_id}/entitlements/{entitlement_id}`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `UN`
+    - Resets after : `UN`
 
 - entitlement_consume
     - Endpoint : `/applications/{application_id}/entitlements/{entitlement_id}/consume`
@@ -353,13 +424,22 @@ Group Details
     - Limit : `5.0`
     - Resets after : `20.0`
 
+- application_role_connection_metadata_delete_all
+    - Endpoint : `/applications/{application_id}/role-connections/metadata`
+    - Method : `DELETE`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `UN`
+    - Resets after : `UN`
+    - Notes: Method not allowed.
+
 - application_role_connection_metadata_get_all
     - Endpoint : `/applications/{application_id}/role-connections/metadata`
     - Method : `GET`
     - Required auth : `bot`
     - Limiter : `GLOBAL`
     - Limit : `1`
-    - Resets after : `0.999`
+    - Resets after : `1.0`
 
 - application_role_connection_metadata_edit_all
     - Endpoint : `/applications/{application_id}/role-connections/metadata`
@@ -367,7 +447,7 @@ Group Details
     - Required auth : `bot`
     - Limiter : `GLOBAL`
     - Limit : `1`
-    - Resets after : `4.999`
+    - Resets after : `5.0`
 
 - sku_get_all
     - Endpoint : `/applications/{application_id}/skus`
@@ -410,6 +490,15 @@ Group Details
     - Limit : `N/A`
     - Resets after : `N/A`
     - Notes : Untested.
+
+- channel_get
+    - Endpoint : `/channels/{channel_id}`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `1000`
+    - Resets after : `1.0`
+    - Notes : Assumably global.
 
 - channel_edit
     - Endpoint : `/channels/{channel_id}`
@@ -652,16 +741,16 @@ Group Details
     - Limit : `10`
     - Resets after : `15.0`
 
-- channel_pin_get_all
-    - Endpoint : `/channels/{channel_id}/pins`
+- channel_pin_get_chunk
+    - Endpoint : `/channels/{channel_id}/messages/pins`
     - Method : `GET`
     - Required auth : `bot`
     - Limiter : `GLOBAL`
-    - Limit : `1`
+    - Limit : `6`
     - Resets after : `5`
 
 - channel_pin_ack
-    - Endpoint : `/channels/{channel_id}/pins/ack`
+    - Endpoint : `/channels/{channel_id}/pins/messages/ack`
     - Method : `POST`
     - Required auth : `user`
     - Limiter : `GLOBAL`
@@ -670,6 +759,39 @@ Group Details
     - Notes : Untested.
 
 - message_unpin
+    - Endpoint : `/channels/{channel_id}/messages/pins/{message_id}`
+    - Method : `DELETE`
+    - Required auth : `bot`
+    - Limiter : `channel_id`
+    - Limit : `5`
+    - Resets after : `5`
+
+- message_pin
+    - Endpoint : `/channels/{channel_id}/messages/pins/{message_id}`
+    - Method : `PUT`
+    - Required auth : `bot`
+    - Limiter : `channel_id`
+    - Limit : `5`
+    - Resets after : `5`
+
+- channel_pin_get_all (old)
+    - Endpoint : `/channels/{channel_id}/pins`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `1`
+    - Resets after : `5`
+
+- channel_pin_ack (old)
+    - Endpoint : `/channels/{channel_id}/pins/ack`
+    - Method : `POST`
+    - Required auth : `user`
+    - Limiter : `GLOBAL`
+    - Limit : `OPT`
+    - Resets after : `OPT`
+    - Notes : Untested.
+
+- message_unpin (old)
     - Endpoint : `/channels/{channel_id}/pins/{message_id}`
     - Method : `DELETE`
     - Required auth : `bot`
@@ -677,7 +799,7 @@ Group Details
     - Limit : `5`
     - Resets after : `4`
 
-- message_pin
+- message_pin (old)
     - Endpoint : `/channels/{channel_id}/pins/{message_id}`
     - Method : `PUT`
     - Required auth : `bot`
@@ -1151,7 +1273,7 @@ Group Details
     - Resets after : `N/A`
     - Notes : Deprecated. Works on v6, v7.
 
-- emoji_guild_get_all
+- emoji_get_all_guild
     - Endpoint : `/guilds/{guild_id}/emojis`
     - Method : `GET`
     - Required auth : `bot`
@@ -1159,7 +1281,7 @@ Group Details
     - Limit : `OPT`
     - Resets after : `OPT`
 
-- emoji_create
+- emoji_create_guild
     - Endpoint : `/guilds/{guild_id}/emojis`
     - Method : `POST`
     - Required auth : `bot`
@@ -1168,7 +1290,7 @@ Group Details
     - Resets after : `3600.0`
     - Notes : Discord does not return rate limit information, still figured it out. :LeSanae:
 
-- emoji_delete
+- emoji_delete_guild
     - Endpoint : `/guilds/{guild_id}/emojis`
     - Method : `DELETE`
     - Required auth : `bot`
@@ -1176,7 +1298,7 @@ Group Details
     - Limit : `10`
     - Resets after : `20.0`
 
-- emoji_get
+- emoji_get_guild
     - Endpoint : `/guilds/{guild_id}/emojis/{emoji_id}`
     - Method : `GET`
     - Required auth : `bot`
@@ -1184,7 +1306,7 @@ Group Details
     - Limit : `OPT`
     - Resets after : `OPT`
 
-- emoji_edit
+- emoji_edit_guild
     - Endpoint : `/guilds/{guild_id}/emojis/{emoji_id}`
     - Method : `PATCH`
     - Required auth : `bot`
@@ -1380,6 +1502,22 @@ Group Details
     - Limit : `5`
     - Resets after : `5.0`
 
+- guild_activity_overview_get
+    - Endpoint : `/guilds/{guild_id}/profile`
+    - Method : `GET`
+    - Required auth : `user`
+    - Limiter : `guild_id`
+    - Limit : `OPT`
+    - Resets after : `OPT`
+
+- guild_activity_overview_edit
+    - Endpoint : `/guilds/{guild_id}/profile`
+    - Method : `PATCH`
+    - Required auth : `user`
+    - Limiter : `guild_id`
+    - Limit : `OPT`
+    - Resets after : `OPT`
+
 - guild_prune_estimate
     - Endpoint : `/guilds/{guild_id}/prune`
     - Method : `GET`
@@ -1436,6 +1574,15 @@ Group Details
     - Limit : `OPT`
     - Resets after : `OPT`
 
+- guild_role_get
+    - Endpoint : `/guilds/{guild_id}/roles/{role_id}`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : `guild_id`
+    - Limit : `1000`
+    - Resets after : `1.0`
+    - Notes : Assumably global.
+
 - role_edit
     - Endpoint : `/guilds/{guild_id}/roles/{role_id}`
     - Method : `PATCH`
@@ -1491,6 +1638,24 @@ Group Details
     - Limiter : `guild_id`
     - Limit : `5`
     - Resets after : `20.0`
+
+- scheduled_event_occasion_overwrite_create
+    - Endpoint : `/guilds/{guild_id}/scheduled-events/{scheduled_event_id}/exceptions`
+    - Method : `POST`
+    - Required auth : `bot`
+    - Limiter : ???
+
+- scheduled_event_occasion_overwrite_delete
+    - Endpoint : `/guilds/{guild_id}/scheduled-events/{scheduled_event_id}/exceptions/{timestamp_as_id}`
+    - Method : `DELETE`
+    - Required auth : `bot`
+    - Limiter : ???
+
+- scheduled_event_occasion_overwrite_edit
+    - Endpoint : `/guilds/{guild_id}/scheduled-events/{scheduled_event_id}/exceptions/{timestamp_as_id}`
+    - Method : `PATCH`
+    - Required auth : `bot`
+    - Limiter : ???
 
 - scheduled_event_user_get_chunk
     - Endpoint : `/guilds/{guild_id}/scheduled-events/{scheduled_event_id}/users`
@@ -1590,16 +1755,32 @@ Group Details
     - Limit : `10`
     - Resets after : `60.0`
 
-- voice_state_client_edit
+- voice_state_get_own
+    - Endpoint : `/guilds/{guild_id}/voice-states/@me`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : GLOBAL
+    - Limit : `15`
+    - Resets after : `5`
+
+- voice_state_edit_own
     - Endpoint : `/guilds/{guild_id}/voice-states/@me`
     - Method : `PATCH`
     - Required auth : `bot`
     - Limiter : GLOBAL
-    - Limit : 15
+    - Limit : `15`
     - Resets after : `5.0`
 
-- voice_state_user_edit
-    - Endpoint : `/guilds/{guild_id}/voice-states/@me`
+- voice_state_get
+    - Endpoint : `/guilds/{guild_id}/voice-states/{user_id}`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : GLOBAL
+    - Limit : `15`
+    - Resets after : `5.0`
+
+- voice_state_edit
+    - Endpoint : `/guilds/{guild_id}/voice-states/{user_id}`
     - Method : `PATCH`
     - Required auth : `bot`
     - Limiter : GLOBAL
@@ -1704,6 +1885,22 @@ Group Details
     - Limit : `UN`
     - Resets after : `UN`
     - Notes : Untested.
+
+- subscription_get_chunk_sku_user
+    - Endpoint : `/skus/{sku_id}/subscriptions`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `10`
+    - Resets after : `5.0`
+
+- subscription_get_sku
+    - Endpoint : `/skus/{sku_id}/subscriptions/{subscription_id}`
+    - Method : `GET`
+    - Required auth : `bot`
+    - Limiter : `GLOBAL`
+    - Limit : `5`
+    - Resets after : `5.0`
 
 - soundboard_sound_get_all_default
     - Endpoint : `/soundboard-default-sounds`
@@ -2137,6 +2334,7 @@ GROUP_PERMISSION_OVERWRITE_MODIFY = RateLimitGroup(LIMITER_CHANNEL)
 GROUP_THREAD_CREATE = RateLimitGroup()
 GROUP_THREAD_ACTION = RateLimitGroup()
 GROUP_ENTITLEMENT_ACTION = RateLimitGroup()
+GROUP_VOICE_STATE_ACTION = RateLimitGroup()
 
 oauth2_token = RateLimitGroup(optimistic = True)
 application_get = RateLimitGroup().unlimited()
@@ -2147,15 +2345,23 @@ achievement_create = RateLimitGroup()
 achievement_delete = RateLimitGroup()
 achievement_get = RateLimitGroup()
 achievement_edit = RateLimitGroup()
+embedded_activity_get = RateLimitGroup()
 application_command_global_get_all = RateLimitGroup.unlimited()
 application_command_global_delete = RateLimitGroup()
 application_command_global_create = RateLimitGroup()
 application_command_global_update_multiple = RateLimitGroup()
 application_command_global_get = RateLimitGroup.unlimited()
 application_command_global_edit = RateLimitGroup()
+
+emoji_get_all_application = RateLimitGroup()
+emoji_create_application = RateLimitGroup()
+emoji_delete_application = RateLimitGroup.unlimited()
+emoji_get_application = RateLimitGroup()
+emoji_edit_application = RateLimitGroup()
 entitlement_get_chunk = RateLimitGroup.unlimited()
 entitlement_create = GROUP_ENTITLEMENT_ACTION
 entitlement_delete = GROUP_ENTITLEMENT_ACTION
+entitlement_get = RateLimitGroup.unlimited()
 entitlement_consume = GROUP_ENTITLEMENT_ACTION
 application_command_guild_get_all = RateLimitGroup.unlimited()
 application_command_guild_update_multiple = RateLimitGroup(LIMITER_GUILD)
@@ -2166,6 +2372,7 @@ application_command_guild_get = RateLimitGroup.unlimited()
 application_command_guild_edit = RateLimitGroup(LIMITER_GUILD)
 application_command_permission_get = RateLimitGroup.unlimited()
 application_command_permission_edit = RateLimitGroup()
+application_role_connection_metadata_delete_all = RateLimitGroup()
 application_role_connection_metadata_get_all = RateLimitGroup()
 application_role_connection_metadata_edit_all = RateLimitGroup()
 sku_get_all = RateLimitGroup.unlimited()
@@ -2173,6 +2380,7 @@ application_get_all_detectable = RateLimitGroup(optimistic = True)
 client_logout = RateLimitGroup() # untested
 channel_delete = RateLimitGroup.unlimited()
 channel_group_leave = RateLimitGroup.unlimited() # untested; same as channel_delete?
+channel_get = RateLimitGroup()
 channel_edit = RateLimitGroup(LIMITER_CHANNEL)
 channel_group_edit = RateLimitGroup(LIMITER_CHANNEL, optimistic = True) # untested; same as channel_edit?
 channel_directory_counts = RateLimitGroup(LIMITER_CHANNEL, optimistic = True) # untested; same as channel_edit?
@@ -2202,7 +2410,7 @@ message_suppress_embeds = RateLimitGroup()
 thread_create_from_message = GROUP_THREAD_CREATE
 permission_overwrite_delete = GROUP_PERMISSION_OVERWRITE_MODIFY
 permission_overwrite_create = GROUP_PERMISSION_OVERWRITE_MODIFY
-channel_pin_get_all = RateLimitGroup()
+channel_pin_get_chunk = RateLimitGroup(LIMITER_CHANNEL)
 channel_pin_ack = RateLimitGroup(optimistic = True) # untested
 message_unpin = GROUP_PIN_MODIFY
 message_pin = GROUP_PIN_MODIFY
@@ -2261,11 +2469,11 @@ guild_discovery_get = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 guild_discovery_edit = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 guild_embed_get = RateLimitGroup(LIMITER_GUILD, optimistic = True) # deprecated
 guild_embed_edit = RateLimitGroup(LIMITER_GUILD, optimistic = True) # deprecated
-emoji_guild_get_all = RateLimitGroup(LIMITER_GUILD, optimistic = True)
-emoji_create = RateLimitGroup(LIMITER_GUILD)
-emoji_delete = RateLimitGroup()
-emoji_get = RateLimitGroup(LIMITER_GUILD, optimistic = True)
-emoji_edit = RateLimitGroup()
+emoji_get_all_guild = RateLimitGroup(LIMITER_GUILD, optimistic = True)
+emoji_create_guild = RateLimitGroup(LIMITER_GUILD)
+emoji_delete_guild = RateLimitGroup()
+emoji_get_guild = RateLimitGroup(LIMITER_GUILD, optimistic = True)
+emoji_edit_guild = RateLimitGroup()
 guild_incidents_edit = RateLimitGroup.unlimited()
 integration_get_all = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 integration_create = RateLimitGroup(optimistic = True) # untested
@@ -2290,6 +2498,8 @@ user_role_add = GROUP_USER_ROLE_MODIFY
 onboarding_screen_get = RateLimitGroup(LIMITER_GUILD)
 onboarding_screen_edit = RateLimitGroup(LIMITER_GUILD)
 guild_preview_get = RateLimitGroup()
+guild_activity_overview_get = RateLimitGroup(LIMITER_GUILD, optimistic = True)
+guild_activity_overview_edit = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 guild_prune_estimate = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 guild_prune = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 guild_voice_region_get_all = RateLimitGroup(LIMITER_GUILD, optimistic = True)
@@ -2297,12 +2507,16 @@ guild_role_get_all = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 role_move = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 role_create = RateLimitGroup(LIMITER_GUILD)
 role_delete = RateLimitGroup(LIMITER_GUILD, optimistic = True)
+role_get = RateLimitGroup(LIMITER_GUILD)
 role_edit = RateLimitGroup(LIMITER_GUILD)
 scheduled_event_get_all_guild = RateLimitGroup(LIMITER_GUILD)
 scheduled_event_create = RateLimitGroup(LIMITER_GUILD)
 scheduled_event_delete = RateLimitGroup(LIMITER_GUILD)
 scheduled_event_get = RateLimitGroup(LIMITER_GUILD)
 scheduled_event_edit = RateLimitGroup(LIMITER_GUILD)
+scheduled_event_occasion_overwrite_create = RateLimitGroup(LIMITER_GUILD)
+scheduled_event_occasion_overwrite_delete = RateLimitGroup(LIMITER_GUILD)
+scheduled_event_occasion_overwrite_edit = RateLimitGroup(LIMITER_GUILD)
 scheduled_event_user_get_chunk = RateLimitGroup(LIMITER_GUILD)
 soundboard_sound_create = RateLimitGroup.unlimited()
 soundboard_sound_delete = RateLimitGroup.unlimited()
@@ -2315,8 +2529,10 @@ sticker_get_guild = RateLimitGroup.unlimited()
 guild_thread_get_all_active = RateLimitGroup.unlimited()
 invite_get_vanity = RateLimitGroup.unlimited()
 invite_edit_vanity = RateLimitGroup()
-voice_state_client_edit = RateLimitGroup()
-voice_state_user_edit = RateLimitGroup.unlimited() # untested
+voice_state_get_own = GROUP_VOICE_STATE_ACTION
+voice_state_edit_own = GROUP_VOICE_STATE_ACTION
+voice_state_get = GROUP_VOICE_STATE_ACTION
+voice_state_edit = GROUP_VOICE_STATE_ACTION
 welcome_screen_get = RateLimitGroup(LIMITER_GUILD, optimistic = True)
 welcome_screen_edit = RateLimitGroup(LIMITER_GUILD)
 webhook_get_all_guild = RateLimitGroup(LIMITER_GUILD, optimistic = True)
@@ -2328,6 +2544,8 @@ invite_delete = RateLimitGroup.unlimited()
 invite_get = RateLimitGroup()
 oauth2_application_get_own = RateLimitGroup(optimistic = True)
 bulk_ack = RateLimitGroup(optimistic = True) # untested
+subscription_get_chunk_sku_user = RateLimitGroup()
+subscription_get_sku = RateLimitGroup()
 soundboard_sound_get_all_default = RateLimitGroup.unlimited()
 stage_get_all = RateLimitGroup.unlimited()
 stage_create = RateLimitGroup()

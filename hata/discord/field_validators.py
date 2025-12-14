@@ -1,6 +1,6 @@
 __all__ = ()
 
-from datetime import datetime as DateTime, timedelta as TimeDelta
+from datetime import datetime as DateTime, timedelta as TimeDelta, timezone as TimeZone
 
 from scarletio import include_with_callback, set_docs
 
@@ -141,7 +141,7 @@ def entity_id_validator_factory(field_name, entity_type = None, *, include = Non
                 if processed_entity_id is None:
                     raise TypeError(
                         f'`{field_name}` can be `int`, `{entity_type.__name__}`, `int`, got '
-                        f'{entity_id.__class__.__name__}; {entity_id!r}.'
+                        f'{type(entity_id).__name__}; {entity_id!r}.'
                     )
             
             return processed_entity_id
@@ -157,7 +157,7 @@ def entity_id_validator_factory(field_name, entity_type = None, *, include = Non
     return validator
 
 
-def _entity_id_array_processor_factory(field_name, entity_type, include):
+def _entity_id_array_processor_factory(field_name, entity_type, include, keep_order):
     """
     Returns an entity id array validator. The validator does no `None` check, instead that should be done before.
     The validator always returns a set.
@@ -172,65 +172,135 @@ def _entity_id_array_processor_factory(field_name, entity_type, include):
     
     include : `None`, `str`
         The object's name to include `entity_type` with. Should be used when `entity_type` cannot be resolved initially.
+    
+    keep_order : `bool`
+        Whether order should be kept. if given as `True` returns validator returning a `list` else a `set`.
     """
-    if (entity_type is None):
-        def validator(entity_id_array):
-            nonlocal field_name
-            
-            if (getattr(entity_id_array, '__iter__', None) is None):
-                raise TypeError(
-                    f'`{field_name}` can be `None`, `iterable` of `int`, '
-                    f'got {entity_id_array.__class__.__name__}; {entity_id_array!r}.'
-                )
-            
-            entity_id_set_processed = None
-            
-            for applied_tag_id in entity_id_array:
-                applied_tag_id_processed = maybe_snowflake(applied_tag_id)
-                if applied_tag_id_processed is None:
+    if keep_order:
+        if (entity_type is None):
+            def validator(entity_id_array):
+                nonlocal field_name
+                
+                if (getattr(entity_id_array, '__iter__', None) is None):
                     raise TypeError(
-                        f'`{field_name}` can contain `int` elements, got {applied_tag_id.__class__.__name__}'
-                        f'{applied_tag_id!r}; entity_id_array = {entity_id_array!r}.'
+                        f'`{field_name}` can be `None | iterable<int>`, '
+                        f'got {type(entity_id_array).__name__}; {entity_id_array!r}.'
                     )
                 
-                if entity_id_set_processed is None:
-                    entity_id_set_processed = set()
+                entity_id_set_processed = None
                 
-                entity_id_set_processed.add(applied_tag_id_processed)
-            
-            return entity_id_set_processed
-    else:
-        def validator(entity_id_array):
-            nonlocal field_name
-            nonlocal entity_type
-            
-            if (getattr(entity_id_array, '__iter__', None) is None):
-                raise TypeError(
-                    f'`{field_name}` can be `None`, `iterable` of (`int`, `{entity_type.__name__}`), '
-                    f'got {entity_id_array.__class__.__name__}; {entity_id_array!r}.'
-                )
-            
-            entity_id_set_processed = None
-            
-            for applied_tag_id in entity_id_array:
-                if isinstance(applied_tag_id, entity_type):
-                     applied_tag_id_processed = applied_tag_id.id
-                
-                else:
+                for applied_tag_id in entity_id_array:
                     applied_tag_id_processed = maybe_snowflake(applied_tag_id)
                     if applied_tag_id_processed is None:
                         raise TypeError(
-                            f'`{field_name}` can contain `int`, `{entity_type.__name__}` elements, got '
-                            f'{applied_tag_id.__class__.__name__}; {applied_tag_id!r}; '
-                            f'entity_id_array = {entity_id_array!r}.'
+                            f'`{field_name}` can contain `int` elements, got {type(applied_tag_id).__name__}'
+                            f'{applied_tag_id!r}; entity_id_array = {entity_id_array!r}.'
                         )
+                    
+                    if entity_id_set_processed is None:
+                        entity_id_set_processed = []
+                    
+                    elif applied_tag_id_processed in entity_id_set_processed:
+                        continue
+                    
+                    entity_id_set_processed.append(applied_tag_id_processed)
                 
-                if entity_id_set_processed is None:
-                    entity_id_set_processed = set()
+                return entity_id_set_processed
+        else:
+            def validator(entity_id_array):
+                nonlocal field_name
+                nonlocal entity_type
                 
-                entity_id_set_processed.add(applied_tag_id_processed)
-            
-            return entity_id_set_processed
+                if (getattr(entity_id_array, '__iter__', None) is None):
+                    raise TypeError(
+                        f'`{field_name}` can be `None`, `iterable` of (`int`, `{entity_type.__name__}`), '
+                        f'got {type(entity_id_array).__name__}; {entity_id_array!r}.'
+                    )
+                
+                entity_id_set_processed = None
+                
+                for applied_tag_id in entity_id_array:
+                    if isinstance(applied_tag_id, entity_type):
+                         applied_tag_id_processed = applied_tag_id.id
+                    
+                    else:
+                        applied_tag_id_processed = maybe_snowflake(applied_tag_id)
+                        if applied_tag_id_processed is None:
+                            raise TypeError(
+                                f'`{field_name}` can contain `int`, `{entity_type.__name__}` elements, got '
+                                f'{type(applied_tag_id).__name__}; {applied_tag_id!r}; '
+                                f'entity_id_array = {entity_id_array!r}.'
+                            )
+                    
+                    if entity_id_set_processed is None:
+                        entity_id_set_processed = []
+                    
+                    elif applied_tag_id_processed in entity_id_set_processed:
+                        continue
+                    
+                    entity_id_set_processed.append(applied_tag_id_processed)
+                
+                return entity_id_set_processed
+    
+    else:
+        if (entity_type is None):
+            def validator(entity_id_array):
+                nonlocal field_name
+                
+                if (getattr(entity_id_array, '__iter__', None) is None):
+                    raise TypeError(
+                        f'`{field_name}` can be `None | iterable<int>`, '
+                        f'got {type(entity_id_array).__name__}; {entity_id_array!r}.'
+                    )
+                
+                entity_id_set_processed = None
+                
+                for applied_tag_id in entity_id_array:
+                    applied_tag_id_processed = maybe_snowflake(applied_tag_id)
+                    if applied_tag_id_processed is None:
+                        raise TypeError(
+                            f'`{field_name}` can contain `int` elements, got {type(applied_tag_id).__name__}'
+                            f'{applied_tag_id!r}; entity_id_array = {entity_id_array!r}.'
+                        )
+                    
+                    if entity_id_set_processed is None:
+                        entity_id_set_processed = set()
+                    
+                    entity_id_set_processed.add(applied_tag_id_processed)
+                
+                return entity_id_set_processed
+        else:
+            def validator(entity_id_array):
+                nonlocal field_name
+                nonlocal entity_type
+                
+                if (getattr(entity_id_array, '__iter__', None) is None):
+                    raise TypeError(
+                        f'`{field_name}` can be `None`, `iterable` of (`int`, `{entity_type.__name__}`), '
+                        f'got {type(entity_id_array).__name__}; {entity_id_array!r}.'
+                    )
+                
+                entity_id_set_processed = None
+                
+                for applied_tag_id in entity_id_array:
+                    if isinstance(applied_tag_id, entity_type):
+                         applied_tag_id_processed = applied_tag_id.id
+                    
+                    else:
+                        applied_tag_id_processed = maybe_snowflake(applied_tag_id)
+                        if applied_tag_id_processed is None:
+                            raise TypeError(
+                                f'`{field_name}` can contain `int`, `{entity_type.__name__}` elements, got '
+                                f'{type(applied_tag_id).__name__}; {applied_tag_id!r}; '
+                                f'entity_id_array = {entity_id_array!r}.'
+                            )
+                    
+                    if entity_id_set_processed is None:
+                        entity_id_set_processed = set()
+                    
+                    entity_id_set_processed.add(applied_tag_id_processed)
+                
+                return entity_id_set_processed
     
     if (include is not None):
         @include_with_callback(include)
@@ -242,7 +312,7 @@ def _entity_id_array_processor_factory(field_name, entity_type, include):
     return validator
 
 
-def entity_id_array_validator_factory(field_name, entity_type = None, *, include = None):
+def entity_id_array_validator_factory(field_name, entity_type = None, *, include = None, ordered = True):
     """
     Returns an entity id array validator.
     
@@ -257,13 +327,38 @@ def entity_id_array_validator_factory(field_name, entity_type = None, *, include
     include : `None`, `str` = `None`, Optional (Keyword only)
         The object's name to include `entity_type` with. Should be used when `entity_type` cannot be resolved initially.
     
+    ordered : `bool` = `True`, Optional (Keyword only)
+        Whether the output should be ordered.
+    
     Returns
     -------
     validator : `FunctionType`
     """
-    base_validator = _entity_id_array_processor_factory(field_name, entity_type, include)
+    base_validator = _entity_id_array_processor_factory(field_name, entity_type, include, not ordered)
+    if ordered:
+        def validator(entity_id_array):
+            nonlocal base_validator
+            
+            if entity_id_array is None:
+                return None
+            
+            entity_ids_processed = base_validator(entity_id_array)
+            if (entity_ids_processed is not None):
+                return tuple(sorted(entity_ids_processed))
     
-    def validator(entity_id_array):
+    else:
+        def validator(entity_id_array):
+            nonlocal base_validator
+            
+            if entity_id_array is None:
+                return None
+            
+            entity_ids_processed = base_validator(entity_id_array)
+            if (entity_ids_processed is not None):
+                return tuple(entity_ids_processed)
+    
+    set_docs(
+        validator,
         """
         Validates the given entity identifier array.
         
@@ -276,7 +371,7 @@ def entity_id_array_validator_factory(field_name, entity_type = None, *, include
         
         Returns
         -------
-        entity_id_array : `None`, `tuple` of `int`
+        entity_id_array : `None | tuple<int>`
             The entities identifiers.
         
         Raises
@@ -285,15 +380,7 @@ def entity_id_array_validator_factory(field_name, entity_type = None, *, include
             - If `entity_id_array`'s type is incorrect.
             - If an element of `entity_id_array` has incorrect type.
         """
-        nonlocal base_validator
-        
-        if entity_id_array is None:
-            return None
-        
-        entity_ids_processed = base_validator(entity_id_array)
-        if (entity_ids_processed is not None):
-            return tuple(sorted(entity_ids_processed))
-    
+    )
     
     return validator
 
@@ -317,7 +404,7 @@ def entity_id_set_validator_factory(field_name, entity_type, *, include = None):
     -------
     validator : `FunctionType`
     """
-    base_validator = _entity_id_array_processor_factory(field_name, entity_type, include)
+    base_validator = _entity_id_array_processor_factory(field_name, entity_type, include, False)
     
     def validator(entity_id_array):
         """
@@ -509,7 +596,7 @@ def preinstanced_array_validator_factory(field_name, preinstanced_type, *, inclu
             return (preinstanced_array, )
         
         if isinstance(preinstanced_array, preinstanced_type.VALUE_TYPE):
-            return (preinstanced_type.get(preinstanced_array), )
+            return (preinstanced_type(preinstanced_array), )
         
         if getattr(preinstanced_array, '__iter__', None) is None:
             raise TypeError(
@@ -525,7 +612,7 @@ def preinstanced_array_validator_factory(field_name, preinstanced_type, *, inclu
                 pass
             
             elif isinstance(preinstanced, preinstanced_type.VALUE_TYPE):
-                preinstanced = preinstanced_type.get(preinstanced)
+                preinstanced = preinstanced_type(preinstanced)
             
             else:
                 raise TypeError(
@@ -693,7 +780,7 @@ def flag_validator_factory(field_name, flag_type, *, default_value = ...):
         
         Parameters
         ----------
-        flag : `None`, `int`, `instance<flag_type>`
+        flag : `None | int | instance<flag_type>`
             The flag to validate.
         
         Returns
@@ -722,8 +809,8 @@ def flag_validator_factory(field_name, flag_type, *, default_value = ...):
         
         else:
             raise TypeError(
-                f'`{field_name}` can be `None`, `int`, `{flag_type.__name__}`, '
-                f'got {flag.__class__.__name__}; {flag!r}.'
+                f'`{field_name}` can be `None | int | {flag_type.__name__}`, '
+                f'got {type(flag).__name__}; {flag!r}.'
             )
         
         return flag
@@ -754,7 +841,7 @@ def nullable_flag_validator_factory(field_name, flag_type):
         
         Parameters
         ----------
-        flag : `None`, `int`, `instance<flag_type>`
+        flag : `None | int | instance<flag_type>`
             The flag to validate.
         
         Returns
@@ -782,7 +869,7 @@ def nullable_flag_validator_factory(field_name, flag_type):
         
         else:
             raise TypeError(
-                f'`{field_name}` can be `None`, `int`, `{flag_type.__name__}`, '
+                f'`{field_name}` can be `None | int | {flag_type.__name__}`, '
                 f'got {flag.__class__.__name__}; {flag!r}.'
             )
     
@@ -791,7 +878,7 @@ def nullable_flag_validator_factory(field_name, flag_type):
     return validator
 
 
-def int_options_validator_factory(field_name, field_options):
+def int_options_validator_factory(field_name, field_options, default_value):
     """
     Returns a `int` with options validator.
     
@@ -799,8 +886,12 @@ def int_options_validator_factory(field_name, field_options):
     ----------
     field_name : `str`
         The field's name.
-    field_options : `frozenset` of `int`
+    
+    field_options : `frozenset<int>`
         The allowed values.
+    
+    default_value : `int`
+        The default value to return if `None` is received.
     
     Returns
     -------
@@ -828,9 +919,13 @@ def int_options_validator_factory(field_name, field_options):
         ValueError
             - If `integer` is not any of the expected options.
         """
+        nonlocal default_value
         nonlocal field_name
         nonlocal field_options
-    
+        
+        if integer is None:
+            return default_value
+        
         return preconvert_int_options(integer, field_name, field_options)
     
     return validator
@@ -919,17 +1014,17 @@ def nullable_date_time_validator_factory(field_name):
         
         Parameters
         ----------
-        date_time : `None`, `DateTime`
+        date_time : `None | DateTime`
             The date time to validate.
         
         Returns
         -------
-        date_time : `None`, `DateTime`
+        date_time : `None | DateTime`
         
         Raises
         ------
         TypeError
-            - If `date_time` is not `None`, `DateTime`.
+            - If `date_time` is not `None | DateTime`.
         """
         nonlocal field_name
         
@@ -1119,17 +1214,17 @@ def nullable_string_array_validator_factory(field_name, *, ordered = True):
             
             Parameters
             ----------
-            string_array : `None`, `str`, `iterable` of `str`
+            string_array : `None | str | iterable<str>`
                 The string to validate.
             
             Returns
             -------
-            string_array : `None`, `str`
+            string_array : `None | tuple<str>
                     
             Raises
             ------
             TypeError
-                - If `string_array` is not `None`, `str`, `iterable` of `str`.
+                - If `string_array`'s type is incorrect.
             """
             nonlocal field_name
             
@@ -1151,7 +1246,7 @@ def nullable_string_array_validator_factory(field_name, *, ordered = True):
                 if not isinstance(string, str):
                     raise TypeError(
                         f'`{field_name}` elements can be `str`, got '
-                        f'{string.__class__.__name__}; {string!r}; {field_name} = {string_array!r}.'
+                        f'{type(string).__name__}; {string!r}; {field_name} = {string_array!r}.'
                     )
                 
                 if (processed_values is None):
@@ -1171,17 +1266,17 @@ def nullable_string_array_validator_factory(field_name, *, ordered = True):
             
             Parameters
             ----------
-            string_array : `None`, `str`, `iterable` of `str`
+            string_array : `None | str, iterable<str>`
                 The string to validate.
             
             Returns
             -------
-            string_array : `None`, `str`
+            string_array : `None | tuple<str>`
                     
             Raises
             ------
             TypeError
-                - If `string_array` is not `None`, `str`, `iterable` of `str`.
+                - If `string_array`'s type is incorrect.
             """
             nonlocal field_name
             
@@ -1194,7 +1289,7 @@ def nullable_string_array_validator_factory(field_name, *, ordered = True):
             if getattr(string_array, '__iter__', None) is None:
                 raise TypeError(
                     f'`{field_name}` can be `None`, `iterable` of `str`, got '
-                    f'{string_array.__class__.__name__}; {string_array!r}.'
+                    f'{type(string_array).__name__}; {string_array!r}.'
                 )
             
             processed_values = None
@@ -1203,7 +1298,7 @@ def nullable_string_array_validator_factory(field_name, *, ordered = True):
                 if not isinstance(string, str):
                     raise TypeError(
                         f'`{field_name}` elements can be `str`, got '
-                        f'{string.__class__.__name__}; {string!r}; {field_name} = {string_array!r}.'
+                        f'{type(string).__name__}; {string!r}; {field_name} = {string_array!r}.'
                     )
                 
                 if (processed_values is None):
@@ -1218,6 +1313,91 @@ def nullable_string_array_validator_factory(field_name, *, ordered = True):
     return validator
 
 
+
+def nullable_sorted_int_array_conditional_validator_factory(field_name, condition_check, condition_message):
+    """
+    Returns a nullable sorted int array validator with
+    
+    Parameters
+    ----------
+    field_name : `str`
+        The field's name.
+    condition_check : `callable`
+        The condition which needs to pass.
+    condition_message : `str`
+        Condition message to use when building the error message.
+    
+    Returns
+    -------
+    validator : `FunctionType`
+    """
+    def validator(int_array):
+        """
+        Validates the given int array. Returns the elements in order.
+        
+        > This function is generated.
+        
+        Parameters
+        ----------
+        int_array : `None | int | iterable<int>`
+            The string to validate.
+        
+        Returns
+        -------
+        int_array : `None | tuple<int>`
+                
+        Raises
+        ------
+        TypeError
+            - If `int_array`'s type is incorrect.
+            - If a value in `int_array` is incorrect.
+        """
+        nonlocal field_name
+        nonlocal condition_check
+        nonlocal condition_message
+        
+        if (int_array is None):
+            return None
+        
+        if isinstance(int_array, int):
+            if not condition_check(int_array):
+                raise ValueError(
+                    f'`{field_name}` must be {condition_message}, got {int_array!r}.'
+                )
+            
+            return (int_array, )
+        
+        if getattr(int_array, '__iter__', None) is None:
+            raise TypeError(
+                f'`{field_name}` can be `None | iterable<int>`, got '
+                f'{type(int_array).__name__}; {int_array!r}.'
+            )
+        
+        processed_values = None
+        
+        for int_value in int_array:
+            if not isinstance(int_value, int):
+                raise TypeError(
+                    f'`{field_name}` elements can be `int`, got '
+                    f'{type(int_array).__name__}; {int_value!r}; {field_name} = {int_value!r}.'
+                )
+            
+            if not condition_check(int_value):
+                raise ValueError(
+                    f'`{field_name}` must be {condition_message}, got {int_value!r}.'
+                )
+            
+            if (processed_values is None):
+                processed_values = set()
+            
+            processed_values.add(int_value)
+        
+        if processed_values is not None:
+            return tuple(sorted(processed_values))
+    
+    return validator
+
+
 def url_optional_validator_factory(field_name, *, length_max = ...):
     """
     Returns an optional url validator.
@@ -1226,7 +1406,8 @@ def url_optional_validator_factory(field_name, *, length_max = ...):
     ----------
     field_name : `str`
         The field's name.
-    max_length : `int`
+    
+    length_max : `int`, Optional (Keyword only)
         The maximal allowed length of the url.
     
     Returns
@@ -1367,7 +1548,7 @@ def url_array_optional_validator_factory(field_name):
         
         Parameters
         ----------
-        url_array : `None`, `str`, `iterable` of `str`
+        url_array : `None | str | iterable<str>`
             The url array to validate.
         
         Returns
@@ -1377,7 +1558,7 @@ def url_array_optional_validator_factory(field_name):
         Raises
         ------
         TypeError
-            - If `url` is not `None`, `str`, `iterable` of `str`
+            - If `url` is not `None | str | iterable<str>`
         ValueError
             - If an `url` is not an url.
         """
@@ -1397,7 +1578,7 @@ def url_array_optional_validator_factory(field_name):
         if getattr(url_array, '__iter__', None) is None:
             raise TypeError(
                 f'`{field_name}` can be `None`, `iterable` of `str`, got '
-                f'{url_array.__class__.__name__}; {url_array!r}.'
+                f'{type(url_array).__name__}; {url_array!r}.'
             )
         
         processed_values = None
@@ -1406,7 +1587,7 @@ def url_array_optional_validator_factory(field_name):
             if not isinstance(url, str):
                 raise TypeError(
                     f'`{field_name}` elements can be `str`, got '
-                    f'{url.__class__.__name__}; {url!r}; {field_name} = {url_array!r}.'
+                    f'{type(url).__name__}; {url!r}; {field_name} = {url_array!r}.'
                 )
             
             if not is_url(url):
@@ -1812,7 +1993,7 @@ def entity_validator_factory(field_name, entity_type, *, include = None):
     return validator
 
 
-def nullable_object_array_validator_factory(field_name, object_type, *, include = None):
+def nullable_object_array_validator_factory(field_name, object_type, *, include = None, ordered = False):
     """
     Returns a nullable object array validator.
     
@@ -1831,7 +2012,75 @@ def nullable_object_array_validator_factory(field_name, object_type, *, include 
     -------
     validator : `FunctionType`
     """
-    def validator(object_array):
+    if ordered:
+        def validator(object_array):
+            nonlocal field_name
+            nonlocal object_type
+            
+            if object_array is None:
+                return None
+            
+            if (getattr(object_array, '__iter__', None) is None):
+                raise TypeError(
+                    f'`{field_name}` can be `None`, `iterable` of `{object_type.__name__}`, got '
+                    f'{type(object_array).__name__}; {object_array!r}.'
+                )
+                
+            object_array_processed = None
+            
+            for object in object_array:
+                if not isinstance(object, object_type):
+                    raise TypeError(
+                        f'`{field_name}` can contain `{object_type.__name__}` elements, got '
+                        f'{type(object).__name__}; {object!r}; object_array = {object_array!r}.'
+                    )
+                
+                if (object_array_processed is None):
+                    object_array_processed = []
+                
+                object_array_processed.append(object)
+            
+            if (object_array_processed is not None):
+                object_array_processed.sort()
+                object_array_processed = tuple(object_array_processed)
+            
+            return object_array_processed
+    
+    else:
+        def validator(object_array):
+            nonlocal field_name
+            nonlocal object_type
+            
+            if object_array is None:
+                return None
+            
+            if (getattr(object_array, '__iter__', None) is None):
+                raise TypeError(
+                    f'`{field_name}` can be `None`, `iterable` of `{object_type.__name__}`, got '
+                    f'{type(object_array).__name__}; {object_array!r}.'
+                )
+                
+            object_array_processed = None
+            
+            for object in object_array:
+                if not isinstance(object, object_type):
+                    raise TypeError(
+                        f'`{field_name}` can contain `{object_type.__name__}` elements, got '
+                        f'{type(object).__name__}; {object!r}; object_array = {object_array!r}.'
+                    )
+                
+                if (object_array_processed is None):
+                    object_array_processed = []
+                
+                object_array_processed.append(object)
+            
+            if (object_array_processed is not None):
+                object_array_processed = tuple(object_array_processed)
+            
+            return object_array_processed
+    
+    set_docs(
+        validator,
         """
         Validates the given nullable object array field.
         
@@ -1849,37 +2098,7 @@ def nullable_object_array_validator_factory(field_name, object_type, *, include 
         TypeError
             - If `object_array` is not `None`, `iterable` of `object_type`.
         """
-        nonlocal field_name
-        nonlocal object_type
-        
-        if object_array is None:
-            return None
-        
-        if (getattr(object_array, '__iter__', None) is None):
-            raise TypeError(
-                f'`{field_name}` can be `None`, `iterable` of `{object_type.__name__}`, got '
-                f'{object_array.__class__.__name__}; {object_array!r}.'
-            )
-            
-        object_array_processed = None
-        
-        for object in object_array:
-            if not isinstance(object, object_type):
-                raise TypeError(
-                    f'`{field_name}` can contain `{object_type.__name__}` elements, got '
-                    f'{object.__class__.__name__}; {object!r}; object_array = {object_array!r}.'
-                )
-            
-            if (object_array_processed is None):
-                object_array_processed = []
-            
-            object_array_processed.append(object)
-        
-        if (object_array_processed is not None):
-            object_array_processed = tuple(object_array_processed)
-        
-        return object_array_processed
-    
+    )
     
     if (include is not None):
         @include_with_callback(include)
@@ -1946,7 +2165,7 @@ def entity_dictionary_validator_factory(field_name, entity_type):
             for element in iterator:
                 if not isinstance(element, entity_type):
                     raise TypeError(
-                        f'`{field_name}` elements can be `{entity_type.__name__}`, got {element.__class__.__name__}; '
+                        f'`{field_name}` elements can be `{entity_type.__name__}`, got {type(element).__name__}; '
                         f'{element!r}; {field_name} = {field_value!r}.'
                     )
                 
@@ -2012,7 +2231,7 @@ def nullable_entity_dictionary_validator_factory(field_name, entity_type):
             for element in iterator:
                 if not isinstance(element, entity_type):
                     raise TypeError(
-                        f'`{field_name}` elements can be `{entity_type.__name__}`, got {element.__class__.__name__}; '
+                        f'`{field_name}` elements can be `{entity_type.__name__}`, got {type(element).__name__}; '
                         f'{element!r}; {field_name} = {field_value!r}.'
                     )
                 
@@ -2050,7 +2269,7 @@ def duration_validator_factory(field_name):
         
         Returns
         -------
-        until : `None`, `DateTime`
+        until : `None | DateTime`
         """
         nonlocal field_name
         
@@ -2058,23 +2277,89 @@ def duration_validator_factory(field_name):
             if duration <= 0:
                 return None
             
-            return DateTime.utcnow() + TimeDelta(seconds = duration)
+            return DateTime.now(TimeZone.utc) + TimeDelta(seconds = duration)
         
         if isinstance(duration, TimeDelta):
             if duration <= ZERO_TIMEDELTA:
                 return None
             
-            return DateTime.utcnow() + duration
+            return DateTime.now(TimeZone.utc) + duration
         
         if isinstance(duration, float):
             if duration <= 0.0:
                 return None
     
-            return DateTime.utcnow() + TimeDelta(seconds = duration)
+            return DateTime.now(TimeZone.utc) + TimeDelta(seconds = duration)
         
         raise TypeError(
             f'`{field_name}` can be `int`, `float`, `{TimeDelta.__name__}`, got '
-            f'{duration.__class__.__name__}; {duration!r}.'
+            f'{type(duration).__name__}; {duration!r}.'
         )
+    
+    return validator
+
+
+def nullable_bytes_validator_factory(field_name, length_min, length_max):
+    """
+    Returns a nullable bytes validator.
+    
+    Parameters
+    ----------
+    field_name : `bytes`
+        The field's name.
+    
+    length_min : `int`
+        The minimal allowed bytes length.
+    
+    length_max : `int`
+        The maximal allowed bytes length.
+    
+    Returns
+    -------
+    validator : `FunctionType`
+    """
+    def validator(value):
+        """
+        Validates the given bytes value.
+        
+        > This function is generated.
+        
+        Parameters
+        ----------
+        value : `None | bytes`
+            The bytes to validate.
+        
+        Returns
+        -------
+        value : `None | bytes`
+                
+        Raises
+        ------
+        TypeError
+            - If `value` is not `None | bytes`.
+        ValueError
+            - If `value`'s length is out of the expected range.
+        """
+        nonlocal field_name
+        nonlocal length_min
+        nonlocal length_max
+        
+        if (value is not None):
+            if not isinstance(value, bytes):
+                raise TypeError(
+                    f'`{field_name}` can be `None | bytes`, got {type(value).__name__}; {value!r}.'
+                )
+            
+            value_length = len(value)
+            if not value_length:
+                value = None
+            
+            elif (value_length < length_min) or (value_length > length_max):
+                raise ValueError(
+                    f'`{field_name}\'s length can be in range [{length_min} : {length_max}], '
+                    f'got {value_length}; {value!r}'
+                )
+        
+        return value
     
     return validator

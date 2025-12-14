@@ -50,9 +50,11 @@ class DocWarning:
         WARNINGS.append(self)
         return self
     
+    
     def __repr__(self):
         """Returns the representation of the doc-warning."""
-        return f'{self.__class__.__name__}(path={self.path!r}, reason={self.reason!r})'
+        return f'{type(self).__name__}(path = {self.path!r}, reason = {self.reason!r})'
+    
     
     @property
     def message(self):
@@ -63,7 +65,7 @@ class DocWarning:
         -------
         message : `str`
         """
-        return f'{self.__class__.__name__} at {self.path!s}:\n>> {self.reason}\n'
+        return f'{type(self).__name__} at {self.path!s}:\n>> {self.reason}\n'
 
 
 def show_warnings(file = None):
@@ -84,9 +86,9 @@ def show_warnings(file = None):
 
 
 EXPECTED_BUILTIN_NAMES = {
+    # Regular types
     'int',
     'str',
-    'bytes-like',
     'datetime',
     'float',
     'type',
@@ -97,16 +99,52 @@ EXPECTED_BUILTIN_NAMES = {
     'set',
     'bytearray',
     'memoryview',
-    'function',
-    'async',
+    'tuple',
+    
+    # Concept types
+    'iterable',
+    'async-iterable'
     'callable',
+    'bytes-like',
     'async-callable',
-    'async-function',
-    'method',
     'method-like',
     'function-like',
-    'Any',
+    
+    # Deep types
+    'FunctionType',
+    'MethodType',
+    'CoroutineFunctionType',
+    'GeneratorFunctionType'
+    'CoroutineGeneratorFunctionType',
+    'FrameType',
+    'CoroutineType',
+    'GeneratorType',
+    'CoroutineGeneratorType',
+    
+    # stdlib types
+    
+    # from datetime
+    'DateTime',
+    'datetime.datetime',
+    
+    # from uuid
+    'UUID',
+    'uuid.UUID',
+    
+    # from re
+    're.Pattern',
+    're.Match',
+    'Pattern',
+    'Match',
+    
+    # from socket
+    'SocketKind',
+    
+    # from random
+    'Random',
+    'random.Random',
 }
+
 
 GRAMMAR_CHARS = {
     '.',
@@ -168,9 +206,11 @@ class Grave:
         self.content = content
         self.type = type_
     
+    
     def __repr__(self):
         """Returns the grave's representation."""
-        return f'{self.__class__.__name__}(content={self.content!r}, type={self.type})'
+        return f'{type(self).__name__}(content = {self.content!r}, type = {self.type})'
+    
     
     def __eq__(self, other):
         """Returns whether the two graves are equal."""
@@ -227,9 +267,9 @@ def build_graves(text):
     
     Returns
     -------
-    content : `list` of `str`, ``Grave``
+    content : ``list<str> | Grave``
         Broke down content.
-    warnings : `list` of `str`
+    warnings : `list<str>`
         Detected graving mistakes inside of the given text.
     """
     content = []
@@ -472,7 +512,7 @@ class GravedDescription:
     
     def __repr__(self):
         """Returns the graved description's representation."""
-        return f'<{self.__class__.__name__} content={graved_to_source_text(self.content)!r}>'
+        return f'<{self.__class__.__name__} content = {graved_to_source_text(self.content)!r}>'
     
     
     def copy(self):
@@ -588,7 +628,7 @@ class GravedCodeBlock:
     ----------
     language : `None`, `str`
         The language of the code if applicable.
-    lines : `list` of `str`
+    lines : `list<str>`
         The lines of the code-block
     """
     __slots__ = ('language', 'lines', )
@@ -622,7 +662,7 @@ class GravedCodeBlock:
     
     def __repr__(self):
         """Returns the graved code block's representation."""
-        result = ['<', self.__class__.__name__]
+        result = ['<', type(self).__name__]
         
         language = self.language
         if language is None:
@@ -739,7 +779,7 @@ class GravedTable:
         """Returns the graved table's representation."""
         result = [
             '<',
-            self.__class__.__name__,
+            type(self).__name__,
             ', size = ',
             repr(self.size),
             ', table = [',
@@ -763,7 +803,7 @@ def apply_warnings_to_path(warnings, path):
     
     Parameters
     ----------
-    warnings : `list` of `str`
+    warnings : `list<str>`
         The warning to apply.
     path : ``QualPath``
         The path of the respective docstring.
@@ -784,6 +824,7 @@ class GravedListingElement:
         The graved head of the element.
     """
     __slots__ = ('content', 'head',)
+    
     def __new__(cls, parent, path):
         """
         Creates a new graved listing element.
@@ -825,11 +866,12 @@ class GravedListingElement:
         self.head = head
         return self
     
+    
     def __repr__(self):
         """Returns the graved listing element's representation."""
         result = [
             '<',
-            self.__class__.__name__,
+            type(self).__name__,
             ' head = ',
             repr(graved_to_source_text(self.head)),
         ]
@@ -843,6 +885,7 @@ class GravedListingElement:
         result.append('>')
         
         return ''.join(result)
+
 
 class GravedListing:
     """
@@ -888,7 +931,7 @@ class GravedListing:
     
     def __repr__(self):
         """Returns the graved listing's representation."""
-        return f'<{self.__class__.__name__} elements={self.elements!r}>'
+        return f'<{type(self).__name__} elements = {self.elements!r}>'
 
 
 class GravedBlockQuote:
@@ -935,4 +978,4 @@ class GravedBlockQuote:
     
     def __repr__(self):
         """Returns the graved block quote's representation."""
-        return f'<{self.__class__.__name__} descriptions={self.descriptions!r}>'
+        return f'<{type(self).__name__} descriptions = {self.descriptions!r}>'

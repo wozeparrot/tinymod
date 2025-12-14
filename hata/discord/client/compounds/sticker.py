@@ -1,17 +1,16 @@
 __all__ = ()
 
 from reprlib import repr as short_repr
-from warnings import warn
 
 from scarletio import Compound
-from scarletio.web_common import Formdata
+from scarletio.web_common import FormData
 
 from ...bases import maybe_snowflake_pair
 from ...core import GUILDS, STICKERS
 from ...http import DiscordApiClient, VALID_STICKER_IMAGE_MEDIA_TYPES
 from ...sticker import Sticker, StickerPack, StickerType
 from ...sticker.sticker.fields import (
-    put_description_into, put_name_into, put_tags_into, validate_description, validate_name, validate_tags
+    put_description, put_name, put_tags, validate_description, validate_name, validate_tags
 )
 from ...utils import MEDIA_TYPE_TO_EXTENSION, get_image_media_type
 
@@ -196,11 +195,11 @@ class ClientCompoundStickerEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to create the sticker in.
         name : `str`
             The sticker's name.
-        tags : `None`, `str`, `iterable` of `str`
+        tags : `None | str | iterable<str>`
             The tags of the sticker.
         image : `bytes-like`
             The sticker's image in bytes.
@@ -246,12 +245,12 @@ class ClientCompoundStickerEndpoints(Compound):
         
         extension = MEDIA_TYPE_TO_EXTENSION[media_type]
         
-        form_data = Formdata()
+        form_data = FormData()
         form_data.add_field('name', name)
         # If no description is given Discord drops back an unrelated error
         form_data.add_field('description', '' if description is None else description)
         form_data.add_field('tags', '' if tags is None else ', '.join(tags))
-        form_data.add_field('file', image, filename = f'file.{extension}', content_type = media_type)
+        form_data.add_field('file', image, file_name = f'file.{extension}', content_type = media_type)
         
         sticker_data = await self.api.sticker_create(guild_id, form_data, reason)
         
@@ -313,9 +312,9 @@ class ClientCompoundStickerEndpoints(Compound):
             description = validate_description(description)
         
         data = {}
-        put_description_into(description, data, True)
-        put_name_into(name, data, True)
-        put_tags_into(tags, data, True)
+        put_description(description, data, True)
+        put_name(name, data, True)
+        put_tags(tags, data, True)
         
         await self.api.sticker_edit(sticker.guild_id, sticker.id, data, reason)
     
@@ -362,7 +361,7 @@ class ClientCompoundStickerEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, what's stickers will be synced.
         
         Returns
@@ -395,84 +394,3 @@ class ClientCompoundStickerEndpoints(Compound):
             stickers = [*guild.stickers.values()]
         
         return stickers
-    
-    
-    async def sticker_guild_get_all(self, *position_parameters, **keyword_parameters):
-        """
-        Deprecated and will be removed in 2023 December. Please use ``.sticker_get_all_guild`` instead.
-        """
-        warn(
-            (
-                f'`{self.__class__.__name__}.sticker_guild_get_all` is deprecated and will be removed in 2023 '
-                f'December. '
-                f'Please use `.sticker_get_all_guild` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return await self.sticker_get_all_guild(*position_parameters, **keyword_parameters)
-    
-    
-    async def sticker_guild_create(self, *position_parameters, **keyword_parameters):
-        """
-        Deprecated and will be removed in 2023 December. Please use ``.sticker_create`` instead.
-        """
-        warn(
-            (
-                f'`{self.__class__.__name__}.sticker_guild_create` is deprecated and will be removed in 2023 December. '
-                f'Please use `.sticker_create` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return await self.sticker_create(*position_parameters, **keyword_parameters)
-    
-    
-    async def sticker_guild_edit(self, *position_parameters, **keyword_parameters):
-        """
-        Deprecated and will be removed in 2023 December. Please use ``.sticker_edit`` instead.
-        """
-        warn(
-            (
-                f'`{self.__class__.__name__}.sticker_guild_edit` is deprecated and will be removed in 2023 December. '
-                f'Please use `.sticker_edit` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return await self.sticker_edit(*position_parameters, **keyword_parameters)
-
-    
-    async def sticker_guild_delete(self, *position_parameters, **keyword_parameters):
-        """
-        Deprecated and will be removed in 2023 December. Please use ``.sticker_delete`` instead.
-        """
-        warn(
-            (
-                f'`{self.__class__.__name__}.sticker_guild_delete` is deprecated and will be removed in 2023 December. '
-                f'Please use `.sticker_delete` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return await self.sticker_delete(*position_parameters, **keyword_parameters)
-    
-    
-    async def sticker_guild_get(self, *position_parameters, **keyword_parameters):
-        """
-        Deprecated and will be removed in 2023 December. Please use ``.sticker_get_guild`` instead.
-        """
-        warn(
-            (
-                f'`{self.__class__.__name__}.sticker_guild_get` is deprecated and will be removed in 2023 December. '
-                f'Please use `.sticker_get_guild` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return await self.sticker_get_guild(*position_parameters, **keyword_parameters)

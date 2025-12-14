@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
@@ -8,11 +8,12 @@ from ....core import BUILTIN_EMOJIS
 from ....embed import EmbedAuthor, Embed, EmbedField, EmbedFooter, EmbedProvider, EmbedType
 from ....emoji import Reaction, ReactionMapping, ReactionMappingLine, ReactionType
 from ....guild import Guild
-from ....interaction import Resolved
 from ....poll import Poll, PollAnswer, PollQuestion, PollResult
+from ....resolved import Resolved
 from ....role import Role
+from ....soundboard import SoundboardSound
 from ....sticker import Sticker
-from ....user import User
+from ....user import GuildProfile, User
 
 from ...attachment import Attachment
 from ...message_activity import MessageActivity
@@ -21,6 +22,7 @@ from ...message_call import MessageCall
 from ...message_interaction import MessageInteraction
 from ...message_role_subscription import MessageRoleSubscription
 from ...message_snapshot import MessageSnapshot
+from ...shared_client_theme import SharedClientTheme
 
 from ..flags import MessageFlag
 from ..message import Message
@@ -49,6 +51,8 @@ def test__Message__iter_contents__all_contents():
     poll_question_text = 'marisa'
     poll_answer_0_text = 'junko'
     poll_answer_1_text = 'clown'
+    component_0_content = 'mayumi'
+    component_1_content = 'keiki'
     
     embed_0 = Embed(title = embed_0_title, description = embed_0_description)
     embed_0.author = EmbedAuthor(embed_0_author_name)
@@ -66,13 +70,28 @@ def test__Message__iter_contents__all_contents():
         question = PollQuestion(text = poll_question_text),
     )
     
-    message = Message(content = message_content, embeds = [embed_0, embed_1], poll = poll)
+    component_0 = Component(
+        ComponentType.text_display,
+        content = component_0_content,
+    )
     
+    component_1 = Component(
+        ComponentType.text_display,
+        content = component_1_content,
+    )
+    
+    message = Message(
+        components = [component_0, component_1],
+        content = message_content,
+        embeds = [embed_0, embed_1],
+        poll = poll,
+    )
     
     contents = {
         embed_0_title, embed_0_author_name, embed_0_description, embed_0_field_0_name, embed_0_field_0_value,
         embed_0_field_1_name, embed_0_field_1_value, embed_0_footer_text, embed_0_provider_name,
-        message_content, embed_1_title, poll_question_text, poll_answer_0_text, poll_answer_1_text
+        message_content, embed_1_title, poll_question_text, poll_answer_0_text, poll_answer_1_text,
+        component_0_content, component_1_content
     }
     
     vampytest.assert_eq({*message.iter_contents()}, contents)
@@ -237,13 +256,13 @@ def test__Message__copy():
         Attachment.precreate(202305040108, name = 'Komeiji'),
     ]
     author = User.precreate(202305040109, name = 'Orin')
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
     ]
     content = 'Satori'
-    edited_at = DateTime(2016, 5, 14)
+    edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     embeds = [
         Embed('Yakumo'),
         Embed('Yukari'),
@@ -263,7 +282,7 @@ def test__Message__copy():
     message_type = MessageType.call
     nonce = 'Sakuya'
     pinned = True
-    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     reactions = ReactionMapping(
         lines = {
             Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
@@ -272,9 +291,14 @@ def test__Message__copy():
     referenced_message = Message.precreate(202305040107, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110034)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    shared_client_theme = SharedClientTheme(intensity = 6)
     snapshots = [
         MessageSnapshot(content = 'Kazami'),
         MessageSnapshot(content = 'Yuuka'),
+    ]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202501290022, name = 'whither'),
+        SoundboardSound.precreate(202501290023, name = 'Yuyuko'),
     ]
     stickers = [
         Sticker.precreate(202305040118, name = 'Kirisame'),
@@ -309,7 +333,9 @@ def test__Message__copy():
         referenced_message = referenced_message,
         resolved = resolved,
         role_subscription = role_subscription,
+        shared_client_theme = shared_client_theme,
         snapshots = snapshots,
+        soundboard_sounds = soundboard_sounds,
         stickers = stickers,
         thread = thread,
         tts = tts,
@@ -336,13 +362,13 @@ def test__Message__copy_with__no_fields():
         Attachment.precreate(202305040124, name = 'Komeiji'),
     ]
     author = User.precreate(202305040125, name = 'Orin')
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
     ]
     content = 'Satori'
-    edited_at = DateTime(2016, 5, 14)
+    edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     embeds = [
         Embed('Yakumo'),
         Embed('Yukari'),
@@ -362,7 +388,7 @@ def test__Message__copy_with__no_fields():
     message_type = MessageType.call
     nonce = 'Sakuya'
     pinned = True
-    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     reactions = ReactionMapping(
         lines = {
             Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
@@ -371,9 +397,14 @@ def test__Message__copy_with__no_fields():
     referenced_message = Message.precreate(202305040133, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110035)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    shared_client_theme = SharedClientTheme(intensity = 6)
     snapshots = [
         MessageSnapshot(content = 'Kazami'),
         MessageSnapshot(content = 'Yuuka'),
+    ]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202501290024, name = 'whither'),
+        SoundboardSound.precreate(202501290025, name = 'Yuyuko'),
     ]
     stickers = [
         Sticker.precreate(202305040134, name = 'Kirisame'),
@@ -408,7 +439,9 @@ def test__Message__copy_with__no_fields():
         referenced_message = referenced_message,
         resolved = resolved,
         role_subscription = role_subscription,
+        shared_client_theme = shared_client_theme,
         snapshots = snapshots,
+        soundboard_sounds = soundboard_sounds,
         stickers = stickers,
         thread = thread,
         tts = tts,
@@ -435,13 +468,13 @@ def test__Message__copy_with__all_fields():
         Attachment.precreate(202305040140, name = 'Komeiji'),
     ]
     old_author = User.precreate(202305040141, name = 'Orin')
-    old_call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    old_call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     old_components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
     ]
     old_content = 'Satori'
-    old_edited_at = DateTime(2016, 5, 14)
+    old_edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     old_embeds = [
         Embed('Yakumo'),
         Embed('Yukari'),
@@ -461,7 +494,7 @@ def test__Message__copy_with__all_fields():
     old_message_type = MessageType.call
     old_nonce = 'Sakuya'
     old_pinned = True
-    old_poll = Poll(expires_at = DateTime(2016, 5, 14))
+    old_poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     old_reactions = ReactionMapping(
         lines = {
             Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
@@ -470,9 +503,14 @@ def test__Message__copy_with__all_fields():
     old_referenced_message = Message.precreate(202305040149, content = 'Patchouli')
     old_resolved = Resolved(attachments = [Attachment.precreate(202310110036)])
     old_role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    old_shared_client_theme = SharedClientTheme(intensity = 6)
     old_snapshots = [
         MessageSnapshot(content = 'Kazami'),
         MessageSnapshot(content = 'Yuuka'),
+    ]
+    old_soundboard_sounds = [
+        SoundboardSound.precreate(202501290026, name = 'whither'),
+        SoundboardSound.precreate(202501290027, name = 'Yuyuko'),
     ]
     old_stickers = [
         Sticker.precreate(202305040150, name = 'Kirisame'),
@@ -489,13 +527,13 @@ def test__Message__copy_with__all_fields():
         Attachment.precreate(202305040156, name = 'Satoris'),
     ]
     new_author = User.precreate(202305040080, name = 'Dancing')
-    new_call = MessageCall(ended_at = DateTime(2045, 5, 4))
+    new_call = MessageCall(ended_at = DateTime(2045, 5, 4, tzinfo = TimeZone.utc))
     new_components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Nuclear bird')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Green hell')]),
     ]
     new_content = 'Open eye'
-    new_edited_at = DateTime(2016, 6, 14)
+    new_edited_at = DateTime(2016, 6, 14, tzinfo = TimeZone.utc)
     new_embeds = [
         Embed('Old hag and pets'),
         Embed('Old hag'),
@@ -515,7 +553,7 @@ def test__Message__copy_with__all_fields():
     new_message_type = MessageType.user_add
     new_nonce = 'Maid'
     new_pinned = False
-    new_poll = Poll(expires_at = DateTime(2016, 5, 15))
+    new_poll = Poll(expires_at = DateTime(2016, 5, 15, tzinfo = TimeZone.utc))
     new_reactions = ReactionMapping(
         lines = {
             Reaction.from_fields(BUILTIN_EMOJIS['heart'], ReactionType.standard): ReactionMappingLine(count = 1),
@@ -524,9 +562,14 @@ def test__Message__copy_with__all_fields():
     new_referenced_message = Message.precreate(202305040164, content = 'Book')
     new_resolved = Resolved(attachments = [Attachment.precreate(202310110036)])
     new_role_subscription = MessageRoleSubscription(tier_name = 'Big brain')
+    new_shared_client_theme = SharedClientTheme(intensity = 5)
     new_snapshots = [
         MessageSnapshot(content = 'Mushroom'),
         MessageSnapshot(content = 'Soup'),
+    ]
+    new_soundboard_sounds = [
+        SoundboardSound.precreate(202501290028, name = 'that'),
+        SoundboardSound.precreate(202501290029, name = 'heart'),
     ]
     new_stickers = [
         Sticker.precreate(202305040165, name = 'Magic'),
@@ -560,7 +603,9 @@ def test__Message__copy_with__all_fields():
         referenced_message = old_referenced_message,
         resolved = old_resolved,
         role_subscription = old_role_subscription,
+        shared_client_theme = old_shared_client_theme,
         snapshots = old_snapshots,
+        soundboard_sounds = old_soundboard_sounds,
         stickers = old_stickers,
         thread = old_thread,
         tts = old_tts,
@@ -591,7 +636,9 @@ def test__Message__copy_with__all_fields():
         referenced_message = new_referenced_message,
         resolved = new_resolved,
         role_subscription = new_role_subscription,
+        shared_client_theme = new_shared_client_theme,
         snapshots = new_snapshots,
+        soundboard_sounds = new_soundboard_sounds,
         stickers = new_stickers,
         thread = new_thread,
         tts = new_tts,
@@ -624,7 +671,9 @@ def test__Message__copy_with__all_fields():
     vampytest.assert_eq(copy.referenced_message, new_referenced_message)
     vampytest.assert_eq(copy.resolved, new_resolved)
     vampytest.assert_eq(copy.role_subscription, new_role_subscription)
+    vampytest.assert_eq(copy.shared_client_theme, new_shared_client_theme)
     vampytest.assert_eq(copy.snapshots, tuple(new_snapshots))
+    vampytest.assert_eq(copy.soundboard_sounds, tuple(new_soundboard_sounds))
     vampytest.assert_eq(copy.stickers, tuple(new_stickers))
     vampytest.assert_eq(copy.thread, new_thread)
     vampytest.assert_eq(copy.tts, new_tts)
@@ -817,7 +866,7 @@ def test__Message__guild(message_id, input_value):
     
     Returns
     -------
-    output : `None | Guild`
+    output : ``None | Guild``
     """
     message = Message.precreate(message_id, guild_id = input_value)
     output = message.guild
@@ -900,24 +949,59 @@ def test__Message__clean_embeds():
     """
     Tests whether ``Message.clean_embeds`` works as intended.
     """
-    channel_id = 202305050011
-    channel_name = 'yukari'
+    guild_id = 202505030050
+    guild = Guild.precreate(guild_id)
     
-    channel = Channel.precreate(channel_id, name = channel_name, channel_type = ChannelType.guild_text)
+    user_0 = User.precreate(202505030051, name = 'koishi')
+    user_0.guild_profiles[guild_id] = GuildProfile(nick = 'koi')
     
     embeds = [
-        Embed(description = channel.mention),
+        Embed(description = f'{user_0.mention}'),
         Embed(embed_type = EmbedType.image),
     ]
     
-    message = Message(embeds = embeds)
+    message = Message.precreate(
+        202505030052,
+        embeds = embeds,
+        guild_id = guild_id,
+    )
     
     output = message.clean_embeds
     vampytest.assert_instance(output, list)
     vampytest.assert_eq(
         output,
         [
-            Embed(description = '#' + channel.name)
+            Embed(description = f'@{user_0.name_at(guild)}')
+        ],
+    )
+
+    
+def test__Message__clean_components():
+    """
+    Tests whether ``Message.clean_components`` works as intended.
+    """
+    guild_id = 202505030053
+    guild = Guild.precreate(guild_id)
+    
+    user_0 = User.precreate(202505030054, name = 'koishi')
+    user_0.guild_profiles[guild_id] = GuildProfile(nick = 'koi')
+    
+    components = [
+        Component(ComponentType.text_display, content = f'{user_0.mention}'),
+    ]
+    
+    message = Message.precreate(
+        202505030055,
+        components = components,
+        guild_id = guild_id,
+    )
+    
+    output = message.clean_components
+    vampytest.assert_instance(output, list)
+    vampytest.assert_eq(
+        output,
+        [
+            Component(ComponentType.text_display, content = f'@{user_0.name_at(guild)}')
         ],
     )
 
@@ -1061,7 +1145,7 @@ def test__Message__attachment(input_value):
     
     Returns
     -------
-    output : `NNone | Attachment`
+    output : `None | Attachment`
     """
     message = Message(attachments = input_value)
     output = message.attachment
@@ -1090,7 +1174,7 @@ def test__Message__embed(input_value):
     
     Returns
     -------
-    output : `NNone | Embed`
+    output : `None | Embed`
     """
     message = Message(embeds = input_value)
     output = message.embed
@@ -1119,11 +1203,40 @@ def test__Message__snapshot(input_value):
     
     Returns
     -------
-    output : `NNone | MessageSnapshot`
+    output : `None | MessageSnapshot`
     """
     message = Message(snapshots = input_value)
     output = message.snapshot
     vampytest.assert_instance(output, MessageSnapshot, nullable = True)
+    return output
+
+
+def _iter_options__soundboard_sound():
+    soundboard_sound_0 = SoundboardSound.precreate(202501290030, name = 'whither')
+    soundboard_sound_1 = SoundboardSound.precreate(202501290031, name = 'Yuyuko')
+    
+    yield None, None
+    yield [soundboard_sound_1], soundboard_sound_1
+    yield [soundboard_sound_0, soundboard_sound_1], soundboard_sound_0
+
+
+@vampytest._(vampytest.call_from(_iter_options__soundboard_sound()).returning_last())
+def test__Message__soundboard_sound(input_value):
+    """
+    Tests whether ``Message.soundboard_sound`` works as intended.
+    
+    Parameters
+    ----------
+    input_value : ``None | list<SoundboardSound>``
+        Value to test with.
+    
+    Returns
+    -------
+    output : ``None | SoundboardSound``
+    """
+    message = Message(soundboard_sounds = input_value)
+    output = message.soundboard_sound
+    vampytest.assert_instance(output, SoundboardSound, nullable = True)
     return output
 
 
@@ -1143,12 +1256,12 @@ def test__Message__sticker(input_value):
     
     Parameters
     ----------
-    input_value : `None | list<Sticker>`
+    input_value :` `None | list<Sticker>``
         Value to test with.
     
     Returns
     -------
-    output : `NNone | Sticker`
+    output : `None | Sticker`
     """
     message = Message(stickers = input_value)
     output = message.sticker
@@ -1184,8 +1297,8 @@ def test__Message__iter_attachments(input_value):
 
 
 def _iter_options__iter_components():
-    component_0 = Component(ComponentType.button, label = 'Koishi')
-    component_1 = Component(ComponentType.button, label = 'Satori')
+    component_0 = Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Koishi')])
+    component_1 = Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Satori')])
     
     yield None, []
     yield [component_0], [component_0]
@@ -1363,7 +1476,7 @@ def test__Message__iter_mentioned_users(input_value):
     
     Parameters
     ----------
-    input_value : `None | list<ClientUserBase>`
+    input_value : ``None | list<ClientUserBase>``
         Value to test with.
     
     Returns
@@ -1401,6 +1514,33 @@ def test__Message__iter_snapshots(input_value):
     return [*message.iter_snapshots()]
 
 
+def _iter_options__iter_soundboard_sounds():
+    soundboard_sound_0 = SoundboardSound.precreate(202501290032, name = 'whither')
+    soundboard_sound_1 = SoundboardSound.precreate(202501290033, name = 'Yuyuko')
+    
+    yield None, []
+    yield [soundboard_sound_0], [soundboard_sound_0]
+    yield [soundboard_sound_0, soundboard_sound_1], [soundboard_sound_0, soundboard_sound_1]
+
+
+@vampytest._(vampytest.call_from(_iter_options__iter_soundboard_sounds()).returning_last())
+def test__Message__iter_soundboard_sounds(input_value):
+    """
+    Tests whether ``Message.iter_soundboard_sounds`` works as intended.
+    
+    Parameters
+    ----------
+    input_value : ``None | list<SoundboardSound>``
+        Value to test with.
+    
+    Returns
+    -------
+    output : `list<SoundboardSound>`
+    """
+    message = Message(soundboard_sounds = input_value)
+    return [*message.iter_soundboard_sounds()]
+
+
 def _iter_options__iter_stickers():
     sticker_0 = Sticker.precreate(202305050032)
     sticker_1 = Sticker.precreate(202305050033)
@@ -1417,12 +1557,12 @@ def test__Message__iter_stickers(input_value):
     
     Parameters
     ----------
-    input_value : `None | list<Sticker>`
+    input_value :` `None | list<Sticker>``
         Value to test with.
     
     Returns
     -------
-    output : `list<Sticker>`
+    output : ``list<Sticker>``
     """
     message = Message(stickers = input_value)
     return [*message.iter_stickers()]
@@ -1598,7 +1738,7 @@ def test__Message__has_content(input_value):
 
 
 def _iter_options__has_edited_at():
-    edited_at = DateTime(2016, 5, 14)
+    edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     
     yield None, False
     yield edited_at, True
@@ -1865,7 +2005,7 @@ def test__Message__has_mentioned_users(input_value):
     
     Parameters
     ----------
-    input_value : `None | list<ClientUserBase>`
+    input_value : ``None | list<ClientUserBase>``
         Value to test with.
     
     Returns
@@ -1931,7 +2071,7 @@ def test__Message__has_pinned(input_value):
 
 
 def _iter_options__has_poll():
-    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     
     yield None, False
     yield poll, True
@@ -2003,7 +2143,7 @@ def test__Message__has_referenced_message(input_value):
     
     Parameters
     ----------
-    input_value : `None | Message`
+    input_value : ``None | Message``
         Value to test with.
     
     Returns
@@ -2030,7 +2170,7 @@ def test__Message__has_role_subscription(input_value):
     
     Parameters
     ----------
-    input_value : `None | MessageRoleSubscription`
+    input_value : ``None | MessageRoleSubscription``
         Value to test with.
     
     Returns
@@ -2039,6 +2179,33 @@ def test__Message__has_role_subscription(input_value):
     """
     message = Message(role_subscription = input_value)
     output = message.has_role_subscription()
+    vampytest.assert_instance(output, bool)
+    return output
+
+
+def _iter_options__has_shared_client_theme():
+    shared_client_theme = SharedClientTheme(intensity = 6)
+    
+    yield None, False
+    yield shared_client_theme, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__has_shared_client_theme()).returning_last())
+def test__Message__has_shared_client_theme(input_value):
+    """
+    Tests whether ``Message.has_shared_client_theme`` works as intended.
+    
+    Parameters
+    ----------
+    input_value : ``None | SharedClientTheme``
+        Value to test with.
+    
+    Returns
+    -------
+    output : `bool`
+    """
+    message = Message(shared_client_theme = input_value)
+    output = message.has_shared_client_theme()
     vampytest.assert_instance(output, bool)
     return output
 
@@ -2073,6 +2240,36 @@ def test__Message__has_snapshots(input_value):
     return output
 
 
+def _iter_options__has_soundboard_sounds():
+    soundboard_sounds = [
+        SoundboardSound.precreate(202501290034, name = 'whither'),
+        SoundboardSound.precreate(202501290035, name = 'Yuyuko'),
+    ]
+    
+    yield None, False
+    yield soundboard_sounds, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__has_soundboard_sounds()).returning_last())
+def test__Message__has_soundboard_sounds(input_value):
+    """
+    Tests whether ``Message.has_soundboard_sounds`` works as intended.
+    
+    Parameters
+    ----------
+    input_value :` `None | list<Sticker>``
+        Value to test with.
+    
+    Returns
+    -------
+    output : `bool`
+    """
+    message = Message(soundboard_sounds = input_value)
+    output = message.has_soundboard_sounds()
+    vampytest.assert_instance(output, bool)
+    return output
+
+
 def _iter_options__has_stickers():
     stickers = [
         Sticker.precreate(202305050050, name = 'Kirisame'),
@@ -2090,7 +2287,7 @@ def test__Message__has_stickers(input_value):
     
     Parameters
     ----------
-    input_value : `None | list<Sticker>`
+    input_value :` `None | list<Sticker>``
         Value to test with.
     
     Returns
@@ -2412,7 +2609,7 @@ def _iter_options__has_any_content_field():
         True,
     )
     yield {'author': User.precreate(202404200025, name = 'Orin')}, False
-    yield {'call': MessageCall(ended_at = DateTime(2045, 3, 4))}, False
+    yield {'call': MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))}, False
     yield (
         {
             'components': [
@@ -2422,7 +2619,7 @@ def _iter_options__has_any_content_field():
         True,
     )
     yield {'content': 'Satori'}, True
-    yield {'edited_at': DateTime(2016, 5, 14)}, False
+    yield {'edited_at': DateTime(2016, 5, 14, tzinfo = TimeZone.utc)}, False
     yield {'embeds': [Embed('Yakumo')]}, True
     yield {'flags': MessageFlag(15)}, False
     yield {'interaction': MessageInteraction.precreate(202404200026, name = 'Ran')}, False
@@ -2447,7 +2644,7 @@ def _iter_options__has_any_content_field():
     yield {'message_type': MessageType.default}, False
     yield {'nonce': 'Sakuya'}, False
     yield {'pinned': True}, False
-    yield {'poll': Poll(expires_at = DateTime(2016, 5, 14))}, True
+    yield {'poll': Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))}, True
     yield (
         {
             'reactions': ReactionMapping(
@@ -2461,6 +2658,14 @@ def _iter_options__has_any_content_field():
     yield {'referenced_message': Message.precreate(202404200030, content = 'Patchouli')}, False
     yield {'resolved': Resolved(attachments = [Attachment.precreate(202404200031)])}, False
     yield {'role_subscription': MessageRoleSubscription(tier_name = 'Knowledge')}, False
+    yield (
+        {
+            'soundboard_sounds': [
+                SoundboardSound.precreate(202501290036, name = 'whither'),
+            ]
+        },
+        False,
+    )
     yield (
         {
             'stickers': [
@@ -2494,3 +2699,33 @@ def test__Message__has_any_content_field(keyword_parameters):
     output = message.has_any_content_field()
     vampytest.assert_instance(output, bool)
     return output
+
+
+def _iter_options__url():
+    yield 202505280000, 202505280001, 202505280002, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__url()).returning_last())
+def test__Message__url(guild_id, channel_id, message_id):
+    """
+    Tests whether ``Message.url`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Guild identifier to create message with.
+    
+    channel_id : `int`
+        Channel identifier to create message with.
+    
+    message_id : `int`
+        Message identifier to create message with.
+    
+    Returns
+    -------
+    has_url : `bool˙
+    """
+    message = Message.precreate(message_id, channel_id = channel_id, guild_id = guild_id)
+    output = message.url
+    vampytest.assert_instance(output, str)
+    return True

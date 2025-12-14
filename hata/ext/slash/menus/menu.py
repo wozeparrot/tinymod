@@ -8,7 +8,7 @@ from ....discord.client import Client
 from ....discord.core import KOKORO
 from ....discord.embed import Embed
 from ....discord.exceptions import DiscordException, ERROR_CODES
-from ....discord.component import Component, ComponentType, create_row
+from ....discord.component import Component, create_row
 from ....discord.interaction import  InteractionEvent, InteractionType
 from ....discord.message import Message
 
@@ -24,6 +24,7 @@ GUI_STATE_SWITCHING_CONTEXT = 5
 
 INTERACTION_TYPE_APPLICATION_COMMAND = InteractionType.application_command
 INTERACTION_TYPE_MESSAGE_COMPONENT = InteractionType.message_component
+
 
 class ComponentSourceIdentityHasher(RichAttributeErrorBaseType):
     """
@@ -455,7 +456,7 @@ class MenuStructure(RichAttributeErrorBaseType):
         | should_process    | `bool`    |
         +-------------------+-----------+
     
-    get_timeout : `None`, `Function`
+    get_timeout : `None`, `FunctionType`
         Return the time after the menu should be closed.
         
         > Define it as non-positive to never timeout. Not recommended.
@@ -490,7 +491,7 @@ class MenuStructure(RichAttributeErrorBaseType):
         | exception | `None`, `BaseException`   |
         +-----------+---------------------------+
     
-    init : `None`, `Function`
+    init : `None`, `FunctionType`
         Initializer function.
     
         Should accept the following parameters:
@@ -550,7 +551,7 @@ class MenuStructure(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        class_attributes : `dict` of (`str`, `object`) items
+        class_attributes : `dict<str, object>`
             Class attributes of a type.
         
         Raises
@@ -741,7 +742,7 @@ def _iter_attributes(class_parents, class_attributes):
     ----------
     class_parents : `tuple` of `type`
         Parent classes.
-    class_attributes : `dict` of (`str`, `object`) items
+    class_attributes : `dict<str, object>`
         Class attributes of the source type.
     
     Yields
@@ -812,7 +813,7 @@ class MenuType(type):
             The created class's name.
         class_parents : `tuple` of `type`
             The superclasses of the creates type.
-        class_attributes : `dict` of (`str`, `object`) items
+        class_attributes : `dict<str, object>`
             The class attributes of the created type.
         
         Returns
@@ -905,7 +906,7 @@ class Menu(RichAttributeErrorBaseType, metaclass = MenuType):
         The used allowed mentions when editing the respective message.
     _canceller : None`, `CoroutineFunction`
         Canceller set as `._canceller_function``, meanwhile the gui is not cancelled.
-    _components : `None`, `tuple` of ``Component``
+    _components : ``None | tuple<Component>``
         Rendered components of the menu.
     _component_cache : `dict` of (`int`, ``ComponentProxy``) items
         A dictionary of component proxy identifiers and component proxies.
@@ -931,13 +932,13 @@ class Menu(RichAttributeErrorBaseType, metaclass = MenuType):
         +-------------------------------+-------+
     _timeouter : `None`, ``Timeouter``
         Executes the timeout feature on the menu.
-    _tracked_changes : `dict` of (`str`, `object`) items
+    _tracked_changes : `dict<str, object>`
         The tracked changes by parameter name.
     channel : ``Channel``
         The channel where the menu is executed.
     client : ``Client``
         The executor client instance.
-    message : `None`, ``Message``
+    message : ``None | Message``
         The message which executes the menu.
     
     Class Attributes
@@ -1201,7 +1202,7 @@ class Menu(RichAttributeErrorBaseType, metaclass = MenuType):
         
         Parameters
         ----------
-        exception : `None`, ``BaseException`` = `None`, Optional
+        exception : `None`, `BaseException` = `None`, Optional
             Exception to cancel the pagination with. Defaults to `None`
         
         Returns
@@ -1232,7 +1233,7 @@ class Menu(RichAttributeErrorBaseType, metaclass = MenuType):
         
         Parameters
         ----------
-        exception : `None`, ``BaseException``
+        exception : `None`, `BaseException`
         """
         client = self.client
         message = self.message
@@ -1457,7 +1458,7 @@ class Menu(RichAttributeErrorBaseType, metaclass = MenuType):
                 raw_components = raw_components.__get__(self, type(self))
             
             if isinstance(raw_components, Component):
-                if raw_components.type is ComponentType.row:
+                if raw_components.type.layout_flags.top_level:
                     component = raw_components
                 else:
                     component = create_row(raw_components)
@@ -1474,7 +1475,7 @@ class Menu(RichAttributeErrorBaseType, metaclass = MenuType):
                         raw_sub_component = raw_sub_component.__get__(self, type(self))
                     
                     if isinstance(raw_sub_component, Component):
-                        if raw_sub_component.type is ComponentType.row:
+                        if raw_sub_component.type.layout_flags.top_level:
                             component = raw_sub_component
                         else:
                             component = create_row(raw_sub_component)
@@ -1485,12 +1486,12 @@ class Menu(RichAttributeErrorBaseType, metaclass = MenuType):
                             if not isinstance(raw_sub_sub_component, Component):
                                 raise TypeError(
                                     f'Double nested component can only be `{Component.__name__}`, got '
-                                    f'{raw_sub_sub_component.__class__.__name__}; {raw_sub_sub_component!r}.'
+                                    f'{type(raw_sub_sub_component).__name__}; {raw_sub_sub_component!r}.'
                                 )
                             
-                            if raw_sub_sub_component.type is ComponentType.row:
-                                raise TypeError(
-                                    f'Triple nesting components not allowed, got {raw_sub_sub_component!r}.'
+                            if not raw_sub_sub_component.layout.nestable_into_row:
+                                raise ValueError(
+                                    f'Nesting components not allowed, got {raw_sub_sub_component!r}.'
                                 )
                             
                             component_line.append(raw_sub_sub_component)
@@ -1500,7 +1501,7 @@ class Menu(RichAttributeErrorBaseType, metaclass = MenuType):
                     else:
                         raise TypeError(
                             f'`components` contains an element of unexpected type, got '
-                            f'{raw_sub_component.__class__.__name__}; {raw_sub_component!r}; components = {raw_components!r}.'
+                            f'{type(raw_sub_component).__name__}; {raw_sub_component!r}; components = {raw_components!r}.'
                         )
                     
                     if components is None:
@@ -1511,7 +1512,7 @@ class Menu(RichAttributeErrorBaseType, metaclass = MenuType):
             else:
                 raise TypeError(
                     f'`components` can be `None`, `{Component.__name__}`, (`list`, `tuple`) of repeat, '
-                    f'no triple nesting, got {raw_components.__class__.__name__}; {raw_components!r}.'
+                    f'no triple nesting, got {type(raw_components).__name__}; {raw_components!r}.'
                 )
             
         if (components is not None):

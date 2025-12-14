@@ -13,78 +13,71 @@ class CommandBaseCustomId(CommandInterface, CommandBase):
     
     Attributes
     ----------
-    _exception_handlers : `None`, `list` of `CoroutineFunction`
-        Exception handlers added with ``.error`` to the interaction handler.
-        
-        Same as ``Slasher._exception_handlers``.
-    
-    _parent_reference : `None`, ``WeakReferer`` to ``SlashCommand``
-        The parent slasher of the component command.
-    _parameter_converters : `tuple` of ``ParameterConverter``
-        Parsers to parse command parameters.
-    _command_function : `async-callable˛
+    _command_function : `async-callable`
         The command's function to call.
-    _string_custom_ids : `None`, `tuple` of `str`
+    
+    _exception_handlers : `None | list<CoroutineFunction>`
+        Exception handlers added with ``.error`` to the interaction handler.
+    
+    _keyword_parameter_converters : `tuple<ParameterConverterBase>`
+        Parameter converters for keyword parameters.
+    
+    _parent_reference : `None | WeakReferer<SelfReferenceInterface>`
+        The parent slasher of the component command.
+    
+    _positional_parameter_converters : `tuple<ParameterConverterBase>`
+        Parsers to parse positional command parameters.
+    
+    _regex_custom_ids : `None | tuple<RegexMatcher>`.
+        Regex matchers to match custom-ids.
+    
+    _string_custom_ids : `None | tuple<str>`
         The custom id-s to wait for.
-    _regex_custom_ids : `None`, `tuple` of `re.Pattern`.
-        Regex pattern to match custom-ids.
+    
     name : `str`
         The command's name.
         
         Only used for debugging.
     
-    response_modifier : `None`, ``ResponseModifier``
+    response_modifier : `None | ResponseModifier`
         Modifies values returned and yielded to command coroutine processor.
-    
-    Class Attributes
-    ----------------
-    COMMAND_COMMAND_NAME : `str`
-        The command's name defining parameter's name.
-    COMMAND_PARAMETER_NAMES : tuple of `str`
-        All parameters names accepted by ``.__new__``
-    COMMAND_NAME_NAME : `str`
-        The command's "command" defining parameter's name.
     """
     __slots__ = (
-        '_command_function', '_parameter_converters', '_regex_custom_ids', '_string_custom_ids', 'response_modifier',
+        '_command_function', '_keyword_parameter_converters', '_positional_parameter_converters', '_regex_custom_ids',
+        '_string_custom_ids', 'response_modifier',
     )
     
-    COMMAND_PARAMETER_NAMES = (
-        *CommandBase.COMMAND_PARAMETER_NAMES,
-        'custom_id',
-    )
-    
-    
-    def __new__(cls, func, custom_id, name = None, **keyword_parameters):
+    def __new__(cls, function, name = None, *, custom_id = ..., **keyword_parameters):
         """
-        Creates a new custom_id based command instance.
+        Creates a new `custom_id` based command instance.
         
         Subclasses should overwrite this method.
         
         Parameters
         ----------
-        func : `None`, `async-callable`
+        function : `async-callable`
             The function used as the command when using the respective slash command.
-        custom_id : `str`, (`list`, `set`) of `str`, `tuple` of (`str`, (`list`, `set`) of `str`)
-            Custom id to match by the component command.
+        
         name : `None`, `str` = `None`, Optional
             The name of the component command.
+        
+        custom_id : `str | re.Pattern | (list | set)<str | re.Pattern>`, Optional (Keyword only)
+            Custom id to match by the component command.
+        
         **keyword_parameters : Keyword parameters
             Additional keyword parameters
         
         Other Parameters
         ----------------
-        allowed_mentions : `None`, `str`, ``UserBase``, ``Role``, ``AllowedMentionProxy``, \
-                `list` of (`str`, ``UserBase``, ``Role`` ), Optional (Keyword only)
+        allowed_mentions : `None | str, UserBase | Role | AllowedMentionProxy | list<str | UserBase | Role> \
+                , Optional (Keyword only)
             Which user or role can the response message ping (or everyone).
+        
         show_for_invoking_user_only : `bool`, Optional (Keyword only)
             Whether the response message should only be shown for the invoking user.
+        
         wait_for_acknowledgement : `bool`, Optional (Keyword only)
             Whether acknowledge tasks should be ensure asynchronously.
-        
-        Returns
-        -------
-        self : ``CommandBaseCustomId``, ``Router``
         
         Raises
         ------
@@ -93,9 +86,9 @@ class CommandBaseCustomId(CommandInterface, CommandBase):
         raise NotImplementedError
     
     
-    @copy_docs(CommandBase._build_repr_body_into)
-    def _build_repr_body_into(self, repr_parts):
-        CommandBase._build_repr_body_into(self, repr_parts)
+    @copy_docs(CommandBase._put_repr_parts_into)
+    def _put_repr_parts_into(self, repr_parts):
+        repr_parts = CommandBase._put_repr_parts_into(self, repr_parts)
             
         string_custom_ids = self._string_custom_ids
         if (string_custom_ids is not None):
@@ -126,7 +119,7 @@ class CommandBaseCustomId(CommandInterface, CommandBase):
             
             while True:
                 regex_custom_id = regex_custom_ids[index]
-                repr_parts.append(repr(regex_custom_id.pattern.pattern))
+                repr_parts.append(repr(regex_custom_id))
                 
                 index += 1
                 if index == limit:
@@ -137,31 +130,16 @@ class CommandBaseCustomId(CommandInterface, CommandBase):
             
             repr_parts.append(']')
         
-        
-        yield repr_parts
-        
         response_modifier = self.response_modifier
         if (response_modifier is not None):
             repr_parts.append(', response_modifier = ')
             repr_parts.append(repr(response_modifier))
-
-    
-    async def invoke(self, client, interaction_event, regex_match):
-        """
-        Calls the command.
         
-        This method is a coroutine.
+        # _command_function
+        repr_parts.append(', command_function = ')
+        repr_parts.append(repr(self._command_function))
         
-        Parameters
-        ----------
-        client : ``Client``
-            The respective client who received the event.
-        interaction_event : ``InteractionEvent``
-            The received interaction event.
-        regex_match : `None`, ``RegexMatch``
-            The matched regex if applicable.
-        """
-        return
+        return repr_parts
     
     
     @copy_docs(CommandBase.__hash__)
@@ -176,7 +154,10 @@ class CommandBaseCustomId(CommandInterface, CommandBase):
             command_function_hash_value = object.__hash__(command_function)
         hash_value ^= command_function_hash_value
         
-        # _parameter_converters
+        # _keyword_parameter_converters
+        # Internal field
+        
+        # _positional_parameter_converters
         # Internal field
         
         # _regex_custom_ids
@@ -206,7 +187,10 @@ class CommandBaseCustomId(CommandInterface, CommandBase):
         if self._command_function != other._command_function:
             return False
         
-        # _parameter_converters
+        # _keyword_parameter_converters
+        # Internal field
+        
+        # _positional_parameter_converters
         # Internal field
         
         # _regex_custom_ids
@@ -224,6 +208,26 @@ class CommandBaseCustomId(CommandInterface, CommandBase):
         return True
     
     
+    async def invoke(self, client, interaction_event, regex_match):
+        """
+        Calls the command.
+        
+        This method is a coroutine.
+        
+        Parameters
+        ----------
+        client : ``Client``
+            The respective client who received the event.
+        
+        interaction_event : ``InteractionEvent``
+            The received interaction event.
+        
+        regex_match : `None | RegexMatch`
+            The matched regex if applicable.
+        """
+        return
+    
+    
     def copy(self):
         """
         Copies the command.
@@ -237,8 +241,11 @@ class CommandBaseCustomId(CommandInterface, CommandBase):
         # _command_function
         new._command_function = self._command_function
         
-        # _parameter_converters
-        new._parameter_converters = self._parameter_converters
+        # _keyword_parameter_converters
+        new._keyword_parameter_converters = self._keyword_parameter_converters
+        
+        # _positional_parameter_converters
+        new._positional_parameter_converters = self._positional_parameter_converters
         
         # _regex_custom_ids
         new._regex_custom_ids = self._regex_custom_ids

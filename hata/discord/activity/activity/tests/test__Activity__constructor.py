@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
@@ -28,18 +28,19 @@ def _assert_fields_set(activity):
     vampytest.assert_instance(activity.type, ActivityType)
 
 
-def test__Activity__new__0():
+def test__Activity__new__rich():
     """
     Tests whether ``Activity.__new__`` works as expected.
     
     Case: Creating rich activity.
     """
     name = 'Iceon'
-    activity_type = ActivityType.game
+    activity_type = ActivityType.playing
     
     application_id = 202209070019
     assets = ActivityAssets(image_large = 'senya')
-    created_at = DateTime(2014, 9, 11)
+    buttons = ['Party', 'Trick']
+    created_at = DateTime(2014, 9, 11, tzinfo = TimeZone.utc)
     details = 'vocal'
     flags = ActivityFlag(1)
     activity_id = 202209070020
@@ -48,7 +49,10 @@ def test__Activity__new__0():
     session_id = 'Autobahn'
     state = 'plain'
     sync_id = 'asia'
-    timestamps = ActivityTimestamps(end = DateTime(2014, 9, 12), start = DateTime(2014, 9, 10))
+    timestamps = ActivityTimestamps(
+        end = DateTime(2014, 9, 12, tzinfo = TimeZone.utc),
+        start = DateTime(2014, 9, 10, tzinfo = TimeZone.utc),
+    )
     url = 'https://www.astil.dev/'
     
     activity = Activity(
@@ -56,6 +60,7 @@ def test__Activity__new__0():
         activity_type = activity_type,
         application_id = application_id,
         assets = assets,
+        buttons = buttons,
         created_at = created_at,
         details = details,
         flags = flags,
@@ -73,6 +78,7 @@ def test__Activity__new__0():
     vampytest.assert_is(activity.type, activity_type)
     vampytest.assert_eq(activity.application_id, application_id)
     vampytest.assert_eq(activity.assets, assets)
+    vampytest.assert_eq(activity.buttons, tuple(buttons))
     vampytest.assert_eq(activity.created_at, created_at)
     vampytest.assert_eq(activity.details, details)
     vampytest.assert_eq(activity.flags, flags)
@@ -89,7 +95,7 @@ def test__Activity__new__0():
     vampytest.assert_instance(activity.emoji, Emoji, nullable = True)
 
 
-def test__Activity__new__1():
+def test__Activity__new__custom__with_name():
     """
     Tests whether ``Activity.__new__`` works as expected.
     
@@ -102,7 +108,7 @@ def test__Activity__new__1():
         Activity(name, activity_type = activity_type)
 
 
-def test__Activity__new__2():
+def test__Activity__new__no_fields():
     """
     Tests whether ``Activity.__new__`` works as expected.
     

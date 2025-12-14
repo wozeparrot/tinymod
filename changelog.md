@@ -1,3 +1,1118 @@
+## 1.3.88 *\[2025-11-28\]*
+
+- Add `mention_channel_and_roles_screen`.
+- Add `mention_channel_browse_screen`.
+- Add `mention_guild_guide_screen`.
+- Add `mention_linked_roles_screen`.
+- Escape screen mentions in `sanitize_mentions`.
+- Add `sanitise_links`.
+- Sanitize links in `sanitize_content`.
+- Add `TIMESTAMP_STYLES.shortest_date_time` and `.shorter_date_time`.
+- Add `ActivityAssets.image_invite_cover`.
+- Add `Activity.image_invite_cover_url` and `.image_invite_cover_url_as`.
+- Add support for `webp` media.
+- Add `Guild.soundboard_sound_limit`.
+- Add `GuildFeature.more_soundboard_sound`.
+- Add `GuildFeature.social_layer_store_page`.
+- Add `GuildFeature.summaries_experiment_disableable`.
+- Add `GuildFeature.verification_test`.
+- Add `GuildFeature.forwarding_disabled`.
+- Add `GuildFeature.moderation_pilot_reports`.
+- Add `GuildFeature.badge_pack_flex`.
+- Add `GuildFeature.badge_pack_flex`.
+- Add `GuildFeature.game_servers`.
+- Add `GuildFeature.community_experiment_large_ungated`.
+- Add `GuildFeature.pin_permissions_migrated`.
+- Add `GuildFeature.slowmode_bypass_permissions_migrated`.
+- Add `GuildFeature.discoverable_externally`.
+- Add `GuildFeature.products_archived_file`.
+- Add `GuildFeature.products_purchasable`.
+- Add `GuildFeature.verification_age_utils`.
+- Add `GuildFeatureFlag`.
+- Add `GuildFeature.flags.
+- Add `GuildBoostPerks.stage_channel_viewer_limit`.
+
+### Bug fixes
+
+- Fix `.can_use_emoji` methods not handing being guild owner & emoji being deleted edge cases.
+
+#### ext.slash
+
+- In expression parser ensure left shift second value is non negative.
+
+### Renames, Deprecations & Removals
+
+- Rename and deprecate `GuildFeature.animated_banner` to `.banner_animated`.
+- Rename and deprecate `GuildFeature.animated_icon` to `.icon_animated`.
+- Rename and deprecate `GuildBoostPerks.sound_limit` to `.soundboard_sound_limit`.
+- Rename and deprecate `GuildFeature.threads_enabled_testing` to `.threads_enabled_test`.
+- Rename and deprecate `GuildFeature.new_thread_permissions` to `.thread_permissions_migrated`.
+- Rename and deprecate `GuildFeature.vanity_invite` to `.invite_vanity_url`.
+- Rename and deprecate `GuildFeature.private_threads` to `.threads_private_enabled`.
+- Rename and deprecate `GuildFeature.attachment_size_limit_100_mb` to `.attachment_size_limit_100_MB`.
+- Rename and deprecate `GuildFeature.attachment_size_limit_50_mb` to `.attachment_size_limit_50_MB`.
+
+## 1.3.87 *\[2025-11-09\]*
+
+### Improvements
+
+- Add `MessagePing`.
+- Add `Client.channel_pin_get_chunk`.
+- `Client.channel_pin_get_all` now returns `MessagePin` elements instead of `Message` ones.
+- `DiscordApiClient.message_pin` and `.message_unpin` now has an additional `reason` parameter.
+- Use separate `label` validator for `button` and for `label` components.
+- Use separate `max_values` & `min_values` validator for `select` and for `attachment input` components.
+
+### Renames, Deprecations & Removals
+
+- Rename `RATE_LIMIT_GROUPS.channel_pin_get_all` to `.channel_pin_get_chunk`.
+- Rename `DiscordApiClient.channel_pin_get_all` to `.channel_pin_get_chunk`.
+
+## 1.3.86 *\[2025-10-28\]*
+
+### Improvements
+
+- Add `InteractionComponentMetadataAttachmentInput`.
+- Add `ComponentMetadataAttachmentInput`.
+- Add `create_attachment_input`.
+- Add `ComponentType.file_upload`.
+- Add `Theme.darker`.
+- Add `Theme.midnight`.
+- Add `SharedClientThemeBaseTheme`.
+- Add `SharedClientTheme`.
+- Add `Message.shared_client_theme`.
+- Add `Message.has_shared_client_theme`.
+- Add 3 new allowed icon size ranges.
+
+## 1.3.85 *\[2025-10-16\]*
+
+### Improvements
+
+- Add `MediaInfo.attachment_id`.
+- Add `ComponentMetadataBase.name`.
+- Add `ComponentMetadataBase.size`.
+- Add `Component.name`.
+- Add `Component.size`.
+- Add `Invite.user_permissions`.
+- Add `ChannelMetadataBase.voice_engaged_since`.
+- Add `Channel.voice_engaged_since`.
+- Allow setting `Channel`'s proxies.
+- Add parser for the `VOICE_CHANNEL_START_TIME_UPDATE` dispatch event.
+- Add `Guild.iter_clients`.
+- Add `Channel.iter_clients`.
+- Update `Application.from_data_detectable` and `Application.to_data_detectable`  to use the incorrect key to set
+    `.icon`.
+- Add `ApplicationTheme`.
+- Add `Application.themes`.
+- Add `Application.iter_themes`.
+- Add `Guild.iter_clients`.
+- Add `Channel.iter_clients`.
+- Add `bio` parameter to `Client.guild_profile_edit`.
+- Add `required` parameter and auto detection to select components.
+
+### Bug fixes
+
+- Fix `ClientUserBase.can_use_emoji` and `WebhookBase.can_use_emoji` did not check whether teh emoji is actually
+    available.
+- Fix `client.events.channel_update` may not trigger if no client sees it (since previous update).
+
+## 1.3.84 *\[2025-09-20\]*
+
+### Improvements
+
+- Add `AuditLogEntryType.auto_moderation_quarantined_user`.
+- Add `NamePlate.url_as`.
+- Add `Invite.expires_at`.
+- Add `ActivityAssets.text_large_url`.
+- Add `ActivityAssets.text_small_url`.
+- Add `ActivityMetadataBase.details_url`.
+- Add `ActivityMetadataBase.state_url`.
+- Add `Activity.details_url`.
+- Add `Activity.state_url`.
+- Add `Application.approximate_user_authorization_count`.
+- Add `Permission.pin_messages`.
+- Add `MessageType.emoji_added_notification`.
+- Add `SystemChannelFlag.emoji_added_notification`.
+- Add `ComponentTypeLayoutFlag.nestable_into_label`.
+- Add `ComponentType.label`.
+- Add `ComponentMetadataLabel`.
+- Add `create_label`.
+- Add `ComponentMetadataBase.component`.
+- Add `Component.component`.
+- Add `ComponentType.interaction_metadata_type`.
+- Add `ComponentTypeLayoutFlag.holds_value_single`.
+- Add `ComponentTypeLayoutFlag.holds_value_multiple`.
+- `.iter_custom_ids_and_values` yield changed
+    `(str, None | str)` -> `(str, ComponentType, None | str | tuple<str>)`.
+- `.get_custom_id_value_relation` return changed
+    `dict<str, None | str>` -> `dict<str, (ComponentType, None | str | tuple<str>)>`.
+- `.get_value_for` return changed `None | str` -> `(ComponentType, None | str | tuple<str>)` .
+- `.get_match_and_value` return changed
+    `(None | object, None | str)` -> `(None | object, ComponentType, None | str | tuple<str>)`.
+- `.get_match_and_value` yield changed
+    `(object, None | str)` -> `(object, ComponentType, None | str | tuple<str>)`.
+- Implement `InteractionMetadataMessageComponent.iter_custom_ids_and_values`.
+- Add `InteractionComponentMetadataBase`.
+- Add `InteractionComponentMetadataRow`.
+- Add `InteractionComponentMetadataLabel`.
+- Add `InteractionComponentMetadataTextInput`.
+- Add `InteractionComponentMetadataStringSelect`.
+- Add `InteractionComponent.metadata`.
+- Add `InteractionComponentMetadataButton`.
+- Add `InteractionComponentMetadataUserSelect`.
+- Add `InteractionComponentMetadataChannelSelect`.
+- Add `InteractionComponentMetadataRoleSelect`.
+- Add `InteractionComponentMetadataMentionableSelect`.
+- Add `InteractionComponentMetadataSection`.
+- Add `InteractionComponent.thumbnail`.
+- Add `InteractionComponentMetadataContainer`.
+- Add `Resolver`.
+- Add `ComponentType.resolver`.
+- Add `ComponentType.resolve`.
+- Add `ComponentType.iter_resolve`.
+- Add `InteractionEvent.component`.
+- Add `InteractionMetadataBase.component`.
+- Add `InteractionMetadataBase.from_keyword_parameters`.
+- Add `InteractionMetadataBase.copy_with_keyword_parameters`.
+- Add `InteractionComponent % Component` for checking whether they are alike.
+    This is to deprecate `InteractionComponentMetadata` matching with `Component`-s in the future.
+
+#### ext.slash
+
+- Component commands now allow a single keyword only parameters retrieving the processed value of the field.
+- Form submit command parameters now process the received values as they should.
+
+### Bug fixes
+
+- Fix `Channel.clients` could return clients who had no access to the channel.
+    This could make some events to not be triggered if clients with different permissions were in the same guild.
+
+#### ext.slash
+
+- Remove possibility for reference loops when handing command exception.
+
+### Renames, Deprecations & Removals
+
+- Rename `GuildProfileFlag.auto_moderation_quarantined_clan_tag` to `.auto_moderation_quarantined_guild_badge`.
+- Move `InteractionMetadataBase.resolved` implementation to `InteractionEvent.resolved`.
+- `InteractionMetadataMessageComponent` now implements `.components`  as `None | InteractionComponent`,
+    instead of implementing `.component_type`, `.custom_id`, `.values` fields separately.
+- Deprecate `InteractionEvent.value`.
+- Deprecate `InteractionEvent.values`.
+- Deprecate `InteractionEvent.iter_values`.
+- Remove `InteractionMetadataBase.value`.
+- Remove `InteractionMetadataBase.values`.
+- Remove `InteractionMetadataBase.iter_values`.
+- Remove `InteractionMetadataBase.component_type`.
+- Rename `InteractionMetadataBase.id` to `.application_command_id`.
+- Rename `InteractionMetadataBase.name` to `.application_command_name`.
+
+## 1.3.83 *\[2025-08-26\]*
+
+### Improvements
+
+- Add missing default for `Status`.
+- Add `SessionPlatformType`.
+- Add `StatusByPlatform`.
+- Add `UserBase.status_by_platform`, replacing `.statuses`.
+
+#### ext.slash
+
+- `default_slasher_exception_handler` now expects `ERROR_CODES.unknown_webhook` as a possible error code that can be
+    ignored.
+
+### Renames, Deprecations & Removals
+
+- Deprecate `UserBase.statuses`, use `.status_by_platform` instead.
+
+## 1.3.82 *\[2025-07-30\]*
+
+### Bug fixes
+
+- Fix `libnacl` incorrectly raising `OsError` instead of `ImportError`.
+
+#### ext.slash
+
+- Fix `expression_parser` does not check for negative inputs for `sqrt`.
+- Fix `expression_parser` does not check for infinite inputs for `floor`.
+- Fix `expression_parser` does not check for infinite inputs for `round`.
+- Fix `expression_parser` does not check for infinite inputs for `ceil`.
+- Fix `default_slasher_exception_handler` not rendering the original error if an exception occurred in it.
+
+## 1.3.81 *\[2025-07-07\]*
+
+### Improvements
+
+- Add `RoleColorConfiguration`.
+- Add `Role.color_configuration`.
+- Add `color_configuration` audit log change conversion for roles.
+- Add `GuildFeature.role_colors_enhanced`.
+- Add `GuildFeature.audio_bitrate_128_kbps`.
+- Add `GuildFeature.audio_bitrate_256_kbps`.
+- Add `GuildFeature.audio_bitrate_384_kbps`.
+- Add `GuildFeature.stage_channel_150_viewers`.
+- Add `GuildFeature.stage_channel_300_viewers`.
+- Add `GuildFeature.stage_channel_50_viewers`.
+- Add `GuildFeature.video_bitrate_enhanced`.
+- Add `GuildFeature.video_quality_1080_px_60_fps`.
+- Add `GuildFeature.video_quality_720_px_60_fps`.
+- Add `GuildFeature.verification_manual_approval`.
+- Add `GuildFeature.raid_alerts_non_community`.
+- Add `GuildFeature.moderation_survey_reports`.
+- Add `GuildFeature.moderation_experience_non_community_enabled`.
+- Add `GuildFeature.attachment_size_limit_100_mb`.
+- Add `GuildFeature.attachment_size_limit_50_mb`.
+- Add `GuildFeature.levelless_boosting`.
+- Add `GuildFeature.levelless_boosting_system_messages`.
+- Add `GuildFeature.badge`.
+- Add `PollResult.iter_users`.
+- Add support for `avif` emojis.
+- Add support for animated `webp` icon urls.
+- Add `ScheduledEvent.occasion_overwrites`.
+- Add `ScheduledEvent.iter_occasion_overwrites`.
+- Add `ScheduledEventSubscribeEvent.scheduled_event`.
+- Add `ScheduledEventOccasionOverwrite`.
+- Add `ScheduledEventOccasionOverwriteCreateEvent`.
+- Add `ScheduledEventOccasionOverwriteDeleteEvent`.
+- Add `ScheduledEventOccasionOverwriteUpdateEvent`.
+- Add `OperationSystem.android`.
+- Add `OperationSystem.ios`.
+- Add `OperationSystem.playstation`.
+- Add `OperationSystem.xbox`.
+- Add `GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE` gateway event parser.
+- Add `GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE` gateway event parser.
+- Add `EventHandlerManager.scheduled_event_occasion_overwrite_create`.
+- Add `EventHandlerManager.scheduled_event_occasion_overwrite_delete`.
+- Add `EventHandlerManager.scheduled_event_occasion_overwrite_update`.
+- Add `Client.scheduled_event_occasion_overwrite_create`.
+- Add `Client.scheduled_event_occasion_overwrite_delete`.
+- Add `Client.scheduled_event_occasion_overwrite_edit`.
+- Add `DiscordApiClient.scheduled_event_occasion_overwrite_create`.
+- Add `DiscordApiClient.scheduled_event_occasion_overwrite_delete`.
+- Add `DiscordApiClient.scheduled_event_occasion_overwrite_edit`.
+- Add `RATE_LIMIT_GROUPS.scheduled_event_occasion_overwrite_create`.
+- Add `RATE_LIMIT_GROUPS.scheduled_event_occasion_overwrite_delete`.
+- Add `RATE_LIMIT_GROUPS.scheduled_event_occasion_overwrite_edit`.
+- Add `AuditLogEntryTargetType.scheduled_event_occasion_overwrite`.
+- Add `timestamp` audit log detail conversion for scheduled event occasion overwrites.
+- Add `cancelled` audit log change conversion for scheduled event occasion overwrites.
+- Add `end` audit log change conversion for scheduled event occasion overwrites.
+- Add `start` audit log change conversion for scheduled event occasion overwrites.
+- Add `EntitlementType.guild_enhancement`.
+- Add `SKU.name_localizations`.
+- Add `AttachmentFlag.gore`.
+- Add `SKUProductFamily.`
+- Add `SKU.product_family`.
+- Add `SKU.dependent_sku_id`.
+- Add `SKU.dependent_sku`.
+- Add `SKUEnhancementGuild`.
+- Add `SKUEnhancement`.
+- Add `SKU.enhancement`.
+- Add `GiftCodeFlag`.
+- Add `Entitlement.promotion_id`.
+- Add `EMAIL_MENTION_RP`.
+- Add `TELEPHONE_NUMBER_MENTION_RP`.
+- `sanitize_mentions` now sanitizes email mentions.
+- `sanitize_mentions` now sanitizes telephone number mentions.
+- `sanitize_mentions` now sanitizes `everyone` and `here` as a second step, because they may be produced in by
+    sanitizing normal mentions.
+- Add `EntitlementSourceType`.
+- Add `Entitlement.source_type`.
+- Add `GiftCodeFlag`.
+- Add `Entitlement.gift_code_flags`.
+- Add `Entitlement.sku`.
+- Add `GuildEnhancementEntitlementsCreateEvent`.
+- Add `GuildEnhancementEntitlementsDeleteEvent`
+- Add `EventHandlerManager.guild_enhancement_entitlements_create`.
+- Add `EventHandlerManager.guild_enhancement_entitlements_delete`.
+- Add `GUILD_BOOSTS`.
+- Add `GuildBoost`.
+- Add `EventHandlerManager.guild_boost_update`.
+
+### Renames, Deprecations & Removals
+
+- Rename `GuildFeature.role_subscription_purchasable` to `role_subscriptions_purchasable`.
+    (It was never intended to be `subscription`, but `subscriptions`.)
+- Rename `AuditLogEntryType.scheduled_event_exception_create` to `scheduled_event_occasion_overwrite_create`.
+- Rename `AuditLogEntryType.scheduled_event_exception_update` to `scheduled_event_occasion_overwrite_update`.
+- Rename `AuditLogEntryType.scheduled_event_exception_delete` to `scheduled_event_occasion_overwrite_delete`.
+- Rename `AttachmentFlag.explicit` to `AttachmentFlag.erotic`.
+
+## 1.3.80 *\[2025-06-17\]*
+
+### Improvements
+
+- `Attachment.waveform` is now `None | bytes` (from `None | str`).
+- Add `VoiceAttachment`.
+- Add `voice_attachment` support to `Client.message_create`, `.webhook_message_create`,
+    `.interaction_followup_message_create` and to`.interaction_response_message_edit`.
+- Add `Palette`.
+- Add missing `ChannelMetadataBase.icon_type` and `ChannelMetadataBase.icon_hash`, `Channel.icon_type`,
+    `Channel.icon_hash`.
+- Fix `Channel.icon_url` and `Channel.icon_url_as` were bound to the channel group metadata.
+    So they were not only there, but were they were, they were not even working. (Since 2022.)
+- Add missing `AvatarDecoration.url` and `.url_as`.
+- Add `AvatarDecoration.expires_at`.
+- Add `NamePlate`.
+- Add `UserBase.name_plate`.
+- Add `UserBase.name_plate_url`.
+- Add `InteractionEvent.is_response_invoking_user_only`.
+
+### ext.plugin_loader
+- Assigning to a plugin's module is now allowed.
+- Plugin dependency tree building now should work better.
+- In plugin dependency tree plugins cannot have their own module level parent as their children.
+
+#### ext.rpc
+- Remove `Oauth2Application.icon_url` and `Oauth2Application.icon_url_as` since they were not working.
+
+#### ext.slash
+- Add `voice_attachment` support to `InteractionResponse` and to `abort`.
+
+## 1.3.79 *\[2025-05-05\]*
+
+### Improvements
+
+- Replace `MediaItem.url` with `MediaItem.media`.
+- Add `MediaItem.url` property.
+- Add `ComponentTypeLayoutFlag.version_1`.
+- Add `ComponentTypeLayoutFlag.version_2`.
+- Add `MediaInfo`.
+- Add `ComponentMetadataBase.media`.
+- Add `ComponentMetadataBase.spoiler`.
+- Add `Component.media`.
+- Add `Component.spoiler`.
+- Add `ComponentMetadataAttachmentMedia`.
+- Add `ComponentType.attachment_media`.
+- Add `create_attachment_media`.
+- Add `ComponentTypeLayoutFlag.section_thumbnail`.
+- Add `ComponentMetadataBase.description`.
+- Add `Component.description`.
+- Add `ComponentMetadataThumbnailMedia`.
+- Add `ComponentType.thumbnail_media`.
+- Add `create_thumbnail_media`.
+- Add `ComponentMetadataBase.color`.
+- Add `Component.color`.
+- Add `ComponentTypeLayoutFlag.nestable_into_container`.
+- Add `ComponentTypeLayoutFlag.allowed_in_message`.
+- Add `ComponentTypeLayoutFlag.allowed_in_form`.
+- Add `ComponentMetadataContainer`.
+- Add `ComponentType.container`.
+- Add `create_container`.
+- Add `ComponentMetadataBase.thumbnail`.
+- Add `Component.thumbnail`.
+- Add `ComponentTypeLayoutFlag.nestable_into_section`.
+- Add `ComponentMetadataSection`.
+- Add `ComponentType.section`.
+- Add `ComponentMetadataBase.iter_contents`.
+- Add `Component.iter_contents`.
+- Add `Component.contents`.
+- Add `Component.__len__`.
+- Add `ComponentMetadataBase.clean_copy`.
+- Add `Component.clean_copy`.
+- Add `Message.clean_components`.
+
+### Renames, Deprecations & Removals
+
+- Rename `ComponentTypeLayoutFlag.nestable` to `ComponentTypeLayoutFlag.nestable_into_row`. Deprecate `.nestable`.
+- Rename `ComponentType.text` to `.text_display` and every related types & functions.
+
+## 1.3.78 *\[2025-04-28\]*
+
+### Improvements
+
+- Add `Guild.home_splash`.
+- Add new `CUSTOM_INVITE_ENDPOINT` variable configurable using the `HATA_INVITE_ENDPOINT` environmental variable.
+- Add `InteractionEvent.attachment_size_limit`.
+- Add `GuildActivityOverviewActivity`.
+- Add `GuildActivityOverviewTag`.
+- Add `GuildActivityOverview`.
+- Add `GuildActivityOverviewActivityLevel`.
+- Add `MessageFlag.guild_feed_hidden`.
+- Add `MessageFlag.components_v2`.
+- Add `MessageFlag.created_by_social_integration`.
+- Add `ActivityFlag.contextless`.
+- Add `ERROR_CODES.max_friend_requests`.
+- Add `ERROR_CODES.message_entity_too_large`.
+- Add `ERROR_CODES.message_entity_empty`.
+- Remove & deprecate `ERROR_CODES.request_too_large`.
+- Remove & deprecate `ERROR_CODES.feature_disabled`.
+- Add `ERROR_CODES.invalid_gift_redemption_previously_owned`.
+- Add `ERROR_CODES.invalid_message_create_game_friend_private_channel`.
+- Add `ERROR_CODES.invalid_message_create_provisional_account_offline`.
+- Add `ERROR_CODES.missing_permissions_to_use_sticker`.
+- Add `ERROR_CODES.relationship_invalid_not_confirmed`.
+- Add `ERROR_CODES.guild_join_request_user_ineligible`.
+- Add `ERROR_CODES.content_inventory_entry_invalid_permissions`.
+- Add `ERROR_CODES.account_revert_invalid_token`.
+- Add `ERROR_CODES.account_revert_email_used`.
+- Add `ERROR_CODES.account_revert_account_not_found`.
+- Add `UserFlag.provisional_account`.
+- Add `ApplicationFlag.social_layer_integration`.
+- Add `ApplicationFlag.advertised`.
+- Add `ApplicationFlag.partnered`.
+- Add `AuditLogEntryType.clyde_ai_update`.
+- Add `AuditLogEntryType.scheduled_event_exception_create`.
+- Add `AuditLogEntryType.scheduled_event_exception_update`.
+- Add `AuditLogEntryType.scheduled_event_exception_delete`.
+- Add `AuditLogEntryType.user_verification_update`.
+- Add `AuditLogEntryType.guild_overview_update`.
+- Add `EntitlementType.free_staff_purchase`.
+- Add `EntitlementType.quest_reward`.
+- Add `EntitlementType.fractional_redemption`.
+- Add `EntitlementType.virtual_currency_redemption`.
+- Add `MessageType.voice_hangout_invite`.
+- Add `MessageType.changelog`.
+- Add `MessageType.nitro_notification`.
+- Add `MessageType.channel_linked_to_lobby`.
+- Add `MessageType.gifting_prompt`.
+- Add `MessageType.in_activity_message`.
+- Add `MessageType.guild_join_request_accept`.
+- Add `MessageType.guild_join_request_reject`.
+- Add `MessageType.guild_join_request_withdraw`.
+- Add `MessageType.streaming_quality_upgraded`.
+- Add `MessageType.channel_wallpaper_set`.
+- Add `MessageType.channel_wallpaper_removed`.
+- Add `banner_color` audit log change conversion for guilds.
+- Add `privacy_level` audit log change conversion for guilds.
+- Add `activity_application_ids` audit log change conversion for guilds.
+- Add `tags` audit log change conversion for guilds.
+- `AuditLogChange` notes table separated by types.
+- Use new endpoint for `guild-badges` (formerly `user-clan`).
+- Rename `UserClan` to `GuildBadge`. Deprecate `UserClan`.
+- Rename `UserBase.clan` to `.primary_guild_badge`. Deprecate `.clan`.
+- Add `PrivacyLevel.public_with_join_request`.
+- Add `RATE_LIMIT_GROUPS.guild_activity_overview_get`.
+- Add `RATE_LIMIT_GROUPS.guild_activity_overview_edit`.
+- Add `DiscordApiClient.guild_activity_overview_get`.
+- Add `DiscordApiClient.guild_activity_overview_edit`.
+- Add `Client.guild_activity_overview_get`.
+- Add `Client.guild_activity_overview_edit`.
+- Add `Invite.guild_activity_overview`.
+
+#### ext.patchouli
+- Do not treat `|` in graves as table `|`-s.
+- Allow global reference graves to be consisted of multiple references.
+
+### Bug fixes
+
+- Fix `sticker_pack_banner_as` could return an url if the sticker pack did not have any.
+- Fix `channel_group_icon_url` and `channel_group_icon_url_as` could raise `AttributeError`.
+- Fix `Invite._create_empty` set `.target_user` as `ZEROUSER` instead of `None`.
+
+### Renames, Deprecations & Removals
+
+- Rename `GuildPremiumPerks` to `GuildBoostPerks`.
+- Rename `Guild.upload_limit` and `GuildBoostPerks.upload_limit` to `.attachment_size_limit`.
+    Deprecate old `.upload_limit`. Now upload size limit is by attachment.
+- Rename `Guild.premium_tier` to `.boost_level`, `Guild.premium_perks` to `.boost_pers` and
+    `GuildBoostPerks.tier` to `.level` to match it to `Guild.booster_count` and `Guild.boost_progress_bar_enabled`.
+    Deprecate old `.premium_tier` and `.premium_perks`.
+- Rename `ERROR_CODES.activity_launch_premium_tier` to `.activity_launch_boost_level`.
+- Remove `Achievement` and most related code.
+
+
+## 1.3.77 *\[2025-03-19\]*
+
+### Improvements
+
+- Add `ERROR_CODES.cannot_remove_read_messages_permission_of_onboarding_channel`.
+- Sorting string fields in `Component` representation has been removed to make testing easier.
+
+### Bug fixes
+
+#### ext.slash
+- Fix `TypeError` when registering a command with multiple regex custom id-s.
+- `SlashCommandParameterAutoCompleter._is_deeper_than` did not handle if both is max deepness.
+- `ParameterConverterRegex.required` was set the opposite way.
+
+## 1.3.76 *\[2025-03-09\]*
+
+### Improvements
+
+- `Attachment.display_name` now includes its extension.
+- Add `Attachment.content_created_at`.
+
+### Bug fixes
+
+- `GuildPremiumPerks` 0 and `GuildPremiumPerks` 1 had their upload limit reversed.
+
+## 1.3.75 *\[2024-02-16\]*
+
+### Improvements
+
+- Rename putter functions from `put_..._into`-s to `put_...`.
+    This was something I acknowledged as an issue for a long time, just never got to fix it.
+- Handle unexpectedly closed sockets in `DiscordApiClient.discord_request`.
+- Add a second onboarding "feature" workaround.
+
+### Bug fixes
+
+- `ReadyState.discard_guild` could raise `AttributeError`.
+
+## 1.3.74 *\[2025-02-08\]*
+
+### Improvements
+
+- Add `Message.soundboard_sounds`.
+- Add `Message.soundboard_sound`.
+- Add `Message.iter_soundboard_sounds`.
+- Add `Message.has_soundboard_sound`.
+- Add `MessageSnapshot.soundboard_sounds`.
+- Add `MessageSnapshot.soundboard_sound`.
+- Add `MessageSnapshot.iter_soundboard_sounds`.
+- Add `MessageSnapshot.has_soundboard_sound`.
+- Add `SoundboardSound.mention`.
+- Use `with_components` query parameter for non application owned webhook requests.
+    It is actually not working but documented, so I added it.
+- `MessageType.poll.converter` now returns the correct value if noone voted.
+- Add `AttachmentFlag.spoiler`.
+- Add `AttachmentFlag.explicit`.
+- Add `AttachmentFlag.animated`.
+- Add `Attachment.application`.
+- Add `Attachment.clip_created_at`.
+- Add `Attachment.clip_users`.
+- Add `Attachment.iter_clip_users`.
+- Add `EmbedFlag`.
+- Add `Embed.flags`.
+- Add `EmbedMediaFlag`.
+- Add `EmbedImage.flags`.
+- Add `EmbedThumbnail.flags`.
+
+## 1.3.73 *\[2025-01-28\]*
+
+### Improvements
+
+- Add missing `Preinstance.__hash__` and `.__eq__`.
+- Add keyword parameter support to `Preinstance`.
+- `PreinstancedMeta.__call__` now decides whether to pull an object from cache or to create a new one.
+- `Preinstance` now supports keyword parameters.
+- Add missing `PlaceHolderBase.__repr__` and `.__hash__` and `.__eq__`.
+
+### Bug fixes
+
+- Fix `elapsed_time` could return invalid value. (Probably an error in the dependency.)
+
+### Renames, Deprecations & Removals
+
+- Rename `Preinstance.args` to `.positional_parameters`.
+- Rename `DiscordApiClient`'s `params` parameters to `query`.
+- Deprecate `PreinstancedBase.get`.
+- Deprecate `ActivityType.game` as scheduled. Use `.playing` instead.
+
+## 1.3.72 *\[2024-12-23\]*
+
+### Improvements
+
+- Add `Subscription.renewal_sku_ids`.
+- Add `Subscription.iter_renewal_sku_ids`.
+- Add `ApplicationCommandHandlerType`.
+- Add `ApplicationCommand.handler_type`.
+- Add `ERROR_CODES.handler_valid_only_for_primary_entry_points`.
+- Add `InteractionMetadataBase.target_type`.
+- Add `InteractionMetadataApplicationCommand.target_type`.
+- Add `InteractionEvent.target_type`.
+- Add `InteractionResponseType.embedded_activity_launch`.
+- Add `Client.interaction_embedded_activity_launch`.
+
+#### ext.slash
+- Add `CommandBaseApplicationCommand.handler_type`.
+- Add `EmbeddedActivityLaunchCommand`.
+- Commands now respond correctly to if
+    `InteractionEvent.target_type is ApplicationCommandTargetType.embedded_activity_launch`.
+
+### Renames, Deprecations & Removals
+
+- Deprecated & rename `ApplicationCommandTargetType.activity_start` to `.embedded_activity_launch`.
+
+#### ext.slash
+- Deprecate & rename `CommandBaseApplicationCommand.target` to `.target_type` to match `ApplicationCommand.target_type`.
+
+## 1.3.71 *\[2024-12-14\]*
+
+### Improvements
+
+- Stop url cutting in embed fields. Its a nice idea to shorten output, but it makes finding the mismatch in tests
+    really annoying.
+- Add `exclude_deleted` parameter to `Client.entitlement_get_all` & `Client.entitlement_get_chunk`.
+- Add `Client.entitlement_get`.
+- Add `DiscordApiClient.entitlement_get`.
+- Add `RATE_LIMIT_GROUPS.entitlement_get`.
+- Add `ConnectionType.bluesky`.
+- Add `ConnectionType.mastodon`.
+- Add new unicode emojis. (Version `15.1`~)
+
+#### ext.slash
+- `SlashCommandCategory.__repr__`, `SlashCommandFunction.__repr__`, `SlashCommandParameterAutoCompleter.__repr__`,
+   `SlashCommand.__repr__`, `ContextCommand.__repr__`, `CommandBaseCustomId.__repr__`,
+   `CommandBaseApplicationCommand.__repr__` now shows each field in it that affects `.__eq__` & `.__hash__`.
+
+### Bug fixes
+
+- Fix `Client.events.guild_delete` did not clean the guild up correctly (cached permissions & client guild profiles).
+    Now after the event handler started a handle runs to do the cleaning, so the event handler can observer the guild's
+    last known state as before.
+- Fix `Client.entitlement_get_all`, `Client.entitlement_get_chunk` passed wrong value as `.exclude_ended`.
+- Fix `Client.entitlement_get_all`, `Client.entitlement_get_chunk` treated default of `sku_ids` incorrectly.
+
+### Renames, Deprecations & Removals
+
+#### ext.slash
+- Deprecate `SlashCommand.__new__`'s `.is_default` parameter. Use `default` instead.
+
+
+## 1.3.70 *\[2024-11-29\]*
+
+### Bug fixes
+
+#### ext.slash
+- Fix `yield`-ing multiple times on an application command did not result in multiple messages.
+
+### Renames, Deprecations & Removals
+
+- Rename `DiscordGatewayClientShard.websocket` to `.web_socket`.
+- Rename `DiscordGatewayVoice.websocket` to `.web_socket`.
+
+#### ext.solarlink
+- Rename `SolarNode.websocket` to `.web_socket`.
+- Rename `SolarLinkEventManager.player_websocket_closed` to `.player_web_socket_closed`.
+- Rename `PlayerWebsocketClosedEvent` to `PlayerWebSocketClosedEvent`.
+
+
+## 1.3.69 *\[2024-11-21\]*
+
+### Improvements
+
+- Flags now use descriptor based system instead of pulling their fields from `__keys__` dictionary.
+    This also means that `can_`, `deny_` and `allow_` properties & methods were deprecated and scheduled to be removed.
+    They were confusing and did not make much sense. Only the finest orange juice.
+- Add `Client.role_get`.
+- Add `DiscordApiClient.role_get`.
+- Add `RATE_LIMIT_GROUPS.role_get`.
+- Flag iterators are now ordered.
+- Add `ApplicationEventWebhookState`.
+- Add `ApplicationEventWebhookEventType`.
+- Add `Application.event_webhook_event_types`.
+- Add `Application.event_webhook_state`.
+- Add `Application.event_webhook_url`.
+- Add `Application.iter_event_webhook_event_types`.
+- Add `MessageFlag.has_snapshot`.
+
+### Renames, Deprecations & Removals
+
+- Rename `MessageFlag.is_crosspost` to `.crosspost`.
+
+## 1.3.68 *\[2024-10-27\]*
+
+### Improvements
+
+- Add `MessageInteraction.target_user`.
+- Add `MessageInteraction.target_user_id`.
+- Add `MessageInteraction.target_message_id`.
+- In `scaffold` cli command highlight that `.env` has to be populated in any ways before starting.
+
+#### ext.plugin_loader
+- `mark_as_plugin_root_directory` now loads plugins in incremental order (from unordered).
+
+#### ext.slash
+- All except `func` & `name` parameters passed to `.interactions(...)` is now keyword only.
+- Add missing `SlashCommandCategory.__repr__`.
+
+### Bug fixes
+
+- Fix possible `TypeError` in `ActivityTimestamps.__repr__`.
+
+#### ext.slash
+- Fix `CommandBaseCustomId.__repr__` not showing its fields as intended. (since 1.3.46)
+- Fix `CommandBaseApplicationCommand.__repr__` not showing its fields as intended. (since 1.3.46)
+- Fix `CommandBaseCustomId.__eq__` could return `False` if `custom_id`-s were passed in different order.
+- Fix `.interactions` decorator not recognizing `ApplicationCommandTargetType`-s when given as integer.
+- Fix `CommandBaseApplicationCommand._pop_application_command_id_for` did not set
+    `._registered_application_command_ids` as `None` when emptied.
+- Fix `CommandBaseApplicationCommand._exhaust_application_command_ids` did not set
+    `._registered_application_command_ids` as `None` when `break` was used in the last cycle.
+- Fix `ResponseModifier.__repr__` was built incorrectly.
+- Fix `SlashCommand.get_schema`'s output's `.options` were unordered in case it is a category
+    causing syncing to not match previously created command(s).
+- Fix `SlashCommandCategory.as_option`'s output's `.options` were unordered in case it is a category
+    causing syncing to not match previously created command(s).
+- Fix adding nested command rejected default even if the new had the same name.
+- Fix `InteractionCommandRouter` 
+
+## 1.3.67 *\[2024-10-05\]*
+
+### Improvements
+
+- In `scaffold` cli command add extra notes about `pyproject` and `env` when pip installing the scaffolded projects.
+- In `scaffold` cli command add package structure and notes to the generated `pyproject` file.
+
+### Bug fixes
+
+- Fix `scaffold` cli command, the generated `{project_name}.bots.{client_name}` file's style was borked.
+- Fix `scaffold` cli command, the generated `{project_name}.plugins.ping` file's style was borked.
+- Fix `find_dot_env_file_in_current_working_directory` not finding the local envfile. 
+- Fix `help` cli command failing to render correct `use` note when executing from dependent project.
+
+## 1.3.66 *\[2024-09-26\]*
+
+### Improvements
+
+- Set operation system requirements to Linux, so people do not come with bugs a non-clown can not reproduce.
+- Add `MessageSnapshot.components`.
+- Add `MessageSnapshot.stickers`.
+- Add `MessageSnapshot.iter_components`.
+- Add `MessageSnapshot.iter_stickers`.
+- Add `MessageSnapshot.sticker`.
+- `Client.interaction_response_message_edit` now allows `poll` parameter (its now allowed in the payload).
+- Add `ERROR_CODES.user_must_be_verified`.
+- Add `ERROR_CODES.file_invalid`.
+- Add `ERROR_CODES.file_type_invalid`.
+- Add `ERROR_CODES.file_max_duration`.
+- Add `ERROR_CODES.emoji_invalid`.
+- Add `ERROR_CODES.file_duration_invalid`.
+- Add `ERROR_CODES.missing_permissions_to_use_sticker`.
+- Add `ERROR_CODES.max_soundboard_sounds`.
+- Add `ERROR_CODES.unknown_sound`.
+- Add `ERROR_CODES.unknown_asset`.
+- Add `Guild.soundboard_sounds` is now populated initially (its now included in the guild payload).
+- `Client.interaction_response_message_create` now returns `message` if applicable (its now included in the payload).
+- `Client.interaction_application_command_acknowledge` now returns `message` if applicable
+    (its now included in the payload).
+- Enforce `utf-8` on writing & reading files to avoid unexpected exceptions on clown operation systems.
+- Add `SUBSCRIPTIONS`.
+- Add `Subscription`.
+- Add `SubscriptionStatus`.
+- Add `Client.subscription_get_sku`.
+- Add `Client.subscription_get_all_sku_user`.
+- Add `Client.subscription_get_chunk_sku_user`.
+- Add `DiscordApiClient.subscription_get_chunk_sku_user`.
+- Add `DiscordApiClient.subscription_get_sku`.
+- Add `RATE_LIMIT_GROUPS.subscription_get_chunk_sku_user`.
+- Add `RATE_LIMIT_GROUPS.subscription_get_sku`.
+- Add `ComponentTypeLayoutFlag`.
+- Add `ComponentType.layout_flags`.
+
+## 1.3.65 *\[2024-09-16\]*
+
+### Bug fixes
+
+- Fix `TopGGClient._request` failing. (Since 1.3.64)
+
+## 1.3.64 *\[2024-09-15\]*
+
+### Improvements
+
+- Add `ConnectionType.amazon_music`.
+- Add `HangType`.
+- Add `ActivityType.hanging`.
+- Add `Activity.hang_type`.
+- Add `ActivityMetadataBase.hang_type`.
+- Add `ActivityMetadataHanging`.
+- `Activity.state` & `.hang_type` fields of an activity are serialized when setting bot presence.
+- Allow setting `Activity` with `.type` set as `ActivityType.custom` as presence.
+- Add `ActivityMetadataBase.buttons`.
+- Add `Activity.buttons`.
+- Add `EmbeddedActivityUserState`.
+- Add `EmbeddedActivityLocationType`.
+- Add `EmbeddedActivity.user_states`.
+- Add `EmbeddedActivity.location`.
+- Add `EmbeddedActivity.instance_id`.
+- Add `EmbeddedActivity.launch_id`.
+- Add `EmbeddedActivity.iter_user_states`.
+- Add `EmbeddedActivity.iter_users`.
+- Add `EmbeddedActivity.partial`.
+- Add `EmbeddedActivity.precreate`.
+- Add `ERROR_CODES.unknown_user_identity_verification`.
+- Add `ERROR_CODES.staff_required`.
+- Add `ERROR_CODES.max_saved_messages`.
+- Handle `EMBEDDED_ACTIVITY_UPDATE_V2` event.
+- Add `RATE_LIMIT_GROUPS.embedded_activity_get`.
+- Add `DiscordApiClient.embedded_activity_get`.
+- Add `Client.embedded_activity_get`.
+- Add `Client.embedded_activity_get`.
+- `VoicePacket.decoded` is now decoded when accessed.
+- Add `VoicePacket.__eq__`.
+- Add `VoicePacket.__hash__`.
+- Add `RTPPacket.payload`.
+- Add `VoiceClient.get_encryption_mode`.
+- Add `RTPPacket.extension_header_start`.
+- Add `RTPPacket.extension_header_start`.
+- Add `RTPPacket.payload_start`.
+- Add `RTPPacket.payload_end`.
+- Add `RTPPacket.padding_count`.
+- Add `RTPPacket.padding`.
+- Add `RTPPacket.from_fields`.
+- Add `RTPPacket.__eq__`.
+- Add `RTPPacket.__hash__`.
+- `VoiceClient` now uses a new encryption adapter system instead of having encryption built in into specific
+    functionalities where they are needed.
+    Note that the newly added encryption modes arent working for unknown reason, so they are disabled.
+- Add `EncryptionAdapterBase`.
+- Add `EncryptionAdapter__aead_aes256_gcm_rtpsize`
+- Add `EncryptionAdapter__aead_xchacha20_poly1305_rtpsize`.
+- Add `EncryptionAdapter__xsalsa20_poly1305`.
+- Add `VoiceClient.set_encryption_mode`.
+- Add `VoiceClient.prefer_encryption_mode_from_options`.
+- Add `GuildFeature.activity_list_disabled`.
+- Add `GuildFeature.activity_list_enabled`.
+
+### Bug fixes
+
+- Fix unexpected `AttributeError` in `AudioReader.run`.
+- `RTPPacket.extensions` was incorrectly handled.
+- `RTPPacket.padding` was not handled.
+- Fix `escape_markdown` ignoring grave character. (Since 1.3.61),
+
+### Renames, Deprecations & Removals
+
+- Rename old `EmbeddedActivityState` to `EmbeddedActivity`.
+- Remove `EmbeddedActivityStateKey`.
+- Rename `EMBEDDED_ACTIVITY_STATES` to `EMBEDDED_ACTIVITIES`
+- Deprecate `EmbeddedActivity.activity`.
+- Deprecate `EmbeddedActivity.user_ids`.
+- Deprecate `EmbeddedActivity.users`.
+- Deprecate `AudioStream`'s `auto_decode` parameter.
+- Rename `RTPPacket.payload` to `.payload_type`.
+- Add `RTPPacket.data` is now the full data and not the data after its payload.
+- Remove `RTPPacket.decrypted`.
+- Rename `RTPPacket.padding` to `.padded`.
+- Rename `RTPPacket.cc` to `.contributing_source_count`.
+- Rename `RTPPacket.csrcs` to `.contributing_sources`.
+- Rename `RTPPacket.extension_values` to `.extensions`.
+
+## 1.3.63 *\[2024-08-20\]*
+
+### Improvements
+
+- Add `Application.approximate_user_install_count`.
+- Add `DiscordApiClient.voice_state_get`.
+- Add `RATELIMIT_GROUPS.voice_state_get`.
+- Add `DiscordApiClient.voice_state_get_own`.
+- Add `RATELIMIT_GROUPS.voice_state_get_own`.
+- Update rate limit group of `voice_state_edit_own` and `voice_state_edit`.
+- Add `Client.voice_state_get`.
+- Add `Client.voice_state_get_own`.
+- Add `Client.application_role_connection_metadata_delete_all`. (Tho it drops method not allowed lul.)
+- Add `DiscordApiClient.application_role_connection_metadata_delete_all`.
+- Add `RATELIMIT_GROUPS.application_role_connection_metadata_delete_all`.
+- Add `ScheduleFrequency`.
+- Add `ScheduleWeekDay`.
+- Add `ScheduleNthWeeksDay`.
+- Add `ScheduleMonth`.
+- Add `Schedule`.
+- Add `ERROR_CODES.unknown_sticker_pack`.
+- Add `ScheduledEvent.schedule`.
+- Add `VoiceChannelEffect.sound_id`.
+- Add `VoiceChannelEffect.sound_volume`.
+- Add `VoiceChannelEffect.sound`.
+
+### Bug fixes
+
+- Fix `CommandFunction` used in cli put an extra linebreak between sign note descriptions.
+
+### Renames, Deprecations & Removals
+
+- Rename `DiscordApiClient.voice_state_user_edit` to `voice_state_edit`.
+- Rename `RATELIMIT_GROUPS.voice_state_user_edit` to `voice_state_edit`.
+- Rename `DiscordApiClient.voice_state_client_edit` to `voice_state_edit_own`.
+- Rename `RATELIMIT_GROUPS.voice_state_client_edit` to `voice_state_edit_own`.
+- `VoiceChannelEffect.__iter__` now yields 0 elements.
+    Now it has to represent 2 things and could not decide what it should yield when unpacked.
+
+## 1.3.62 *\[2024-07-31\]*
+
+### Improvements
+
+- `Client.emoji_create` and `.emoji_edit` now accepts an `emoji_template` parameter.
+    This also changes how positional parameters are ordered.
+- Add `MessageType.poll_result`.
+- Add `EmbedType.poll_result`.
+- Add `Client.emoji_get_application`.
+- Add `Client.emoji_get_all_application`.
+- Add `Client.emoji_create_application`.
+- Add `Client.emoji_edit_application`.
+- Add `Client.emoji_delete_application`.
+- Add `DiscordApiClient.emoji_get_application`.
+- Add `DiscordApiClient.emoji_get_all_application`.
+- Add `DiscordApiClient.emoji_create_application`.
+- Add `DiscordApiClient.emoji_edit_application`.
+- Add `DiscordApiClient.emoji_delete_application`.
+- Add `RATELIMIT_GROUPS.emoji_get_application`.
+- Add `RATELIMIT_GROUPS.emoji_get_all_application`.
+- Add `RATELIMIT_GROUPS.emoji_create_application`.
+- Add `RATELIMIT_GROUPS.emoji_edit_application`.
+- Add `RATELIMIT_GROUPS.emoji_delete_application`.
+- Add `Client.emoji_create_guild` as an alias for `.emoji_create`.
+- Add `Client.emoji_delete_guild` as an alias for `.emoji_delete`.
+- Add `Client.emoji_edit_guild` as an alias for `.emoji_edit`.
+
+### Renames, Deprecations & Removals
+
+- Rename `ActivityType.game` to `.playing`. `.game` is still available as a property.
+- Deprecate using `name` parameter in `Client.emoji_create` as positional.
+- Rename `Client.emoji_guild_get_all` to `emoji_get_all_guild`. Old version is being deprecated.
+- Rename `Client.emoji_get` to `emoji_get_guild`. Old version is being deprecated.
+- Rename `RATELIMIT_GROUPS.emoji_get` to `.emoji_get_guild`.
+- Rename `RATELIMIT_GROUPS.emoji_guild_get_all` to `.emoji_get_all_guild`.
+- Rename `DiscordApiClient.emoji_get` to `.emoji_get_guild`.
+- Rename `DiscordApiClient.emoji_guild_get_all` to `.emoji_get_all_guild`.
+- Rename `RATELIMIT_GROUPS.emoji_create` to `.emoji_create_guild`.
+- Rename `RATELIMIT_GROUPS.emoji_delete` to `.emoji_delete_guild`.
+- Rename `RATELIMIT_GROUPS.emoji_edit` to `.emoji_edit_guild`.
+- Rename `DiscordApiClient.emoji_create` to `.emoji_create_guild`.
+- Rename `DiscordApiClient.emoji_delete` to `.emoji_delete_guild`.
+- Rename `DiscordApiClient.emoji_edit` to `.emoji_edit_guild`.
+
+## 1.3.61 *\[2024-07-23\]*
+
+### Improvements
+
+- Add `GuildProfile.avatar_decoration`.
+- Add `GuildProfile.avatar_decoration_url`.
+- Add `GuildProfile.avatar_decoration_url_as`.
+- Add `GuildProfile.banner`.
+- Add `UserBase.user_banner_url_for`.
+- Add `UserBase.user_banner_url_for_as`.
+- Add `UserBase.user_banner_url_at`.
+- Add `UserBase.user_banner_url_at_as`.
+- `EmbedImage` now respects dimensions in `==` operation if the instance was received.
+- `EmbedThumbnail` now respects dimensions in `==` operation if the instance was received.
+- `EmbedVideo` now respects dimensions in `==` operation if the instance was received.
+- Add `InteractionEvent.authorizer_user_ids`.
+- Add `InteractionEvent.get_authorizer_user_id`.
+- Add `InteractionEvent.get_authorizer_user`.
+- `create_partial_guild_from_data` now also sets `.banner`.
+- Add `MessageSnapshot.type`.
+- Add `MessageSnapshot.mentioned_users`.
+- Add `MessageSnapshot.mentioned_role_ids`.
+- Add `#` and `-` characters to escape in `escape_markdown`.
+- Add `MessageSnapshot.iter_mentioned_role_ids`.
+- Add `MessageSnapshot.iter_mentioned_roles`.
+- Add `MessageSnapshot.mentioned_roles`.
+- Add `MessageSnapshot.iter_mentioned_users`.
+- Add `MessageSnapshot.iter_mentioned_channels`.
+- Add `MessageSnapshot.mentioned_channels`.
+- `Message.from_data` now force updates the embed if non of the clients has access to it.
+- `Client.interaction_followup_message_get` now also accepts `Message` too as parameter (from `int` only).
+
+#### ext.slash
+- Add `Slasher.random_error_message_getter` property to set it after constructor.
+- Allow more relaxed returns from `random_error_message_getter`.
+
+### Bug fixes
+
+- `AuditLogIterator` did not serialize every field for its query parameters correctly. (from 1.3.59)
+
+#### ext.slash
+- Returning value like `(InteractionResponse(...), ...)` caused error while it should not have.
+- Fix `ContextCommand` has no attribute `.default`.
+
+## 1.3.60 *\[2024-07-14\]*
+
+### Improvements
+
+- `Guild.voice_states` is now nullable.
+- Add `Guild.get_voice_state`.
+- `Guild.scheduled_events` is now nullable.
+- `Guild.threads` is now nullable.
+- Load dotenv file in the current working directory too.
+
+### Bug fixes
+
+- Fix `os.geteuid` is a thing only on linux, so we should not import it on other platforms.
+
+#### commands_v2
+- Fix `CheckIsBooster` could return non-boolean.
+
+### plugin_loader
+- Fix `mark_as_plugin_root_directory` not returning `count` as expected.
+
+## 1.3.59 *\[2024-07-07\]*
+
+### Improvements
+
+- Add `Attachment.title`.
+- Add `Attachment.display_name`.
+- Add `AuditLog.__new__`.
+- Add `AuditLog.to_data`.
+- Add `AuditLog.copy`.
+- Add `AuditLog.copy_with`.
+- Add `AuditLog.get_application_command`.
+- Add `AuditLog.get_auto_moderation_rule`.
+- Add `AuditLog.get_integration`.
+- Add `AuditLog.get_scheduled_event`.
+- Add `AuditLog.get_thread`.
+- Add `AuditLog.get_user`.
+- Add `AuditLog.get_webhook`.
+- Add `AuditLog.iter_application_commands`.
+- Add `AuditLog.iter_auto_moderation_rules`.
+- Add `AuditLog.iter_entries`.
+- Add `AuditLog.iter_integrations`.
+- Add `AuditLog.iter_scheduled_events`.
+- Add `AuditLog.iter_threads`.
+- Add `AuditLog.iter_users`.
+- Add `AuditLog.iter_webhooks`.
+- Add `ERROR_CODES.cannot_consume_non_consumable_sku`.
+- Add `ERROR_CODES.cannot_delete_non_test_entitlement`.
+- Add `ERROR_CODES.max_interaction_followup_messages`.
+- Add `AuditLog.__eq__`.
+- Add `AuditLog.__bool__`.
+- Add `AuditLog.from_many`.
+- Add `AuditLogIterator.__repr__`.
+- All created `DateTime` instance is now forced to be created with `utc` time zone.
+
+### Bug fixes
+
+- Fix `SyntaxWarning`-s on python 3.12.
+- Fix `DeprecationWarning`-s on python 3.12 caused by `.utcnow` and familiar calls.
+
+### Renames, Deprecations & Removals
+
+- Rename `AuditLog.__new__` to `.from_data`.
+- De-deprecate `MessageInteraction`'s `user` parameters.
+- Deprecate `MessageInteraction`'s `user_id` parameters. (Someone cooked)
+- Remove `MessageSnapshot.guild_id` as its expected to be removed from the payload.
+
+## 1.3.58 *\[2024-06-12\]*
+
+### Improvements
+
+- Add `HATA_MEDIA_ENDPOINT` env variable.
+- `sticker_url` and `sticker_url_as` now returns the correct urls for `gif` stickers.
+- Add `Client.channel_get`.
+- Add `DiscordApiClient.channel_get`.
+- Add `RATE_LIMIT_GROUPS.channel_get`.
+- Add `ApplicationCommandTargetType.application_activity`.
+- Add `ComponentType.text`.
+- Add `ComponentType.media_gallery`.
+- Add `ComponentType.separator`.
+- Add `SeparatorSpacingSize`.
+- Add `GuildProfileFlag.guest`.
+- Add `GuildProfileFlag.auto_moderation_quarantined_clan_tag`.
+- Add `GuildProfileFlag.privacy_settings_direct_message_promotion_acknowledged`.
+- Add `ComponentMetadataText`.
+- Add `use_external_application_commands` ``Permission``,
+- Add `ComponentMetadataBase.content`.
+- Add `Component.content`
+- Add `ComponentMetadataMediaGallery`.
+- Add `ComponentMetadataBase.items`.
+- Add `Component.items`
+- Add `Component.iter_items`
+- Add `ComponentMetadataSpacing`.
+- Add `ComponentMetadataBase.divider`.
+- Add `ComponentMetadataBase.spacing_size`.
+- Add `Component.divider`
+- Add `Component.spacing_size`
+- Add `create_media_gallery`.
+- Add `create_separator`.
+- Add `create_text`.
+
+#### ext.slash
+- Add `Text`.
+- Add `MediaGallery`.
+- Add `Separator`.
+- Add `SeparatorSpacingSize`.
+
 ## 1.3.57 *\[2024-05-31\]*
 
 ### Improvements
@@ -3160,7 +4275,7 @@ A change like this was requested for a while...
 
 - Deprecate `ApplicationCommand.allow_by_default`.
 
-##### hata.ext.slash
+##### ext.slash
 
 - Add `allow_in_dm` is now accepted by `SlasherApplicationCommand`.
 
@@ -3178,7 +4293,7 @@ A change like this was requested for a while...
 - Add `UserBase.has_name_like_at`.
 ` Improve `.get_user_like` and `.get_users_like` methods.
 
-##### hata.ext.extension_loader
+##### ext.extension_loader
 
 - Add `blocking` parameter to `ExtensionLoader.load`.
 - Add `blocking` parameter to `ExtensionLoader.unload`.
@@ -3197,7 +4312,7 @@ A change like this was requested for a while...
 - Enable calling `hata` without `python3 -m`. (WizzyGeek#2356)
 - `run_console_till_interruption` will now indeed stop at interruption and not only at system exit. (Gilgamesh#8939)
 
-##### hata.ext.commands_v2
+##### ext.commands_v2
 
 - Add `alternative_checked_types` to `ConverterSetting`.
 - Channel parameter annotations are now picked up familiarly to slash commands in favor of deprecating the type usage.
@@ -3216,7 +4331,7 @@ A change like this was requested for a while...
 - Fix a `TypeError` in `Channel.is_guild_voice`. (koish#5800)
 - Fix a `TypeError` in `Channel.is_...` non-group methods.
 
-##### hata.ext.commands_v2
+##### ext.commands_v2
 
 - Fix a `TypeError` in `guild_converter`. (Gilgamesh#8939)
 - Fix a `TypeError` in `invite_converter`.
@@ -3225,7 +4340,7 @@ A change like this was requested for a while...
 
 ### Summary
 
-- Add `hata.ext.solarlink`.
+- Add `ext.solarlink`.
 
 ### Improvements
 
@@ -4807,7 +5922,7 @@ Stop creating functions runtime, but now we remove lambdas.
 - Add `CommandState.get_active_command_count_with_sub_commands`
 - Add `SlasherApplicationCommand.get_real_command_count`.
 
-##### hata.ext.asyncio
+##### ext.asyncio
 
 - Add `LifoQueue.get_nowait`.
 - Add `Queue.get_nowait`.
@@ -5904,7 +7019,7 @@ Rework `role.py` and `permission.py`.
 
 ##### ext.slash
 - `InteractionResponse` with `force_new_message = True` was not handling `show_for_invoking_user_only` correctly.
-- When passing `allowed_mentions`, `tts` to `abort`, do not set `show_for_invoking_user_only=False` if not given.
+- When passing `allowed_mentions`, `tts` to `abort`, do not set `show_for_invoking_user_only = False` if not given.
 
 #### Renames, Deprecation & Removals
 
@@ -6105,7 +7220,7 @@ Reduce `Message` entity size.
 - Add `Preinstance`. (sleep-cult#3040)
 
 ##### ext.slash
-- Update `abort`'s auto `show_for_invoking_user_only`, since now `show_for_invoking_user_only=True` supports embeds.
+- Update `abort`'s auto `show_for_invoking_user_only`, since now `show_for_invoking_user_only = True` supports embeds.
     (Gilgamesh#8939)
 - Add `mentionable_id` parameter support for slash commands.
 - Add `configure_parameter` to overwrite slash command annotations.

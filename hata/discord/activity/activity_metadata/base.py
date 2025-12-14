@@ -5,6 +5,7 @@ from scarletio import RichAttributeErrorBaseType
 from ...bases import PlaceHolder
 
 from .flags import ActivityFlag
+from .preinstanced import HangType
 
 
 def _pop_empty_name(keyword_parameters):
@@ -13,7 +14,7 @@ def _pop_empty_name(keyword_parameters):
 
     Parameters
     ----------
-    keyword_parameters : `dict` of (`str`, `object`) items
+    keyword_parameters : `dict<str, object>`
         Keyword parameters passed to ``Activity.__new__``
     """
     try:
@@ -52,7 +53,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Keyword parameters passed to ``Activity.__new__``
         
         Returns
@@ -72,7 +73,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
     
     def __repr__(self):
         """Returns the activity metadata's representation."""
-        return f'<{self.__class__.__name__}>'
+        return f'<{type(self).__name__}>'
     
     
     def __hash__(self):
@@ -115,7 +116,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Activity data received from Discord.
         
         Returns
@@ -135,14 +136,16 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         ----------
         defaults : `bool` = `False`, Optional (Keyword only)
             Whether fields with their default values should be included as well.
+        
         include_internals : `bool` = `False`, Optional (Keyword only)
             Whether internal fields, like id-s should be present as well.
+        
         user : `bool` = `False`, Optional (Keyword only)
             Whether not only bot compatible fields should be included.
         
         Returns
         -------
-        activity_data : `dict` of (`str`, `object`) items
+        activity_data : `dict<str, object>`
         """
         return {}
     
@@ -153,7 +156,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Data received from Discord.
         """
         pass
@@ -165,12 +168,12 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Data received from Discord.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dict is optional.
         
         Returned Data Structure
@@ -179,33 +182,41 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         +-------------------+-----------------------------------+
         | Keys              | Values                            |
         +===================+===================================+
-        | assets            | `None`, ``ActivityAssets``        |
+        | assets            | ``None | ActivityAssets``         |
         +-------------------+-----------------------------------+
-        | created_at        | `None`, `datetime`                |
+        | buttons           | `None | tuple<str>`               |
         +-------------------+-----------------------------------+
-        | details           | `None`, `str`                     |
+        | created_at        | `None`, `dateTime`                |
         +-------------------+-----------------------------------+
-        | emoji             | `None`, ``Emoji``                 |
+        | details           | `None | str`                      |
+        +-------------------+-----------------------------------+
+        | details_url       | `None | str`                      |
+        +-------------------+-----------------------------------+
+        | emoji             | ``None | Emoji``                  |
         +-------------------+-----------------------------------+
         | flags             | ``ActivityFlag``                  |
+        +-------------------+-----------------------------------+
+        | hang_type         | ``HangType``                      |
         +-------------------+-----------------------------------+
         | name              | `str`                             |
         +-------------------+-----------------------------------+
         | metadata          | ``ActivityMetadataBase``          |
         +-------------------+-----------------------------------+
-        | party             | `None`, ``ActivityParty``         |
+        | party             | ``None | ActivityParty``          |
         +-------------------+-----------------------------------+
-        | secrets           | `None`, ``ActivitySecrets``       |
+        | secrets           | ``None | ActivitySecrets``        |
         +-------------------+-----------------------------------+
-        | session_id        | `None`, `str`                     |
+        | session_id        | `None | str`                      |
         +-------------------+-----------------------------------+
-        | state             | `None`, `str`                     |
+        | state             | `None | str`                      |
         +-------------------+-----------------------------------+
-        | sync_id           | `None`, `str`                     |
+        | state_url         | `None | str`                      |
         +-------------------+-----------------------------------+
-        | timestamps        | `None`, `ActivityTimestamps``     |
+        | sync_id           | `None | str`                      |
         +-------------------+-----------------------------------+
-        | url               | `None`, `str`                     |
+        | timestamps        | ``None | ActivityTimestamps``     |
+        +-------------------+-----------------------------------+
+        | url               | `None | str`                      |
         +-------------------+-----------------------------------+
         """
         return {}
@@ -246,7 +257,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Keyword parameters passed to ``Activity.__new__``
         
         Returns
@@ -283,7 +294,19 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        assets : `None`, ``ActivityAssets``
+        assets : ``None | ActivityAssets``
+        """
+    )
+    
+    
+    buttons = PlaceHolder(
+        None,
+        """
+        Returns the activity's buttons.
+        
+        Returns
+        -------
+        buttons : `None | tuple<str>`
         """
     )
     
@@ -295,7 +318,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        created_at : `None`, `datetime`
+        created_at : `None | DateTime`
         """
     )
     
@@ -307,10 +330,21 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        assets : `None`, `str`
+        details : `None | str`
         """
     )
-
+    
+    
+    details_url = PlaceHolder(
+        None,
+        """
+        Returns the activity's details's url.
+        
+        Returns
+        -------
+        details_url : `None | str`
+        """
+    )
     
     
     emoji = PlaceHolder(
@@ -320,7 +354,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        emoji : `None`, ``Emoji``
+        emoji : ``None | Emoji``
         """
     )
     
@@ -332,7 +366,19 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        assets : ``ActivityFlag``
+        flags : ``ActivityFlag``
+        """
+    )
+    
+    
+    hang_type = PlaceHolder(
+        HangType.none,
+        """
+        Returns the activity's hang state.
+        
+        Returns
+        -------
+        hang_type : ``HangType``
         """
     )
     
@@ -368,7 +414,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        party : `None`, ``ActivityParty``
+        party : ``None | ActivityParty``
         """
     )
     
@@ -380,7 +426,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        secrets : `None`, ``ActivitySecrets``
+        secrets : ``None | ActivitySecrets``
         """
     )
     
@@ -392,10 +438,10 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        session_id : `None`, `str`
+        session_id : `None | str`
         """
     )
-
+    
     
     state = PlaceHolder(
         None,
@@ -406,7 +452,19 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        state : `None`, `str`
+        state : `None | str`
+        """
+    )
+    
+    
+    state_url = PlaceHolder(
+        None,
+        """
+        Returns the activity's state's url.
+        
+        Returns
+        -------
+        state_url : `None | str`
         """
     )
     
@@ -418,7 +476,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        sync_id : `None`, `str`
+        sync_id : `None | str`
         """
     )
     
@@ -430,7 +488,7 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        timestamps : `None`, ``ActivityTimestamps``
+        timestamps : ``None | ActivityTimestamps``
         """
     )
     
@@ -442,6 +500,6 @@ class ActivityMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        url : `None`, `str`
+        url : `None | str`
         """
     )

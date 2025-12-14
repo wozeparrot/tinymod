@@ -1,11 +1,11 @@
 import vampytest
 
-from ...interaction_component import InteractionComponent
+from ....component import ComponentType, InteractionComponent
 
 from ..form_submit import InteractionMetadataFormSubmit
 
 
-def _check_is_all_field_set(interaction_metadata):
+def _assert_fields_set(interaction_metadata):
     """
     Checks whether all fields of the given interaction metadata are set.
     
@@ -19,38 +19,77 @@ def _check_is_all_field_set(interaction_metadata):
     vampytest.assert_instance(interaction_metadata.components, tuple, nullable = True)
 
 
-def test__InteractionMetadataFormSubmit__new__0():
+def test__InteractionMetadataFormSubmit__new__no_fields():
     """
     Tests whether ``InteractionMetadataFormSubmit.__new__`` works as intended.
     
     Case: No fields given.
     """
     interaction_metadata = InteractionMetadataFormSubmit()
-    _check_is_all_field_set(interaction_metadata)
+    _assert_fields_set(interaction_metadata)
 
 
-def test__InteractionMetadataFormSubmit__new__1():
+def test__InteractionMetadataFormSubmit__new__all_fields():
     """
     Tests whether ``InteractionMetadataFormSubmit.__new__`` works as intended.
     
     Case: All fields given.
     """
     custom_id = 'Inaba'
-    components = [InteractionComponent(custom_id = 'Rem')]
+    components = [
+        InteractionComponent(
+            ComponentType.text_input,
+            custom_id = 'Rem',
+        ),
+    ]
     
     interaction_metadata = InteractionMetadataFormSubmit(
         custom_id = custom_id,
         components = components,
     )
-    _check_is_all_field_set(interaction_metadata)
+    _assert_fields_set(interaction_metadata)
     
     vampytest.assert_eq(interaction_metadata.custom_id, custom_id)
     vampytest.assert_eq(interaction_metadata.components, tuple(components))
+
+
+def test__InteractionMetadataFormSubmit__from_keyword_parameters__no_fields():
+    """
+    Tests whether ``InteractionMetadataFormSubmit.from_keyword_parameters`` works as intended.
     
+    Case: No fields given.
+    """
+    interaction_metadata = InteractionMetadataFormSubmit.from_keyword_parameters({})
+    _assert_fields_set(interaction_metadata)
+
+
+def test__InteractionMetadataFormSubmit__from_keyword_parameters__all_fields():
+    """
+    Tests whether ``InteractionMetadataFormSubmit.from_keyword_parameters`` works as intended.
+    
+    Case: All fields given.
+    """
+    custom_id = 'Inaba'
+    components = [
+        InteractionComponent(
+            ComponentType.text_input,
+            custom_id = 'Rem',
+        ),
+    ]
+    
+    interaction_metadata = InteractionMetadataFormSubmit.from_keyword_parameters({
+        'custom_id': custom_id,
+        'components': components,
+    })
+    _assert_fields_set(interaction_metadata)
+    
+    vampytest.assert_eq(interaction_metadata.custom_id, custom_id)
+    vampytest.assert_eq(interaction_metadata.components, tuple(components))
+
 
 def test__InteractionMetadataFormSubmit__create_empty():
     """
     Tests whether ``InteractionMetadataFormSubmit._create_empty`` works as intended.
     """
     interaction_metadata = InteractionMetadataFormSubmit._create_empty()
-    _check_is_all_field_set(interaction_metadata)
+    _assert_fields_set(interaction_metadata)

@@ -1,19 +1,36 @@
 __all__ = (
-    'DefaultAvatar', 'FriendRequestFlag', 'HypesquadHouse', 'PremiumType', 'RelationshipType', 'Status', 'Theme'
+    'DefaultAvatar', 'FriendRequestFlag', 'HypesquadHouse', 'PremiumType', 'RelationshipType', 'Theme'
 )
 
-from scarletio import export
+from warnings import warn
+
+from scarletio import copy_docs, export
 
 from ...bases import Preinstance as P, PreinstancedBase
 from ...color import Color
-from ...http import urls as module_urls
+from ...http.urls import build_default_avatar_url
 
 
-class DefaultAvatar(PreinstancedBase):
+class DefaultAvatar(PreinstancedBase, value_type = int):
     """
     Represents a default avatar of a user. Default avatar is used, when the user has no avatar set.
     
     There are some predefined default avatars and there should be no more instances created.
+    
+    Attributes
+    ----------
+    color : ``Color``
+        The color of the default avatar.
+    
+    name : `str`
+        The name of the default avatar's color.
+    
+    value : ``int`
+        The identifier value of the default avatar.
+    
+    Type Attributes
+    ---------------
+    Every predefined instance can be accessed as a type attribute.
     
     +-----------+-----------+-----------+
     | name      | value     | color     |
@@ -30,32 +47,32 @@ class DefaultAvatar(PreinstancedBase):
     +-----------+-----------+-----------+
     | pink      | 5         | 0xff00a0  |
     +-----------+-----------+-----------+
-    
-    Attributes
-    ----------
-    color : ``Color``
-        The color of the default avatar.
-    name : `str`
-        The name of the default avatar's color.
-    value : ``int`
-        The identifier value of the default avatar.
-        
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``DefaultAvatar``) objects
-        The predefined default avatar instances stored for lookup.
-    VALUE_TYPE : `type` = `int`
-        The default avatars' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the default avatars.
-    DEFAULT_COLOR : ``Color`` = `Color()`
-        The default color of the default avatars.
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    DEFAULT_COLOR = Color()
-    
     __slots__ = ('color',)
+    
+    
+    def __new__(cls, value, name = None, color = None):
+        """
+        Creates a default avatar.
+        
+        Parameters
+        ----------
+        value : `int`
+            The identifier value of the default avatar.
+        
+        name : `None | str` = `None`, Optional
+            The name of the default avatar's color.
+        
+        color : `None | Color` = `None`, Optional
+            The color of the default avatar.
+        """
+        if color is None:
+            color = Color()
+        
+        self = PreinstancedBase.__new__(cls, value, name)
+        self.color = color
+        return self
+    
     
     @classmethod
     def for_(cls, user):
@@ -71,6 +88,12 @@ class DefaultAvatar(PreinstancedBase):
         -------
         default_avatar : ``DefaultAvatar``
         """
+        warn(
+            'Deprecated and will be removed in 2025 December. Please use `UserBase.default_avatar` instead.',
+            FutureWarning,
+            stacklevel = 2,
+        )
+        
         INSTANCES = cls.INSTANCES
         
         discriminator = user.discriminator
@@ -82,53 +105,22 @@ class DefaultAvatar(PreinstancedBase):
         return INSTANCES[key % len(INSTANCES)]
     
     
-    @classmethod
-    def _from_value(cls, value):
+    @copy_docs(PreinstancedBase._put_repr_parts_into)
+    def _put_repr_parts_into(self, repr_parts):
+        repr_parts.append(', color = ')
+        repr_parts.append(repr(self.color))
+    
+    
+    @property
+    def url(self):
         """
-        Creates a new default avatar with the given value.
-        
-        Parameters
-        ----------
-        value : `int`
-            The identifier value of the default avatar.
+        Returns the default avatar's url.
         
         Returns
         -------
-        self : ``DefaultAvatar``
-            The created default avatar.
-        """
-        self = object.__new__(cls)
-        self.value = value
-        self.name = cls.DEFAULT_NAME
-        self.color = self.DEFAULT_COLOR
-        return self
-    
-    
-    def __init__(self, value, name, color):
-        """
-        Creates a default avatar and puts it into the class's `.INSTANCES`.
-        
-        Parameters
-        ----------
-        color : ``Color``
-            The color of the default avatar.
-        name : `str`
-            The name of the default avatar's color.
-        value : ``int`
-            The identifier value of the default avatar.
-        """
-        self.value = value
-        self.name = name
-        self.color = color
-        self.INSTANCES[value] = self
-    
-    
-    def __repr__(self):
-        """Returns the default's avatar's representation."""
-        return f'<{self.__class__.__name__} name = {self.name}, value = {self.value}, color = {self.color!r}>'
-    
-    
-    url = property(module_urls.default_avatar_url)
+        url : `str`
+        """ 
+        return build_default_avatar_url(self.value)
     
     
     # predefined
@@ -140,7 +132,7 @@ class DefaultAvatar(PreinstancedBase):
     pink = P(5, 'pink', Color(0xff00a0))
 
 
-class HypesquadHouse(PreinstancedBase):
+class HypesquadHouse(PreinstancedBase, value_type = int):
     """
     Represents Discord's hypesquad house.
     
@@ -148,23 +140,16 @@ class HypesquadHouse(PreinstancedBase):
     ----------
     value : `int`
         The Discord side identifier value of the hypesquad house.
+    
     name : `str`
         The name of the hypesquad house.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``HypesquadHouse``) items
-        Stores the predefined hypesquad houses. This container is accessed when converting Discord side hypesquad
-        house's value to it's wrapper side representation.
-    VALUE_TYPE : `type` = `int`
-        The hypesquad houses' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the hypesquad houses.
-    
-    Every predefined hypesquad house can also be accessed as class attribute:
+    Type Attributes
+    ---------------
+    Every predefined hypesquad house can also be accessed as type attribute:
     
     +-----------------------+---------------+-------+
-    | Class attribute name  | name          | value |
+    | Type attribute name   | name          | value |
     +=======================+===============+=======+
     | none                  | none          | 0     |
     +-----------------------+---------------+-------+
@@ -175,9 +160,6 @@ class HypesquadHouse(PreinstancedBase):
     | balance               | balance       | 3     |
     +-----------------------+---------------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
 
     # predefined
@@ -187,257 +169,7 @@ class HypesquadHouse(PreinstancedBase):
     balance = P(3, 'balance')
 
 
-class Status(PreinstancedBase):
-    """
-    Represents a Discord user's status.
-    
-    Attributes
-    ----------
-    name : `str`
-        The status's name.
-    position : `int`
-        Internal position of the status for sorting purposes.
-    value : `str`
-        The identifier value of the status.
-    
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`str`, ``Status``) items
-        A container what stores the predefined statuses in `value` - `status` relation. This container is accessed
-        when translating status value to ``Status`` object.
-    VALUE_TYPE : `type` = `str`
-        The statuses' values' type.
-    DEFAULT_NAME : `str` = `''`
-        The default name of the statuses. Statuses sue their value as names, so this field is not used.
-    DEFAULT_POSITION : `int` = `5`
-        The default position of the statuses'.
-    
-    Each predefined status also can be accessed as a class attribute:
-    
-    +-----------------------+-----------+-----------+
-    | Class attribute name  | position  | value     |
-    +=======================+===========+===========+
-    | online                | 0         | idle      |
-    +-----------------------+-----------+-----------+
-    | idle                  | 1         | idle      |
-    +-----------------------+-----------+-----------+
-    | dnd                   | 2         | dnd       |
-    +-----------------------+-----------+-----------+
-    | offline               | 3         | offline   |
-    +-----------------------+-----------+-----------+
-    | invisible             | 3         | invisible |
-    +-----------------------+-----------+-----------+
-    """
-    INSTANCES = {}
-    VALUE_TYPE = str
-    DEFAULT_NAME = ''
-    DEFAULT_POSITION = 4
-    
-    __slots__ = ('position', )
-    
-    def __init__(self, value, name, position):
-        """
-        Creates a new status and stores it at the class's `.INSTANCES` class attribute.
-        
-        Parameters
-        ----------
-        value : `str`
-            The identifier value of the status.
-        name : `str`
-            The status's name.
-        position : `int`
-            Internal position of the status for sorting purposes.
-        """
-        self.value = value
-        self.name = name
-        self.position = position
-        self.INSTANCES[value] = self
-    
-    
-    @classmethod
-    def _from_value(cls, value,):
-        """
-        Creates a new status object from the given value.
-        
-        Parameters
-        ----------
-        value : ``.VALUE_TYPE``
-            The value what has no representation yet.
-        
-        Returns
-        -------
-        self : ``Status``
-            The created status.
-        """
-        self = object.__new__(cls)
-        self.value = value
-        self.name = value
-        self.position = cls.DEFAULT_POSITION
-        self.INSTANCES[value] = self
-        return self
-    
-    def __repr__(self):
-        """Returns the representation of the status."""
-        return f'<{self.__class__.__name__} value = {self.value!r}>'
-    
-    
-    def __gt__(self, other):
-        """Returns whether this status's position is greater than the other's."""
-        other_type = other.__class__
-        self_type = self.__class__
-        if self_type is other_type:
-            pass
-        
-        elif issubclass(other_type, self_type.VALUE_TYPE):
-            try:
-                other = self_type.INSTANCES[other]
-            except KeyError:
-                return False
-        else:
-            return NotImplemented
-        
-        if self.position > other.position:
-            return True
-        else:
-            return False
-    
-    def __ge__(self, other):
-        """Returns whether this status's position is greater than the other's or whether the two status is equal."""
-        other_type = other.__class__
-        self_type = self.__class__
-        if self_type is other_type:
-            pass
-        
-        elif issubclass(other_type, self_type.VALUE_TYPE):
-            try:
-                other = self_type.INSTANCES[other]
-            except KeyError:
-                return False
-        else:
-            return NotImplemented
-        
-        self_position = self.position
-        other_position = other.position
-        if self_position > other_position:
-            return True
-        
-        if self_position < other_position:
-            return False
-        
-        if self.value == other.value:
-            return True
-        
-        return False
-    
-    def __eq__(self, other):
-        """Returns whether the two status is equal."""
-        other_type = other.__class__
-        self_type = self.__class__
-        if self_type is other_type:
-            pass
-        
-        elif issubclass(other_type, self_type.VALUE_TYPE):
-            try:
-                other = self_type.INSTANCES[other]
-            except KeyError:
-                return False
-        else:
-            return NotImplemented
-    
-        if self.position != other.position:
-            return False
-        
-        if self.value == other.value:
-            return True
-        
-        return False
-    
-    def __ne__(self, other):
-        """Returns whether the two status is not equal."""
-        other_type = other.__class__
-        self_type = self.__class__
-        if self_type is other_type:
-            pass
-        
-        elif issubclass(other_type, self_type.VALUE_TYPE):
-            try:
-                other = self_type.INSTANCES[other]
-            except KeyError:
-                return True
-        else:
-            return NotImplemented
-        
-        if self.position != other.position:
-            return True
-            
-        if self.value == other.value:
-            return False
-        
-        return True
-    
-    def __le__(self, other):
-        """Returns whether this status's position is less than the other's or whether the two status is equal."""
-        other_type = other.__class__
-        self_type = self.__class__
-        if self_type is other_type:
-            pass
-        
-        elif issubclass(other_type, self_type.VALUE_TYPE):
-            try:
-                other = self_type.INSTANCES[other]
-            except KeyError:
-                return True
-        else:
-            return NotImplemented
-        
-        self_position = self.position
-        other_position = other.position
-        if self_position < other_position:
-            return True
-        
-        if self_position > other_position:
-            return False
-        
-        if self.value == other.value:
-            return True
-        
-        return False
-    
-    def __lt__(self, other):
-        """Returns whether this status's position is less than the other's."""
-        other_type = other.__class__
-        self_type = self.__class__
-        if self_type is other_type:
-            pass
-        
-        elif issubclass(other_type, self_type.VALUE_TYPE):
-            try:
-                other = self_type.INSTANCES[other]
-            except KeyError:
-                return True
-        else:
-            return NotImplemented
-        
-        if self.position < other.position:
-            return True
-        
-        return False
-    
-    
-    def __hash__(self):
-        """Returns the status's hash value."""
-        return hash(self.value) ^ self.position
-    
-    
-    # predefined
-    online = P('online', 'online', 0)
-    idle = P('idle', 'idle', 1)
-    dnd = P('dnd', 'dnd', 2)
-    offline = P('offline', 'offline', 3)
-    invisible = P('invisible', 'invisible', 3)
-
-
-class PremiumType(PreinstancedBase):
+class PremiumType(PreinstancedBase, value_type = int):
     """
     Represents Discord's premium types.
     
@@ -445,23 +177,16 @@ class PremiumType(PreinstancedBase):
     ----------
     name : `str`
         The default name of the premium type.
+    
     value : `int`
         The Discord side identifier value of the premium type.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``PremiumType``) items
-        A container what stores the predefined premium types and also is accessed when translating their identifier
-        value to their representation.
-    VALUE_TYPE : `type` = `int`
-        The premium types' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the premium types.
-    
-    Each predefined premium type can also be accessed as class attribute:
+    Type Attributes
+    ---------------
+    Each predefined premium type can also be accessed as type attribute:
     
     +-----------------------+---------------+-------+
-    | Class attribute name  | name          | value |
+    | Type attribute name   | name          | value |
     +=======================+===============+=======+
     | none                  | none          | 0     |
     +-----------------------+---------------+-------+
@@ -472,9 +197,6 @@ class PremiumType(PreinstancedBase):
     | nitro_basic           | nitro basic   | 3     |
     +-----------------------+---------------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
     
     # predefined
@@ -485,7 +207,7 @@ class PremiumType(PreinstancedBase):
 
 
 @export
-class RelationshipType(PreinstancedBase):
+class RelationshipType(PreinstancedBase, value_type = int):
     """
     Represents a ``Relationship``'s type.
     
@@ -493,23 +215,16 @@ class RelationshipType(PreinstancedBase):
     ----------
     name : `str`
         The relationship type's name.
+    
     value : `int`
         The Discord side identifier value of the relationship type.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``RelationshipType``) items
-        The predefined relation types stored in a list, so they can be accessed with their respective value as key.
-        This behaviour is used to translate their Discord side value to their representation.
-    VALUE_TYPE : `type` = `int`
-        The relationship types' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the relation types.
-    
-    Each predefined relationship type can also be accessed as class attribute:
+    Type Attributes
+    ---------------
+    Each predefined relationship type can also be accessed as type attribute:
     
     +-----------------------+-------------------+-------+
-    | Class attribute name  | name              | value |
+    | Type attribute name   | name              | value |
     +=======================+===================+=======+
     | stranger              | stranger          | 0     |
     +-----------------------+-------------------+-------+
@@ -526,9 +241,6 @@ class RelationshipType(PreinstancedBase):
     | suggestion            | suggestion        | 6     |
     +-----------------------+-------------------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
     
     # predefined
@@ -541,7 +253,7 @@ class RelationshipType(PreinstancedBase):
     suggestion = P(6, 'suggestion')
 
 
-class FriendRequestFlag(PreinstancedBase):
+class FriendRequestFlag(PreinstancedBase, value_type = int):
     """
     Represents the friend request flags of a user.
     
@@ -549,23 +261,16 @@ class FriendRequestFlag(PreinstancedBase):
     ----------
     name : `str`
         The default name of the friend request flag.
+    
     value : `int`
         Internal identifier value of the friend request flag used for lookup.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``FriendRequestFlag``) items
-        A container to store the predefined friend request flags. This container is accessed by ``.get`` what
-        translates the friend request flags' value to their wrapper side representation.
-    VALUE_TYPE : `type` = `int`
-        The friend request flags' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the friend request flags.
-    
-    Every predefined friend request flag can also be accessed as class attribute:
+    Type Attributes
+    ---------------
+    Every predefined friend request flag can also be accessed as type attribute:
     
     +---------------------------+---------------------------+-------+
-    | Class attribute name      | name                      | value |
+    | Type attribute name       | name                      | value |
     +===========================+===========================+=======+
     | none                      | none                      | 0     |
     +---------------------------+---------------------------+-------+
@@ -578,25 +283,22 @@ class FriendRequestFlag(PreinstancedBase):
     | all                       | all                       | 4     |
     +---------------------------+---------------------------+-------+
     """
-    # class related
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
     
+    
     @classmethod
-    def get(cls, data):
+    def decode(cls, data):
         """
         Converts the friend request flag data sent by Discord to it's wrapper side representation.
         
         Parameters
         ----------
-        data : `None`, `dict` of (`str`, `bool`)
+        data : `None | dict<str, object>`
             Received friend request flag data.
         
         Returns
         -------
-        friend_request_flag : ``FriendRequestFlag``
+        friend_request_flag : `instance<type<cls>>`
         """
         if data is None:
             return cls.none
@@ -641,7 +343,7 @@ class FriendRequestFlag(PreinstancedBase):
     all = P(4, 'all')
 
 
-class Theme(PreinstancedBase):
+class Theme(PreinstancedBase, value_type = str):
     """
     Represents a user's theme.
     
@@ -649,34 +351,30 @@ class Theme(PreinstancedBase):
     ----------
     name : `str`
         the theme's name.
+    
     value : `str`
         The discord side identifier value of the theme.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`str`, ``Theme``) items
-        Stores the predefined themes in `value` - `theme` relation. This container is accessed when converting a theme
-        to it's representation.
-    VALUE_TYPE : `type` = `str`
-        The themes' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the themes.
-    
-    Each predefined theme instance can also be accessed as class attribute:
+    Type Attributes
+    ---------------
+    Each predefined theme instance can also be accessed as type attribute:
     
     +-----------------------+-----------+
-    | Class attribute name  | value     |
+    | Type attribute name   | value     |
     +=======================+===========+
     | dark                  | dark      |
     +-----------------------+-----------+
     | light                 | light     |
     +-----------------------+-----------+
+    | darker                | darker    |
+    +-----------------------+-----------+
+    | midnight              | midnight  |
+    +-----------------------+-----------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = str
-    
     __slots__ = ()
     
     # predefined
     dark = P('dark', 'dark')
     light = P('light', 'light')
+    darker = P('darker', 'darker')
+    midnight = P('midnight', 'midnight')

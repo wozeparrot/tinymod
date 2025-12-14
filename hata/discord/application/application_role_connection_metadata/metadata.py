@@ -6,8 +6,8 @@ from ...localization.utils import hash_locale_dictionary
 
 from .fields import (
     parse_description, parse_description_localizations, parse_key, parse_name, parse_name_localizations, parse_type,
-    put_description_into, put_description_localizations_into, put_key_into, put_name_into, put_name_localizations_into,
-    put_type_into, validate_description, validate_description_localizations, validate_key, validate_name,
+    put_description, put_description_localizations, put_key, put_name, put_name_localizations,
+    put_type, validate_description, validate_description_localizations, validate_key, validate_name,
     validate_name_localizations, validate_type
 )
 from .helpers import escape_name_to_key
@@ -30,13 +30,13 @@ class ApplicationRoleConnectionMetadata(RichAttributeErrorBaseType):
     ----------
     description : `None`, `str`
         The metadata's description.
-    description_localizations : `None`, `dict` of (``Locale``, `str`) items
+    description_localizations : ``None | dict<Locale, str>``
         Localized descriptions of the metadata.
     key : `str`
         The dictionary key for the metadata.
     name : `str`
         The name of the metadata.
-    name_localizations : `None`, `dict` of (``Locale``, `str`) items
+    name_localizations : ``None | dict<Locale, str>``
         Localized names of the metadata.
     type : ``ApplicationRoleConnectionMetadataType``
         The dictionary value's type and their respective operation.
@@ -67,13 +67,15 @@ class ApplicationRoleConnectionMetadata(RichAttributeErrorBaseType):
         description : `None`, `str`, Optional (Keyword only)
             The metadata's description.
         
-        description_localizations : `None`, `dict` of ((`str`, ``Locale``), `str`) items, Optional (Keyword only)
+        description_localizations : ``None | dict<str | Locale, str> | (list | set | tuple<(str | Locale, str>)`` \
+                , Optional (Keyword only)
             Localized descriptions of the metadata.
         
         key : `str`, Optional (Keyword only)
             The dictionary key for the metadata.
         
-        name_localizations : `None`, `dict` of ((`str`, ``Locale``), `str`) items, Optional (Keyword only)
+        name_localizations : ``None | dict<str | Locale, str> | (list | set | tuple<(str | Locale, str>)`` \
+                , Optional (Keyword only)
             Localized names of the metadata.
         
         Raises
@@ -128,7 +130,7 @@ class ApplicationRoleConnectionMetadata(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Role connection data.
         
         Returns
@@ -156,15 +158,15 @@ class ApplicationRoleConnectionMetadata(RichAttributeErrorBaseType):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
-        put_description_into(self.description, data, defaults)
-        put_description_localizations_into(self.description_localizations, data, defaults)
-        put_key_into(self.key, data, defaults)
-        put_name_into(self.name, data, defaults)
-        put_name_localizations_into(self.name_localizations, data, defaults)
-        put_type_into(self.type, data, defaults)
+        put_description(self.description, data, defaults)
+        put_description_localizations(self.description_localizations, data, defaults)
+        put_key(self.key, data, defaults)
+        put_name(self.name, data, defaults)
+        put_name_localizations(self.name_localizations, data, defaults)
+        put_type(self.type, data, defaults)
         return data
     
     
@@ -291,7 +293,8 @@ class ApplicationRoleConnectionMetadata(RichAttributeErrorBaseType):
         description : `None`, `str`, Optional (Keyword only)
             The metadata's description.
         
-        description_localizations : `None`, `dict` of ((`str`, ``Locale``), `str`) items, Optional (Keyword only)
+        description_localizations : ``None | dict<str | Locale, str> | (list | set | tuple<(str | Locale, str>)`` \
+                , Optional (Keyword only)
             Localized descriptions of the metadata.
         
         key : `str`, Optional (Keyword only)
@@ -303,7 +306,8 @@ class ApplicationRoleConnectionMetadata(RichAttributeErrorBaseType):
         name : `str`, Optional (Keyword only)
             The name of the metadata.
         
-        name_localizations : `None`, `dict` of ((`str`, ``Locale``), `str`) items, Optional (Keyword only)
+        name_localizations : ``None | dict<str | Locale, str> | (list | set | tuple<(str | Locale, str>)`` \
+                , Optional (Keyword only)
             Localized names of the metadata.
         
         Returns

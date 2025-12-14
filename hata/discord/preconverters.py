@@ -64,7 +64,7 @@ def preconvert_snowflake_array(snowflake_array, name):
     
     Returns
     -------
-    snowflake_array : `None`, `tuple` of `int`
+    snowflake_array : `None | tuple<int>`
         The returned value is always sorted.
     
     Raises
@@ -100,18 +100,18 @@ def preconvert_snowflake_array(snowflake_array, name):
             else:
                 raise ValueError(
                     f'`{name}`\'s can contain `int`, `str` elements, got `str`, but not a valid snowflake '
-                    f'(7-20 length, digit only), got {snowflake!r}; snowflake_array={snowflake_array!r}.'
+                    f'(7-20 length, digit only), got {snowflake!r}; snowflake_array = {snowflake_array!r}.'
                 )
         else:
             raise TypeError(
                 f'`{name}`\'s can contain `int`, `str` elements, got '
-                f'{snowflake_type.__name__}; {snowflake!r}; snowflake_array={snowflake_array!r}.'
+                f'{snowflake_type.__name__}; {snowflake!r}; snowflake_array = {snowflake_array!r}.'
             )
         
         if snowflake < 0 or snowflake > ((1 << 64) - 1):
             raise ValueError(
                 f'`{name}`\'s elements can be only uint64, got '
-                f'{snowflake!r}; snowflake_array={snowflake_array!r}.'
+                f'{snowflake!r}; snowflake_array = {snowflake_array!r}.'
             )
         
         if snowflake_array_processed is None:
@@ -191,7 +191,7 @@ def preconvert_iterable_of_str(value, name, iterable_lower_limit, iterable_upper
     
     Returns
     -------
-    converted_value : `set` of `str`
+    converted_value : `set<str>`
     
     Raises
     ------
@@ -206,7 +206,7 @@ def preconvert_iterable_of_str(value, name, iterable_lower_limit, iterable_upper
     iterator = getattr(type(value), '__iter__', None)
     if iterator is None:
         raise TypeError(
-            f'`{name}` can be `iterable`, got {value.__class__.__name__}; {value!r}.'
+            f'`{name}` can be `iterable`, got {type(value).__name__}; {value!r}.'
         )
     
     converted_value = set()
@@ -218,7 +218,7 @@ def preconvert_iterable_of_str(value, name, iterable_lower_limit, iterable_upper
             value_element = str(value_element)
         else:
             raise TypeError(
-                f'`{name}` can contain `str` elements, got {value_element.__class__.__name__}; {value_element!r}; '
+                f'`{name}` can contain `str` elements, got {type(value_element).__name__}; {value_element!r}; '
                 f'value = {value!r}.'
             )
         
@@ -276,7 +276,7 @@ def preconvert_bool(value, name):
         value = bool(value)
     else:
         raise TypeError(
-            f'`{name}` can be `bool`, `int` as `0`, `1`, got {value.__class__.__name__}; {value!r}.'
+            f'`{name}` can be `bool`, `int` as `0`, `1`, got {type(value).__name__}; {value!r}.'
         )
     
     return value
@@ -306,7 +306,7 @@ def preconvert_flag(flag, name, type_):
     ValueError
         If `flag` was given as `int`, but it's value is less than `0` or it's bit length is over `64`.
     """
-    flag_type = flag.__class__
+    flag_type = type(flag)
     if (flag_type is type_):
         pass
     elif issubclass(flag_type, int):
@@ -352,7 +352,7 @@ def preconvert_preinstanced_type(value, name, type_):
     if (value_type is not type_):
         value_expected_type = type_.VALUE_TYPE
         if value is None:
-            value = type_.get(value)
+            value = type_(value)
         
         elif value_type is value_expected_type:
             pass
@@ -527,7 +527,7 @@ def preconvert_float(value, name, lower_limit, upper_limit):
 
 def get_type_names(type_or_types):
     """
-    Gets the given type(s)'s name closed within \` characters.
+    Gets the given type(s)'s name closed within \\` characters.
     
     Parameters
     ----------

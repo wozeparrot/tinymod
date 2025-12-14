@@ -6,7 +6,7 @@ from types import FunctionType
 
 from scarletio import CallableAnalyzer, RichAttributeErrorBaseType, cached_property, copy_docs
 
-from ...discord.bases import FlagBase
+from ...discord.bases import FlagBase, FlagDescriptor as F
 from ...discord.channel import Channel
 from ...discord.client import Client
 from ...discord.color import Color, parse_color
@@ -50,7 +50,7 @@ class ContentParameterParserContextBase(RichAttributeErrorBaseType):
     
     Attributes
     ----------
-    _cache : `dict` of (`str`, `object`)
+    _cache : `dict<str, object>`
         Cache used by cached properties.
     _parsed : `re.Match`
         The parsed regex.
@@ -165,7 +165,7 @@ class ContentParameterParserContextSeparator(ContentParameterParserContextBase):
     
     Attributes
     ----------
-    _cache : `dict` of (`str`, `object`)
+    _cache : `dict<str, object>`
         Cache used by cached properties.
     _parsed : `re.Match`
         The parsed regex.
@@ -196,7 +196,7 @@ class ContentParameterParserContextEncapsulator(ContentParameterParserContextBas
     
     Attributes
     ----------
-    _cache : `dict` of (`str`, `object`)
+    _cache : `dict<str, object>`
         Cache used by cached properties.
     _parsed : `re.Match`
         The parsed regex.
@@ -316,7 +316,7 @@ class ContentParameterParser(RichAttributeErrorBaseType):
                 for index in range(2):
                     element = processed_separator[index]
                     
-                    element_type = element.__class__
+                    element_type = type(element)
                     if element_type is str:
                         processed_element = element
                     elif issubclass(element_type, str):
@@ -325,19 +325,19 @@ class ContentParameterParser(RichAttributeErrorBaseType):
                     else:
                         raise TypeError(
                             f'`separator[{index}]` is not `str` as expected, got {element_type.__name__};'
-                            f' {element}; separator={processed_separator!r}.'
+                            f' {element}; separator = {processed_separator!r}.'
                         )
                     
                     if len(processed_element) != 1:
                         raise ValueError(
                             f'`separator[{index}]` length should have been `1`, got {len(processed_element)}; '
-                            f'{processed_element!r}; separator={processed_separator!r}.'
+                            f'{processed_element!r}; separator = {processed_separator!r}.'
                         )
                     
                     if processed_element.isspace():
                         raise ValueError(
                             f'`separator[{index}]` cannot be a space character, got {len(processed_element)}; '
-                            f'{processed_element!r}; separator={processed_separator!r}.'
+                            f'{processed_element!r}; separator = {processed_separator!r}.'
                         )
                 
                 separator = tuple(processed_separator)
@@ -368,19 +368,19 @@ class ContentParameterParser(RichAttributeErrorBaseType):
         assigner_escaped = re.escape(assigner)
         if separator_type is str:
             escaped_separator = re.escape(separator)
-            rp = re.compile(f'[{escaped_separator}\s]*((?:([^\s{assigner_escaped}]+?)\s*{assigner_escaped}\s+)?(.+?))\s*(?:$|[{escaped_separator})]+)', re.M | re.S)
+            rp = re.compile(f'[{escaped_separator}\\s]*((?:([^\\s{assigner_escaped}]+?)\\s*{assigner_escaped}\\s+)?(.+?))\\s*(?:$|[{escaped_separator})]+)', re.M | re.S)
             
             context_class = ContentParameterParserContextSeparator
         else:
             start, end = separator
             if start == end:
                 escaped_separator = re.escape(start)
-                rp = re.compile(f'\s*(?:([^\s{assigner_escaped}]+?)\s*{assigner_escaped}\s+)?(?:(?:{escaped_separator}(.+?)(?:$|{escaped_separator}))|(?:(.+?)(?:$|[{escaped_separator}\s]+)))', re.M | re.S)
+                rp = re.compile(f'\\s*(?:([^\\s{assigner_escaped}]+?)\\s*{assigner_escaped}\\s+)?(?:(?:{escaped_separator}(.+?)(?:$|{escaped_separator}))|(?:(.+?)(?:$|[{escaped_separator}\\s]+)))', re.M | re.S)
             
             else:
                 separator_start_escaped = re.escape(start)
                 separator_end_escaped = re.escape(end)
-                rp = re.compile(f'\s*(?:([^\s{assigner_escaped}]+?)\s*{assigner_escaped}\s+)?(?:(?:{separator_start_escaped}(.+?)(?:$|{separator_end_escaped}))|(?:(.+?)(?:$|[{separator_start_escaped}\s]+)))', re.M | re.S)
+                rp = re.compile(f'\\s*(?:([^\\s{assigner_escaped}]+?)\\s*{assigner_escaped}\\s+)?(?:(?:{separator_start_escaped}(.+?)(?:$|{separator_end_escaped}))|(?:(.+?)(?:$|[{separator_start_escaped}\\s]+)))', re.M | re.S)
             
             context_class = ContentParameterParserContextEncapsulator
         
@@ -392,6 +392,7 @@ class ContentParameterParser(RichAttributeErrorBaseType):
         
         CONTENT_ARGUMENT_PARSERS[(separator, assigner)] = self
         return self
+
     
     def __call__(self, content, index):
         """
@@ -481,7 +482,7 @@ def parse_channel_mention(part, message):
         
     Returns
     -------
-    channel : `None`, ``Channel``
+    channel : ``None | Channel``
     """
     mentioned_channels = message.mentioned_channels
     if mentioned_channels is None:
@@ -496,7 +497,7 @@ def parse_channel_mention(part, message):
         if channel.id == channel_id:
             return channel
 
-REST_PARSER_RP = re.compile('\s*(.*?)\s*', re.M | re.S)
+REST_PARSER_RP = re.compile('\\s*(.*?)\\s*', re.M | re.S)
 
 
 def parse_rest_content(content, index):
@@ -586,14 +587,12 @@ class ConverterFlag(FlagBase):
     
     Some parsers, like `int` / `str` do not have any flags, what means, their behaviour cannot be altered.
     """
-    __keys__ = {
-        'url': 0,
-        'mention': 1,
-        'name': 2,
-        'id': 3,
-        'everywhere': 4,
-        'profile': 5,
-    }
+    url = F(0)
+    mention = F(1)
+    name = F(2)
+    id = F(3)
+    everywhere = F(4)
+    profile = F(5)
     
     user_default = NotImplemented
     user_all = NotImplemented
@@ -634,12 +633,12 @@ ConverterFlag.sticker_default = ConverterFlag().update_by_keys(name = True, id =
 ConverterFlag.sticker_all = ConverterFlag.sticker_default.update_by_keys(everywhere = True)
 
 
-CONVERTER_FLAG_URL = 1 << ConverterFlag.__keys__['url']
-CONVERTER_FLAG_MENTION = 1 << ConverterFlag.__keys__['mention']
-CONVERTER_FLAG_NAME = 1 << ConverterFlag.__keys__['name']
-CONVERTER_FLAG_ID = 1 << ConverterFlag.__keys__['id']
-CONVERTER_FLAG_EVERYWHERE = 1 << ConverterFlag.__keys__['everywhere']
-CONVERTER_FLAG_PROFILE = 1 << ConverterFlag.__keys__['profile']
+CONVERTER_FLAG_URL = ConverterFlag.url.mask
+CONVERTER_FLAG_MENTION = ConverterFlag.mention.mask
+CONVERTER_FLAG_NAME = ConverterFlag.name.mask
+CONVERTER_FLAG_ID = ConverterFlag.id.mask
+CONVERTER_FLAG_EVERYWHERE = ConverterFlag.everywhere.mask
+CONVERTER_FLAG_PROFILE = ConverterFlag.profile.mask
 
 
 
@@ -1741,7 +1740,7 @@ async def _message_converter_m_id(command_context, content_parser_parameter_deta
     
     # Try to get message by id
     client = command_context.client
-    if channel.cached_permissions_for(client).can_read_message_history:
+    if channel.cached_permissions_for(client).read_message_history:
         try:
             message = await client.message_get((channel.id, message_id))
         except BaseException as err:
@@ -1767,6 +1766,7 @@ async def _message_converter_m_id(command_context, content_parser_parameter_deta
         # The message is given by id, but the client request it.
         return None
 
+
 # Gets a message by it's and it's channel's id
 async def _message_converter_cm_id(command_context, content_parser_parameter_detail, channel_id, message_id):
     channel = command_context.message.channel
@@ -1791,7 +1791,7 @@ async def _message_converter_cm_id(command_context, content_parser_parameter_det
     if content_parser_parameter_detail.flags & CONVERTER_FLAG_EVERYWHERE:
         # Lets use that multi client core
         for client in message_channel.clients:
-            if message_channel.cached_permissions_for(client).can_read_message_history:
+            if message_channel.cached_permissions_for(client).read_message_history:
                 try:
                     message = await client.message_get((message_channel.id,  message_id))
                 except BaseException as err:
@@ -1824,7 +1824,7 @@ async def _message_converter_cm_id(command_context, content_parser_parameter_det
     guild = channel.guild
     if (message_channel is channel) if (guild is None) else (message_channel.guild is guild):
         client = command_context.client
-        if channel.cached_permissions_for(client).can_read_message_history:
+        if channel.cached_permissions_for(client).read_message_history:
             try:
                 message = await client.message_get((message_channel.id, message_id))
             except BaseException as err:
@@ -2056,7 +2056,7 @@ class ContentParserParameterDetail(RichAttributeErrorBaseType):
     
     def __repr__(self):
         """Returns the ``ContentParserParameterDetail``'s representation."""
-        repr_parts = ['<', self.__class__.__name__, ' converter_setting = ']
+        repr_parts = ['<', type(self).__name__, ' converter_setting = ']
         converter_setting = self.converter_setting
         repr_parts.append(repr(converter_setting))
         
@@ -2128,7 +2128,7 @@ class ContentParserParameter(RichAttributeErrorBaseType):
     
     Parameters
     ----------
-    default : `None`, `object`
+    default : `None | object`
         The default object to return if the parser fails.
     description : `None`, `str`
         The description of the parameter if any.
@@ -2231,7 +2231,7 @@ class ContentParserParameter(RichAttributeErrorBaseType):
                             raise TypeError(
                                 f'`annotation` was given as `tuple`, but it\'s 0th element was not given '
                                 f'as any of the expected values: `None`, `type`, `str`, `set`, got '
-                                f'{annotation_tuple_type.__class__.__name__}; {annotation_tuple_type!r}.'
+                                f'{type(annotation_tuple_type).__name__}; {annotation_tuple_type!r}.'
                             )
                 
                 
@@ -2243,7 +2243,7 @@ class ContentParserParameter(RichAttributeErrorBaseType):
                 else:
                     raise TypeError(
                         f'`annotation` description can be `str`, got '
-                        f'{annotation_tuple_description.__class__.__name__}; {annotation_tuple_description!r}.'
+                        f'{type(annotation_tuple_description).__name__}; {annotation_tuple_description!r}.'
                     )
                 
                 
@@ -2256,14 +2256,14 @@ class ContentParserParameter(RichAttributeErrorBaseType):
                     else:
                         raise TypeError(
                             f'`annotation` name can be `str`, got '
-                            f'{annotation_tuple_name.__class__.__name__}; {annotation_tuple_name!r}.'
+                            f'{type(annotation_tuple_name).__name__}; {annotation_tuple_name!r}.'
                         )
                 
                 break
             
             raise TypeError(
                 f'`annotation` can be `None`, `type`, `str`, `tuple`, `set`, got '
-                f'{annotation.__class__.__name__}; {annotation!r}.'
+                f'{type(annotation).__name__}; {annotation!r}.'
             )
         
         
@@ -2316,9 +2316,7 @@ class ContentParserParameter(RichAttributeErrorBaseType):
     
     def __repr__(self):
         """Returns the content parser parameter's representation."""
-        repr_parts = ['<', self.__class__.__name__,
-            ' name = ', repr(self.name),
-         ]
+        repr_parts = ['<', type(self).__name__, ' name = ', repr(self.name)]
         
         if self.has_default:
             repr_parts.append(', default = ')
@@ -2485,7 +2483,7 @@ class ContentParserParameter(RichAttributeErrorBaseType):
         
         Returns
         -------
-        parsed : `None`, `object`
+        parsed : `None | object`
             The parsed object if any.
         """
         detail = self.detail
@@ -3302,7 +3300,7 @@ def get_first_non_none_parsed_value(parsed_values):
 
     Returns
     -------
-    value : `None`, `object`
+    value : `None | object`
         The parsed value if any.
     """
     if (parsed_values is not None):
@@ -3324,7 +3322,7 @@ def get_all_non_none_parsed_value(parsed_values):
 
     Returns
     -------
-    values : `None`, `object`
+    values : `None | object`
         The parsed value if any.
     """
     values = []

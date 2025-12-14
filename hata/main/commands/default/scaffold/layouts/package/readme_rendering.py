@@ -252,6 +252,11 @@ def render_readme_section_structure_pyproject(into):
         '### ./pyproject.toml\n'
         '\n'
         'A text file that specifies what build dependencies your package needs.\n'
+        '\n'
+        'It also affects what happens when you try to `pip install .` or `pip install git+<URL>` the package, \n'
+        'so please make sure it is up to date before installing.'
+        '\n'
+        'For reference please read the file itself.\n'
     )
     
     return into
@@ -303,11 +308,18 @@ def render_readme_section_structure_dot_env(into, project_name):
     into.append(
         '/.env\n'
         '\n'
-        'A `.env` file is a text file containing key - value pairs of environment variables. This file is normally\n'
-        'included with a project, but not committed to source.\n'
+        'A `.env` file is a text file containing key - value pairs of environment variables.\n'
+        'This file is normally included with a project, but not committed to source.\n'
         '\n'
         '`.env` files are used to store sensitive credentials. Your discord applications\' tokens are loaded from\n'
-        'here too, so make sure it is populated correctly before starting your project.\n'
+        'here too, so make sure it is **populated before starting your project.**\n'
+        'To test things out & use the project cli it does not need to be populated correctly,\n'
+        'just should not contain empty values.\n'
+        '\n'
+        'Since the `.env` file is not committed to the source it may raise a question:\n'
+        '"If I want to ship my project through git, is it necessary to copy it every time?"\n'
+        'Do not fret, the `.env` file is not read only from the package\'s directory,\n'
+        'but also from the current working directory as well.\n'
     )
     
     return into
@@ -597,7 +609,7 @@ def render_readme_section_structure_plugins_init(into, project_name):
     into.append('### ./')
     into.append(project_name)
     into.append(
-        '/plugins/\_\_init\_\_.py\n'
+        '/plugins/\\_\\_init\\_\\_.py\n'
         '\n'
         'This `__init__.py` is required for cross-plugin imports.\n'
         '\n'
@@ -635,7 +647,7 @@ def render_readme_section_structure_plugins_ping(into, project_name):
     return into
 
 
-def render_readme_section_install(into):
+def render_readme_section_running(into, project_name):
     """
     Renders the `README.md`'s `install` section.
     
@@ -644,6 +656,9 @@ def render_readme_section_install(into):
     into : `list` of `str`
         Content parts to render into.
     
+    project_name : `str`
+        The project's name.
+    
     Returns
     -------
     into : `list` of `str`
@@ -651,37 +666,55 @@ def render_readme_section_install(into):
     executable_name = get_short_executable()
     
     into.append(
-        '## Install\n'
+        '## Running\n'
+        '\n'
+        '### Running from current directory\n'
+        '\n'
+        'If you want to run the project from the current directory, first populate the local `.env` file at \n'
+        '`./dipp/.env`. Then open terminal (or navigate) to this directory and run:\n'
         '\n'
         '```\n'
         '$ '
     )
     into.append(executable_name)
+    into.append(' -m ')
+    into.append(project_name)
+    into.append(
+        ' help\n'
+        '```\n'
+        '\n'
+        '### Running as a package\n'
+        '\n'
+        'Running as a package is recommended when deploying the project.\n'
+        'You can use the `pip` module to install it:\n'
+        '\n'
+        '- From current directory:\n'
+        '    ```\n'
+        '    $ '
+    )
+    into.append(executable_name)
     into.append(
         ' -m pip install .\n'
-        '```\n'
+        '    ```\n'
+        '- From git:\n'
+        '    ```\n'
+        '    $ '
     )
-    
-    return into
-
-
-def render_readme_section_cli(into, project_name):
-    """
-    Renders the `README.md`'s `cli` section.
-    
-    Parameters
-    ----------
-    into : `list` of `str`
-        Content parts to render into.
-    
-    Returns
-    -------
-    into : `list` of `str`
-    """
-    executable_name = get_short_executable()
-    
+    into.append(executable_name)
     into.append(
-        '## Running CLI\n'
+        ' -m pip install git+<URL>\n'
+        '    ```\n'
+        '\n'
+        'Note that what exactly is installed is described in [./pyproject.toml](#pyprojecttoml).\n'
+        'Make sure to take a look at it after creating / removing directories.\n'
+        '\n'
+        'The installed package has no `.env` file present.\n'
+        'You do not need to place a new `.env` file at `site-packages/'
+    )
+    into.append(project_name)
+    into.append(
+        '/`, instead create one at the location from\n'
+        'where the project will be started up. When its done and populated you are ready to run it:\n'
         '\n'
         '```\n'
         '$ '
@@ -727,7 +760,5 @@ def build_readme_content(project_name, bot_names):
     content_parts.append('\n')
     render_readme_section_structure_into(content_parts, project_name, bot_names)
     content_parts.append('\n')
-    render_readme_section_install(content_parts)
-    content_parts.append('\n')
-    render_readme_section_cli(content_parts, project_name)
+    render_readme_section_running(content_parts, project_name)
     return ''.join(content_parts)

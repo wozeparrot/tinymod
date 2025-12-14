@@ -1,9 +1,47 @@
-__all__ = ('SKUAccessType', 'SKUFeature', 'SKUGenre', 'SKUType',)
+__all__ = ('SKUAccessType', 'SKUFeature', 'SKUGenre', 'SKUProductFamily', 'SKUType',)
 
 from ...bases import Preinstance as P, PreinstancedBase
 
 
-class SKUFeature(PreinstancedBase):
+
+class SKUAccessType(PreinstancedBase, value_type = int):
+    """
+    Represents an SKU's access type.
+    
+    Attributes
+    ----------
+    name : `str`
+        The name of the type.
+    
+    value : `int`
+        The Discord side identifier value of the SKU access type.
+        
+    Type Attributes
+    ---------------
+    Every predefined SKU access type can be accessed as type attribute as well:
+    
+    +-----------------------+---------------+-------+
+    | Type attribute name   | name          | Value |
+    +=======================+===============+=======+
+    | none                  | none          | 0     |
+    +-----------------------+---------------+-------+
+    | full                  | full          | 1     |
+    +-----------------------+---------------+-------+
+    | early_access          | early access  | 2     |
+    +-----------------------+---------------+-------+
+    | vip_access            | vip access    | 3     |
+    +-----------------------+---------------+-------+
+    """
+    __slots__ = ()
+    
+    # predefined
+    none = P(0, 'none')
+    full = P(1, 'full')
+    early_access = P(2, 'early access')
+    vip_access = P(3, 'vip access')
+
+
+class SKUFeature(PreinstancedBase, value_type = int):
     """
     Represents an SKU's feature type.
     
@@ -11,22 +49,16 @@ class SKUFeature(PreinstancedBase):
     ----------
     name : `str`
         The name of the SKU feature type.
+    
     value : `int`
         The Discord side identifier value of the SKU feature type.
         
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``SKUFeature``) items
-        Stores the created SKU feature type instances. This container is accessed when translating a Discord
-        SKU feature type's value to it's representation.
-    VALUE_TYPE : `type` = `int`
-        The SKU feature types' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the SKU feature types.
+    Type Attributes
+    ---------------
+    Every predefined SKU feature type can be accessed as type attribute as well:
     
-    Every predefined SKU feature type can be accessed as class attribute as well:
     +-----------------------+-----------------------+-------+
-    | Class attribute name  | name                  | value |
+    | Type attribute name   | name                  | value |
     +=======================+=======================+=======+
     | none                  | none                  | 0     |
     +-----------------------+-----------------------+-------+
@@ -57,9 +89,6 @@ class SKUFeature(PreinstancedBase):
     | secure_networking     | secure networking     | 13    |
     +-----------------------+-----------------------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
     
     # predefined
@@ -79,7 +108,7 @@ class SKUFeature(PreinstancedBase):
     secure_networking = P(13, 'secure networking')
 
 
-class SKUGenre(PreinstancedBase):
+class SKUGenre(PreinstancedBase, value_type = int):
     """
     Represents an SKU's feature type.
     
@@ -87,22 +116,16 @@ class SKUGenre(PreinstancedBase):
     ----------
     name : `str`
         The name of the SKU genre type.
+    
     value : `int`
         The Discord side identifier value of the SKU genre.
         
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``SKUGenre``) items
-        Stores the created SKU genre instances. This container is accessed when translating a Discord
-        SKU genre's value to it's representation.
-    VALUE_TYPE : `type` = `int`
-        The SKU genres' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the SKU genres.
+    Type Attributes
+    ---------------
+    Every predefined SKU genre can be accessed as type attribute as well:
     
-    Every predefined SKU genre can be accessed as class attribute as well:
     +-----------------------+-----------------------+-------+
-    | Class attribute name  | Name                  | Value |
+    | Type attribute name   | Name                  | Value |
     +=======================+=======================+=======+
     | none                  | none                  | 0     |
     +-----------------------+-----------------------+-------+
@@ -310,81 +333,79 @@ class SKUGenre(PreinstancedBase):
     trivia_board_game = P(65, 'trivia board game')
 
 
-class SKUAccessType(PreinstancedBase):
+class SKUProductFamily(PreinstancedBase, value_type = int):
     """
-    Represents an SKU's access type.
+    Represents an SKU's product family.
     
     Attributes
     ----------
     name : `str`
         The name of the type.
-    value : `int`
-        The Discord side identifier value of the SKU access type.
-        
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``SKUAccessType``) items
-        Stores the created SKU access type instances. This container is accessed when translating a Discord
-        SKU access type's value to it's representation.
-    VALUE_TYPE : `type` = `int`
-        The SKU access types' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the SKU access types.
     
-    Every predefined SKU access type can be accessed as class attribute as well:
+    value : `int`
+        The Discord side identifier value of the SKU product family.
+        
+    Type Attributes
+    ---------------
+    Every predefined SKU product family can be accessed as type attribute as well:
+    
     +-----------------------+---------------+-------+
-    | Class attribute name  | name          | Value |
+    | Type attribute name   | name          | Value |
     +=======================+===============+=======+
     | none                  | none          | 0     |
     +-----------------------+---------------+-------+
-    | full                  | full          | 1     |
+    | premium               | premium       | 1     |
     +-----------------------+---------------+-------+
-    | early_access          | early access  | 2     |
+    | boost                 | boost         | 2     |
     +-----------------------+---------------+-------+
-    | vip_access            | vip access    | 3     |
+    | activity_iap          | activity_iap  | 3     |
+    +-----------------------+---------------+-------+
+    | guild_role            | guild_role    | 4     |
+    +-----------------------+---------------+-------+
+    | guild_product         | guild_product | 5     |
+    +-----------------------+---------------+-------+
+    | application           | application   | 6     |
+    +-----------------------+---------------+-------+
+    | collectibles          | collectibles  | 7     |
     +-----------------------+---------------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
     
     # predefined
     none = P(0, 'none')
-    full = P(1, 'full')
-    early_access = P(2, 'early access')
-    vip_access = P(3, 'vip access')
+    premium = P(1, 'premium')
+    boost = P(2, 'boost')
+    activity_iap = P(3, 'activity iap')
+    guild_role = P(4, 'guild role')
+    guild_product = P(5, 'guild product')
+    application = P(6, 'application')
+    collectibles = P(7, 'collectibles')
 
 
-class SKUType(PreinstancedBase):
+class SKUType(PreinstancedBase, value_type = int):
     """
     Represents an SKU's type.
     
     Attributes
     ----------
-    name : `str`
-        The name of the type.
-    value : `int`
-        The Discord side identifier value of the SKU type.
     giftable : `bool`
         Whether the stock keeping unit is giftable.
+    
+    name : `str`
+        The name of the type.
+    
     package : `bool`
         Whether the stock keeping unit is a package (or bundle).
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``SKUType``) items
-        Stores the created SKU type instances. This container is accessed when translating a Discord
-        SKU type's value to it's representation.
-    VALUE_TYPE : `type` = `int`
-        The SKU types' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the SKU types.
+    value : `int`
+        The Discord side identifier value of the SKU type.
     
-    Every predefined SKU type can be accessed as class attribute as well:
+    Type Attributes
+    ---------------
+    Every predefined SKU type can be accessed as type attribute as well:
     
     +-----------------------+-----------------------+-------+-----------+-----------+
-    | Class attribute name  | Name                  | Value | Giftable  | Package   |
+    | Type attribute name   | Name                  | Value | Giftable  | Package   |
     +=======================+=======================+=======+===========+===========+
     | none                  | none                  | 0     | `False`   | `False`   |
     +-----------------------+-----------------------+-------+-----------+-----------+
@@ -401,57 +422,30 @@ class SKUType(PreinstancedBase):
     | subscription_group    | subscription group    | 6     | `False`   | `True`    |
     +-----------------------+-----------------------+-------+-----------+-----------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ('giftable', 'package')
     
-
-    @classmethod
-    def _from_value(cls, value):
+    def __new__(cls, value, name = None, giftable = False, package = False):
         """
-        Creates a new stock keeping unit type with the given value.
-        
-        Parameters
-        ----------
-        value : `int`
-            The stock keeping unit type's identifier value.
-        
-        Returns
-        -------
-        self : `instance<cls>`
-            The created instance.
-        """
-        self = object.__new__(cls)
-        self.name = cls.DEFAULT_NAME
-        self.value = value
-        self.giftable = False
-        self.package = False
-        
-        return self
-    
-    
-    def __init__(self, value, name, giftable, package):
-        """
-        Creates a stock keeping unit type and stores it at the class's `.INSTANCES` class attribute as well.
+        Creates a stock keeping unit type.
         
         Parameters
         ----------
         value : `int`
             The Discord side identifier value of the stock keeping unit type.
-        name : `str`
+        
+        name : `None | str` = `None˙, Optional
             The default name of the stock keeping unit type.
-        giftable : `bool`
+        
+        giftable : `bool` = `False`, Optional
             Whether the stock keeping unit is giftable.
-        package : `bool`
+        
+        package : `bool` = `False`, Optional
             Whether the stock keeping unit is a package (or bundle).
         """
-        self.value = value
-        self.name = name
+        self = PreinstancedBase.__new__(cls, value, name)
         self.giftable = giftable
         self.package = package
-        
-        self.INSTANCES[value] = self
+        return self
     
     
     # predefined

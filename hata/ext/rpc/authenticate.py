@@ -1,7 +1,6 @@
 __all__ = ('AuthenticateResponse', 'Oauth2Application', )
 
 from ...discord.bases import DiscordEntity, IconSlot
-from ...discord.http import urls as module_urls
 from ...discord.oauth2 import Oauth2Scope
 from ...discord.user import User
 from ...discord.utils import timestamp_to_datetime
@@ -31,7 +30,7 @@ class AuthenticateResponse:
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Authenticate response data.
         
         Returns
@@ -43,7 +42,7 @@ class AuthenticateResponse:
         raw_scopes = data['raw_scopes']
         scopes = set()
         for scope in raw_scopes:
-            scope = Oauth2Scope.get(scope)
+            scope = Oauth2Scope(scope)
             scopes.add(scope)
         
         expires = timestamp_to_datetime(data['date'])
@@ -60,7 +59,7 @@ class AuthenticateResponse:
     
     def __repr__(self):
         """Returns the authenticate representation."""
-        return f'<{self.__class__.__name__} user = {self.user!r}>'
+        return f'<{type(self).__name__} user = {self.user!r}>'
 
 
 class Oauth2Application(DiscordEntity):
@@ -77,16 +76,13 @@ class Oauth2Application(DiscordEntity):
         The application's icon's type.
     name : `str`
         The application's name.
-    rpc_origins : `None`, `tuple` of `str`.
+    rpc_origins : `None | tuple<str>`.
         Rpc origin urls.
     """
-    icon = IconSlot('icon', 'icon',
-        module_urls.application_icon_url,
-        module_urls.application_icon_url_as,
-        add_updater = False,
-    )
+    icon = IconSlot('icon', 'icon', add_updater = False)
     
     __slots__ = ('description', 'name', 'rpc_origins',)
+    
     
     @classmethod
     def from_data(cls, data):
@@ -95,7 +91,7 @@ class Oauth2Application(DiscordEntity):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Application oauth2 data.
         
         Returns
