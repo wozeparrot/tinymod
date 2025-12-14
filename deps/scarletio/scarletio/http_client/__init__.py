@@ -2,20 +2,35 @@ from .client_request import *
 from .client_response import *
 from .connection import *
 from .connection_key import *
-from .connector import *
-from .fingerprint import *
+from .connector_base import *
+from .connector_tcp import *
+from .constants import *
+from .host_info import *
+from .host_info_basket import *
 from .http_client import *
-from .request_context_managers import *
+from .request_context_manager import *
 from .request_info import *
+from .protocol_basket import *  
+from .proxy import *
+from .ssl_fingerprint import *
+from .web_socket_context_manager import *
+
 
 __all__ = (
     *client_request.__all__,
     *client_response.__all__,
     *connection.__all__,
     *connection_key.__all__,
-    *connector.__all__,
-    *fingerprint.__all__,
+    *connector_base.__all__,
+    *connector_tcp.__all__,
+    *constants.__all__,
+    *host_info.__all__,
+    *host_info_basket.__all__,
     *http_client.__all__,
-    *request_context_managers.__all__,
+    *request_context_manager.__all__,
+    *protocol_basket.__all__,
+    *proxy.__all__,
     *request_info.__all__,
+    *ssl_fingerprint.__all__,
+    *web_socket_context_manager.__all__,
 )

@@ -3,15 +3,13 @@ __all__ = ('EventThread', )
 import errno, os, subprocess, sys
 import socket as module_socket
 from collections import deque
-from datetime import datetime as DateTime
 from functools import partial as partial_func
 from heapq import heappop, heappush
 from itertools import chain
 from selectors import DefaultSelector, EVENT_READ, EVENT_WRITE
-from ssl import SSLContext, create_default_context
+from ssl import SSLContext, create_default_context as create_default_ssl_context
 from stat import S_ISSOCK
 from threading import Thread, current_thread
-from warnings import warn
 
 from ...utils import IS_UNIX, Reference, WeakSet, alchemy_incendiary, copy_docs, export, include, is_coroutine
 
@@ -36,9 +34,6 @@ from .server import Server
 
 write_exception_async = include('write_exception_async')
 write_exception_maybe_async = include('write_exception_maybe_async')
-
-
-CALL_LATER_DEPRECATED = DateTime.utcnow() > DateTime(2024, 1, 1)
 
 
 @export
@@ -233,23 +228,6 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         return ''.join(repr_parts)
     
     
-    def call_later(self, delay, callback, *args):
-        """
-        Deprecated and will be removed in 2024 August. Please use ``.call_after`` instead.
-        """
-        if CALL_LATER_DEPRECATED:
-            warn(
-                (
-                    f'`{self.__class__.__name__}.call_later` is deprecated and will be removed in 2024 August. '
-                    f'Please use `.call_after` instead.'
-                ),
-                FutureWarning,
-                stacklevel = 2,
-            )
-        
-        return self.call_after(delay, callback, *args)
-    
-    
     def call_after(self, delay, callback, *args):
         """
         Schedule callback to be called after the given delay.
@@ -302,23 +280,6 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         handle = TimerHandle(when, callback, args)
         heappush(self._scheduled, handle)
         return handle
-    
-    
-    def call_later_weak(self, delay, callback, *args):
-        """
-        Deprecated and will be removed in 2024 August. Please use ``.call_after_weak`` instead.
-        """
-        if CALL_LATER_DEPRECATED:
-            warn(
-                (
-                    f'`{self.__class__.__name__}.call_later_weak` is deprecated and will be removed in 2024 August. '
-                    f'Please use `.call_after_weak` instead.'
-                ),
-                FutureWarning,
-                stacklevel = 2,
-            )
-        
-        return self.call_after_weak(delay, callback, *args)
     
     
     def call_after_weak(self, delay, callback, *args):
@@ -878,7 +839,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             The protocol of the transport.
         waiter : `None`, ``Future`` = `None`, Optional
             Waiter, what's result should be set, when the transport is ready to use.
-        extra : `None`, `dict` of (`str`, `object`) item = `None`, Optional (Keyword only)
+        extra : `None | dict<str, object>` item = `None`, Optional (Keyword only)
             Optional transport information.
         server : `None`, ``Server`` = `None`, Optional (Keyword only)
             The server to what the created socket will be attached to.
@@ -923,7 +884,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             By default the value of the host parameter is used. If host is empty, there is no default and you must pass
             a value for `server_host_name`. If `server_host_name` is an empty string, hostname matching is disabled
             (which is a serious security risk, allowing for potential man-in-the-middle attacks).
-        extra : `None`, `dict` of (`str`, `object`) items = `None`, Optional (Keyword only)
+        extra : `None`, `dict<str, object>` = `None`, Optional (Keyword only)
             Optional transport information.
         server : `None`, ``Server`` = `None`, Optional (Keyword only)
             The server to what the created socket will be attached to.
@@ -1078,7 +1039,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             Factory function for creating an asynchronous compatible protocol.
         connection_socket : `socket.socket`
             The accepted connection.
-        extra : `None`, `dict` of (`str`, `object`) item
+        extra : `None | dict<str, object>` item
             Optional transport information.
         ssl : `None`, `SSLContext`
             The ssl type of the connection if any.
@@ -1344,7 +1305,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         """
         if isinstance(ssl, bool):
             if ssl:
-                ssl = create_default_context()
+                ssl = create_default_ssl_context()
             else:
                 ssl = None
         
@@ -1386,7 +1347,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             Callable returning an asynchronous protocol implementation.
         host : `None`, `str`, Optional
             To what network interfaces should the connection be bound.
-        port : `None`, `int`, Optional
+        port : `None | int`, Optional
             The port of the `host`.
         ssl : `None`, `bool`, `SSLContext` = `None`, Optional (Keyword only)
             Whether ssl should be enabled.
@@ -1396,7 +1357,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             Can be used to narrow host resolution. Is passed to ``.get_address_info``.
         socket_flags : `int` = `0`, Optional (Keyword only)
             Can be used to narrow host resolution. Is passed to ``.get_address_info``.
-        local_address : `tuple` of (`None`, `str`, `None`, `int`) = `None`, Optional (Keyword only)
+        local_address : `(None | str, None | int)` = `None`, Optional (Keyword only)
             Can be given as a `tuple` (`local_host`, `local_port`) to bind the socket locally. The `local_host` and
             `local_port` are looked up by ``.get_address_info``.
         server_host_name : `None`, `str` = `None`, Optional (Keyword only)
@@ -1640,7 +1601,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         """
         if isinstance(ssl, bool):
             if ssl:
-                ssl = create_default_context()
+                ssl = create_default_ssl_context()
             else:
                 ssl = None
         
@@ -1991,7 +1952,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         ----------
         host : `None`, `str`
             To respective network interface.
-        port : `None`, `int`
+        port : `None | int`
             The port of the `host`.
         family :  `AddressFamily`, `int` = `0`, Optional (Keyword only)
             The address family.
@@ -2044,7 +2005,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         
         Parameters
         ----------
-        address : `tuple` ((`None`, `str`), (`None`, `int`))
+        address : `(None | str, None | int)`
             Address as a tuple of `host` and `port`.
         family :  `AddressFamily`, `int` = `0`, Optional (Keyword only)
             The address family.
@@ -2517,12 +2478,12 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         protocol_factory : `callable`
             Factory function for creating a protocols.
         
-        local_address : `None`, `tuple` of (`None`, `str`, `None`, `int`), `str`
+        local_address : `None | (None | str, None | int) | str`
             Can be given as a `tuple` (`local_host`, `local_port`) to bind the socket locally. The `local_host` and
             `local_port` are looked up by ``.get_address_info``.
             
             If `socket_family` is given as `AF_UNIX`, then also can be path of a file or a file descriptor.
-        remote_address : `None`, `tuple` of (`None`, `str`, `None`, `int`), `str`
+        remote_address : `None | (None | str, None | int) | str`
             Can be given as a `tuple` (`remote_host`, `remote_port`) to connect the socket to remove address. The
             `remote_host` and `remote_port` are looked up by ``.get_address_info``.
             
@@ -2735,7 +2696,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         ----------
         host : `None`, `str`, (`None`, `str`)
             Network interfaces should the server be bound.
-        port : `None`, `int`
+        port : `None | int`
             The port to use by the `host`.
         socket_family : `AddressFamily`, `int`
             The family of the address.
@@ -2796,7 +2757,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             Factory function for creating a protocols.
         host : `None`, `str`, `iterable` of (`None`, `str`)
             To what network interfaces should the server be bound.
-        port : `None`, `int`
+        port : `None | int`
             The port to use by the `host`(s).
         socket_family : `AddressFamily`, `int` = `module_socket.AF_UNSPEC`, Optional (Keyword only)
             Can be given either as `socket.AF_INET`, `socket.AF_INET6` to force the socket to use `IPv4`, `IPv6`.
@@ -2839,13 +2800,13 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         if (reuse_address is not None) and (not isinstance(reuse_address, bool)):
             raise TypeError(
                 '`reuse_address` can be `None`,`bool`, got '
-                f'{reuse_address.__class__.__name__};{reuse_address!r}.'
+                f'{type(reuse_address).__name__}; {reuse_address!r}.'
             )
         
         if (reuse_port is not None) and (not isinstance(reuse_port, bool)):
             raise TypeError(
                 '`reuse_address` can be `None`, `bool`, got '
-                f'{reuse_port.__class__.__name__}; {reuse_port!r}.'
+                f'{type(reuse_port).__name__}; {reuse_port!r}.'
             )
         
         if (reuse_port is not None) and reuse_port and (not hasattr(module_socket, 'SO_REUSEPORT')):
@@ -2868,7 +2829,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
                 else:
                     raise TypeError(
                         f'`host` can contain `None`, `str` elements, got '
-                        f'`{host_element.__class__.__name__}`; {host_element!r}; host={host!r}.'
+                        f'`{type(host_element).__name__}`; {host_element!r}; host = {host!r}.'
                     )
                 
                 hosts.append(host_element)
@@ -2876,7 +2837,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
                 
         else:
             raise TypeError(
-                f'`host` can be `None`, `str`, `iterable` of (`None`, `str`), got {host.__class__.__name__}; {host!r}.'
+                f'`host` can be `None`, `str`, `iterable` of (`None`, `str`), got {type(host).__name__}; {host!r}.'
             )
         
         sockets = []
@@ -3065,7 +3026,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         restore_signals = True,
         start_new_session = False,
         pass_fds = (),
-        **process_open_kwargs,
+        **process_open_keyword_parameters,
     ):
         """
         Create a subprocess from cmd.
@@ -3084,7 +3045,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             Standard output for the created shell.
         stderr : `file-like`, `subprocess.PIPE`, `subprocess.DEVNULL`, `subprocess.STDOUT` = `subprocess.PIPE`, Optional
             Standard error for the created shell
-        extra : `None`, `dict` of (`str`, `object`) items = `None`, Optional (Keyword only)
+        extra : `None`, `dict<str, object>` = `None`, Optional (Keyword only)
             Optional transport information.
         preexecution_function : `None`, `callable` = `None`, Optional (Keyword only)
             This object is called in the child process just before the child is executed. POSIX only, defaults to
@@ -3095,7 +3056,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             If `close_fds` is True, all file descriptors except `0`, `1` and `2` will be closed before the child
             process is executed. Otherwise when `close_fds` is False, file descriptors obey their inheritable flag as
             described in Inheritance of File Descriptors.
-        cwd : `None` `str`, `bytes`, `path-like` = `None`, Optional (Keyword only)
+        cwd : `None | str`, `bytes`, `path-like` = `None`, Optional (Keyword only)
             The current working directory.
             
             If `cwd` is not `None`, the function changes the working directory to cwd before executing the child.
@@ -3127,7 +3088,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         pass_fds : `tuple` = `()`, Optional (Keyword only)
             An optional sequence of file descriptors to keep open between the parent and the child. Providing any
             `pass_fds` forces `close_fds` to be `True`. POSIX only, defaults to empty tuple.
-        **process_open_kwargs : Additional keyword parameters
+        **process_open_keyword_parameters : Additional keyword parameters
             Additional parameters to pass to the `Popen`.
         
         Returns
@@ -3144,7 +3105,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         if not isinstance(command, (bytes, str)):
             raise TypeError(f'`command` can be `bytes`, `str`, got {command.__class__.__name__}; {command!r}.')
         
-        process_open_kwargs = {
+        process_open_keyword_parameters = {
             'preexec_fn' : preexecution_function,
             'close_fds' : close_fds,
             'cwd' : cwd,
@@ -3153,10 +3114,10 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             'restore_signals' : restore_signals,
             'start_new_session' : start_new_session,
             'pass_fds' : pass_fds,
-            **process_open_kwargs
+            **process_open_keyword_parameters
         }
         
-        return await AsyncProcess(self, command, True, stdin, stdout, stderr, 0, extra, process_open_kwargs)
+        return await AsyncProcess(self, command, True, stdin, stdout, stderr, 0, extra, process_open_keyword_parameters)
     
     
     async def subprocess_exec(
@@ -3175,7 +3136,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         restore_signals = True,
         start_new_session = False,
         pass_fds = (),
-        **process_open_kwargs,
+        **process_open_keyword_parameters,
     ):
         """
         Create a subprocess from one or more string parameters specified by args.
@@ -3197,7 +3158,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         stderr : `file-like`, `subprocess.PIPE`, `subprocess.DEVNULL`, `subprocess.STDOUT` = `subprocess.PIPE`
                 , Optional (Keyword only)
             Standard error for the created shell.
-        extra : `None`, `dict` of (`str`, `object`) items = `None`, Optional (Keyword only)
+        extra : `None`, `dict<str, object>` = `None`, Optional (Keyword only)
             Optional transport information.
         preexecution_function : `None`, `callable` = `None`, Optional (Keyword only)
             This object is called in the child process just before the child is executed. POSIX only, defaults to
@@ -3240,7 +3201,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         pass_fds : `tuple` = `()`, Optional (Keyword only)
             An optional sequence of file descriptors to keep open between the parent and the child. Providing any
             `pass_fds` forces `close_fds` to be `True`. POSIX only, defaults to empty tuple.
-        **process_open_kwargs : Additional keyword parameters
+        **process_open_keyword_parameters : Additional keyword parameters
             Additional parameters to pass to the `Popen`.
         
         Returns
@@ -3252,7 +3213,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
         NotImplementedError
             Not supported on windows by the library.
         """
-        process_open_kwargs = {
+        process_open_keyword_parameters = {
             'preexec_fn' : preexecution_function,
             'close_fds' : close_fds,
             'cwd' : cwd,
@@ -3261,11 +3222,11 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             'restore_signals' : restore_signals,
             'start_new_session' : start_new_session,
             'pass_fds' : pass_fds,
-            **process_open_kwargs,
+            **process_open_keyword_parameters,
         }
         
         return await AsyncProcess(
-            self, (program, *args), False, stdin, stdout, stderr, 0, extra, process_open_kwargs
+            self, (program, *args), False, stdin, stdout, stderr, 0, extra, process_open_keyword_parameters
         )
 
     if not IS_UNIX:
@@ -3294,7 +3255,7 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             restore_signals = True,
             start_new_session = False,
             pass_fds = (),
-            **process_open_kwargs,
+            **process_open_keyword_parameters,
         ):
             raise NotImplementedError
         
@@ -3315,6 +3276,6 @@ class EventThread(Executor, Thread, metaclass = EventThreadType):
             restore_signals = True,
             start_new_session = False,
             pass_fds = (),
-            **process_open_kwargs,
+            **process_open_keyword_parameters,
         ):
             raise NotImplementedError

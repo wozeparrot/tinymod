@@ -1,13 +1,14 @@
 __all__ = ('Task',)
 
 import sys
-from datetime import datetime as DateTime
 from threading import current_thread
 from types import AsyncGeneratorType as CoroutineGeneratorType, CoroutineType, GeneratorType
-from warnings import warn
 
-from ...utils import alchemy_incendiary, copy_docs, export, ignore_frame, include, render_frames_into
-from ...utils.trace import render_exception_into
+from ...utils import (
+    DEFAULT_ANSI_HIGHLIGHTER, HIGHLIGHT_TOKEN_TYPES, alchemy_incendiary, copy_docs, export, get_highlight_streamer,
+    ignore_frame, include
+)
+from ...utils.trace.trace import _produce_exception, _produce_frames
 
 from ..exceptions import CancelledError, InvalidStateError
 
@@ -30,8 +31,6 @@ ignore_frame(__spec__.origin, '_step', 'result = self._coroutine.throw(Cancelled
 ignore_frame(__spec__.origin, '_step', 'result = self._coroutine.send(None)')
 
 EventThread = include('EventThread')
-
-CONSTRUCTOR_CHANGE_DEPRECATED = DateTime.utcnow() > DateTime(2023, 12, 12)
 
 
 @export
@@ -61,7 +60,7 @@ class Task(Future):
     _loop : ``EventThread``
         The loop to what the created task is bound.
     
-    _result : `None`, `object`
+    _result : `None | object`
         The result of the task. Defaults to `None`.
     
     _state : `str`
@@ -84,19 +83,6 @@ class Task(Future):
         coroutine : `CoroutineType`, `GeneratorType`
             The coroutine, what the task will on the respective event loop.
         """
-        if isinstance(coroutine, EventThread):
-            loop, coroutine = coroutine, loop
-            
-            if CONSTRUCTOR_CHANGE_DEPRECATED:
-                warn(
-                    (
-                        f'`{cls.__name__}(coroutine, loop)` is deprecated and will be removed in 2024 Jun.'
-                        f'Please use `{cls.__name__}(loop, coroutine)` instead accordingly.'
-                    ),
-                    FutureWarning,
-                    stacklevel = 2,
-                )
-        
         self = object.__new__(cls)
         self._blocking = False
         self._callbacks = []
@@ -113,7 +99,7 @@ class Task(Future):
     
     def __repr__(self):
         """Returns the task's representation."""
-        repr_parts = ['<', self.__class__.__name__]
+        repr_parts = ['<', type(self).__name__]
         
         state = self._state
         repr_parts, field_added = render_state_into(repr_parts, False, state)
@@ -157,7 +143,7 @@ class Task(Future):
             
             if isinstance(exception, StopIteration):
                 raise TypeError(
-                    f'{exception} cannot be raised to a(n) `{self.__class__.__name__}`; {self!r}.'
+                    f'{exception} cannot be raised to a(n) `{type(self).__name__}`; {self!r}.'
                 )
             
             waited_future = self._waited_future
@@ -195,7 +181,7 @@ class Task(Future):
             Tasks do not support `.set_result` operation.
         """
         raise RuntimeError(
-            f'`{self.__class__.__name__}` does not support `.set_result` operation.'
+            f'`{type(self).__name__}` does not support `.set_result` operation.'
         )
     
     
@@ -214,7 +200,7 @@ class Task(Future):
             Tasks do not support `.set_result_if_pending` operation.
         """
         raise RuntimeError(
-            f'`{self.__class__.__name__}` does not support `.set_result_if_pending` operation.'
+            f'`{type(self).__name__}` does not support `.set_result_if_pending` operation.'
         )
     
     
@@ -234,7 +220,7 @@ class Task(Future):
             Tasks do not support `.set_exception` operation.
         """
         raise RuntimeError(
-            f'`{self.__class__.__name__}` does not support `.set_exception` operation.'
+            f'`{type(self).__name__}` does not support `.set_exception` operation.'
         )
     
     
@@ -254,7 +240,7 @@ class Task(Future):
             Tasks do not support `.set_exception_if_pending` operation.
         """
         raise RuntimeError(
-            f'`{self.__class__.__name__}` does not support `.set_exception_if_pending` operation.'
+            f'`{type(self).__name__}` does not support `.set_exception_if_pending` operation.'
         )
     
     
@@ -278,7 +264,7 @@ class Task(Future):
             raise InvalidStateError(
                 self,
                 '_step',
-                message = f'`{self.__class__.__name__}._step` already done of {self!r}.',
+                message = f'`{type(self).__name__}._step` already done of {self!r}.',
             )
         
         self._loop.current_task = self
@@ -378,7 +364,7 @@ class Task(Future):
         try:
             return coroutine.__name__
         except AttributeError:
-            return coroutine.__class__.__name__
+            return type(coroutine).__name__
     
     
     @property
@@ -394,7 +380,7 @@ class Task(Future):
         try:
             return coroutine.__qualname__
         except AttributeError:
-            return coroutine.__class__.__qualname__
+            return type(coroutine).__qualname__
     
     # Stack related | will need a rewrite # TODO
     
@@ -487,17 +473,21 @@ class Task(Future):
         return frames
     
     
-    def print_stack(self, limit = -1, file = None):
+    def print_stack(self, limit = -1, file = None, *, highlighter = None):
         """
         Prints the stack or traceback of the task.
         
         Parameters
         ----------
         limit : `int` = `-1`, Optional
-            The maximal amount of stacks to print. By giving it as negative integer, there will be no stack limit
-            to print out.
+            The maximal amount of stacks to print.
+            By giving it as negative integer, there will be no stack limit to print out.
+
         file : `None`, `I/O stream` = `None`, Optional
             The file to print the stack to. Defaults to `sys.stderr`.
+    
+        highlighter : ``None | HighlightFormatterContext`` = `None`, Optional (Keyword only)
+            Formatter storing highlighting details.
         
         Notes
         -----
@@ -505,23 +495,27 @@ class Task(Future):
         """
         local_thread = current_thread()
         if isinstance(local_thread, EventThread):
-            return local_thread.run_in_executor(alchemy_incendiary(self._print_stack, (self, limit, file),))
+            return local_thread.run_in_executor(alchemy_incendiary(self._print_stack, (self, limit, file, highlighter),))
         else:
-            self._print_stack(self, limit, file)
+            self._print_stack(self, limit, file, highlighter)
     
     
     @staticmethod
-    def _print_stack(self, limit, file):
+    def _print_stack(self, limit, file, highlighter):
         """
         Prints the stack or traceback of the task to the given `file`.
         
         Parameters
         ----------
         limit : `int`
-            The maximal amount of stacks to print. By giving it as negative integer, there will be no stack limit
-            to print out,
+            The maximal amount of stacks to print.
+            By giving it as negative integer, there will be no stack limit to print out.
+        
         file : `None`, `I/O stream`
             The file to print the stack to. Defaults to `sys.stderr`.
+        
+        highlighter : ``None | HighlightFormatterContext``
+            Formatter storing highlighting details.
         
         Notes
         -----
@@ -529,61 +523,85 @@ class Task(Future):
         
         If the task is finished with an exception, then `limit` is ignored when printing traceback.
         """
-        if file is None:
-            file = sys.stdout
+        if (file is None) and (highlighter is None):
+            highlighter = DEFAULT_ANSI_HIGHLIGHTER
         
         if self._state & FUTURE_STATE_RESULT_RAISE:
             exception = self._result
         else:
             exception = None
         
+        highlight_streamer = get_highlight_streamer(highlighter)
+        into = []
+        
         if exception is None:
             frames = self.get_stack(limit)
-            if frames:
-                recursive = (frames[-1] is None)
-                if recursive:
-                    del frames[-1]
-                
-                extracted = ['Stack for ', repr(self), ' (most recent call last):\n']
-                extracted = render_frames_into(frames, extend = extracted)
-                if recursive:
-                    extracted.append(
-                        'Last frame is a repeat from a frame above. Rest of the recursive part is not rendered.'
-                    )
+            if not frames:
+                into.extend(highlight_streamer.asend((
+                    HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE,
+                    'No stack for '
+                )))
+                into.extend(highlight_streamer.asend((
+                    HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE,
+                    repr(self)
+                )))
+                into.extend(highlight_streamer.asend((
+                    HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_LINE_BREAK,
+                    '\n'
+                )))
+            
             else:
-                extracted = ['No stack for ', repr(self), '\n']
+                if frames[-1] is None:
+                    del frames[-1]
+                    recursive = True
+                else:
+                    recursive = False
+                
+                into.extend(highlight_streamer.asend((
+                    HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE,
+                    'Stack for '
+                )))
+                into.extend(highlight_streamer.asend((
+                    HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE,
+                    repr(self)
+                )))
+                into.extend(highlight_streamer.asend((
+                    HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_LINE_BREAK,
+                    '\n'
+                )))
+                into.extend(highlight_streamer.asend((
+                    HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE,
+                    '(Most recent call last):'
+                )))
+                into.extend(highlight_streamer.asend((
+                    HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_LINE_BREAK,
+                    '\n'
+                )))
+                for item in _produce_frames(frames, None):
+                    into.extend(highlight_streamer.asend(item))
+                
+                if recursive:
+                    into.extend(highlight_streamer.asend((
+                        HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE,
+                        'Last frame is a repeat from a frame above. Rest of the recursive part is not rendered.',
+                    )))
         else:
-            extracted = ['Traceback for ', repr(self), ' (most recent call last):\n']
-            extracted = render_exception_into(exception, extend = extracted)
+            into.extend(highlight_streamer.asend((
+                HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE,
+                'Traceback for '
+            )))
+            into.extend(highlight_streamer.asend((
+                HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE,
+                repr(self)
+            )))
+            into.extend(highlight_streamer.asend((
+                HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_LINE_BREAK,
+                '\n'
+            )))
+            for item in _produce_exception(exception, None):
+                into.extend(highlight_streamer.asend(item))
         
-        file.write(''.join(extracted))
-    
-    # Deprecations
-    
-    @property
-    def _should_cancel(self):
-        """
-        Deprecated and will be removed in 2024 february.
-        """
-        warn(
-            f'`{self.__class__.__name__}._should_cancel` is deprecated and will be removed in 2024 february.',
-            FutureWarning,
-            stacklevel = 2,
-        )
-        return True if self._state & FUTURE_STATE_CANCELLING_SELF else False
-    
-    
-    @_should_cancel.setter
-    def _should_cancel(self, value):
-        warn(
-            f'`{self.__class__.__name__}._should_cancel` is deprecated and will be removed in 2024 february.',
-            FutureWarning,
-            stacklevel = 2,
-        )
-        state = self._state
-        if value:
-            state |= FUTURE_STATE_CANCELLING_SELF
-        else:
-            state &= ~FUTURE_STATE_CANCELLING_SELF
+        if file is None:
+            file = sys.stderr
         
-        self._state = state
+        file.write(''.join(into))

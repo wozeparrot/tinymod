@@ -1,181 +1,46 @@
-__all__ = ('BasicAuth', 'HttpVersion', 'HttpVersion10', 'HttpVersion11',)
+__all__ = ('HttpVersion', 'HttpVersion10', 'HttpVersion11', 'freeze_headers',)
 
-import base64, binascii, re
+from re import I as re_ignore_case, compile as re_compile
 import socket as module_socket
 from collections import namedtuple
 
 from ..core import CancelledError, Task
+from ..utils import IgnoreCaseMultiValueDictionary, include
+
+from .exceptions import PayloadError
 
 
-sentinel = object()
+RawRequestMessage = include('RawRequestMessage')
+RawResponseMessage = include('RawResponseMessage')
+
 
 HttpVersion = namedtuple('HttpVersion', ('major', 'minor'))
 HttpVersion10 = HttpVersion(1, 0)
 HttpVersion11 = HttpVersion(1, 1)
 
+
 BASIC_AUTH_DEFAULT_ENCODING = 'latin1'
 
-class BasicAuth:
-    """
-    Http basic authorization implementation.
-    
-    Attributes
-    ----------
-    username : `str`
-        Authorization login username.
-    password : `str`
-        Authorization password. Can be empty string.
-    encoding : `str`
-        Encoding used to encode the authorization headers.
-    """
-    __slots__ = ('username', 'password', 'encoding',)
-    
-    def __new__(cls, username, password = '', encoding = BASIC_AUTH_DEFAULT_ENCODING):
-        """
-        Creates a new ``BasicAuth`` with the given parameters.
-        
-        Attributes
-        ----------
-        username : `str`
-            Authorization login name.
-        password : `str`, Optional
-            Authorization password. Can be empty string.
-        encoding : `str`, Optional
-            Encoding used to encode the authorization headers. Defaults to `'latin1'`.
-        
-        Raises
-        ------
-        ValueError
-            If `username` is given as `None`.
-            If `username` contains `':'` character.
-            If password is given as `None`.
-        """
-        if username is None:
-            raise ValueError(
-                '`username` cannot be `None`.'
-            )
-        
-        if ':' in username:
-            raise ValueError(
-                f'`username` contains `\':\'` which is not allowed (RFC 1945#section-11.1), got {username!r}.'
-            )
-        
-        if password is None:
-            raise ValueError(
-                '`password` cannot be `None`.'
-            )
-        
-        self = object.__new__(cls)
-        
-        self.username = username
-        self.password = password
-        self.encoding = encoding
-        
-        return self
-    
-    
-    @classmethod
-    def decode(cls, auth_header, encoding = BASIC_AUTH_DEFAULT_ENCODING):
-        """
-        Creates a new ``BasicAuth`` from the given HTTP header value and.
-        
-        Parameters
-        ----------
-        auth_header : `str`
-            Authorization header value.
-        encoding : `str` = `BASIC_AUTH_DEFAULT_ENCODING`, Optional
-            Encoding used to encode the authorization headers. Defaults to `'latin1'`.
-        
-        Returns
-        -------
-        self : ``BasicAuth``.
-        
-        Raises
-        ------
-        ValueError
-            If the authorization method is not `'basic'`.
-            If cannot parse the authorization headers.
-            Cannot decode authorization header.
-        """
-        split = auth_header.strip().split(' ')
-        if len(split) == 2:
-            if split[0].strip().lower() != 'basic':
-                raise ValueError(
-                    f'Unknown authorization method: {split[0]!r}.'
-                )
-            
-            to_decode = split[1]
-        else:
-            raise ValueError(
-                f'Could not parse authorization header from: {auth_header!r}.'
-            )
-        
-        try:
-            username, _, password = base64.b64decode(to_decode.encode('ascii')).decode(encoding).partition(':')
-        except binascii.Error as err:
-            raise ValueError('Invalid base64 encoding.') from err
-        
-        self = object.__new__(cls)
-        self.username = username
-        self.password = password
-        self.encoding = encoding
-        return self
-    
-    
-    def encode(self):
-        """
-        Encodes the authorization to it's header value.
-        
-        Returns
-        -------
-        auth_header : `str`
-        """
-        credits_ = (f'{self.username}:{self.password}').encode(self.encoding)
-        sub_value = base64.b64encode(credits_).decode(self.encoding)
-        return f'Basic {sub_value}'
-    
-    
-    def __repr__(self):
-        """Returns the basic authorisation's representation."""
-        repr_parts = [
-            self.__class__.__name__,
-            '(username = ',
-            repr(self.username),
-        ]
-        
-        password = self.password
-        if password:
-            repr_parts.append(', password = ')
-            repr_parts.append(repr(password))
-        
-        encoding = self.encoding
-        if encoding != BASIC_AUTH_DEFAULT_ENCODING:
-            repr_parts.append(', encoding = ')
-            repr_parts.append(repr(encoding))
-        
-        repr_parts.append(')')
-        
-        return ''.join(repr_parts)
 
-
-_ipv4_pattern = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+_ipv4_pattern = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
 _ipv6_pattern = (
     '^(?:(?:(?:[A-F0-9]{1,4}:){6}|(?=(?:[A-F0-9]{0,4}:){0,6}'
-    '(?:[0-9]{1,3}\.){3}[0-9]{1,3}$)(([0-9A-F]{1,4}:){0,5}|:)'
+    '(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$)(([0-9A-F]{1,4}:){0,5}|:)'
     '((:[0-9A-F]{1,4}){1,5}:|:)|::(?:[A-F0-9]{1,4}:){5})'
-    '(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}'
+    '(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}'
     '(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])|(?:[A-F0-9]{1,4}:){7}'
     '[A-F0-9]{1,4}|(?=(?:[A-F0-9]{0,4}:){0,7}[A-F0-9]{0,4}$)'
     '(([0-9A-F]{1,4}:){1,7}|:)((:[0-9A-F]{1,4}){1,7}|:)|(?:[A-F0-9]{1,4}:){7}'
     ':|:(:[A-F0-9]{1,4}){7})$'
 )
 
-_ipv4_regex = re.compile(_ipv4_pattern)
-_ipv6_regex = re.compile(_ipv6_pattern, flags = re.I)
-_ipv4_regex_b = re.compile(_ipv4_pattern.encode('ascii'))
-_ipv6_regex_b = re.compile(_ipv6_pattern.encode('ascii'), flags = re.I)
+_ipv4_regex = re_compile(_ipv4_pattern)
+_ipv6_regex = re_compile(_ipv6_pattern, flags = re_ignore_case)
+_ipv4_regex_b = re_compile(_ipv4_pattern.encode('utf-8'))
+_ipv6_regex_b = re_compile(_ipv6_pattern.encode('utf-8'), flags = re_ignore_case)
 
-del _ipv4_pattern, _ipv6_pattern, re
+del _ipv4_pattern, _ipv6_pattern
+
 
 def is_ip_address(host):
     """
@@ -183,7 +48,7 @@ def is_ip_address(host):
     
     Parameters
     ----------
-    host : None`, `str`, `bytes-like`
+    host : None | str | bytes-like`
         Host value.
     
     Returns
@@ -193,31 +58,107 @@ def is_ip_address(host):
     Raises
     ------
     TypeError
-        If `host` was not given neither as `str`, `bytes-like`.
+        - If `host`'s type is invalid.
     """
     if host is None:
         return False
     
     if isinstance(host, str):
-        if _ipv4_regex.match(host) is not None:
+        if _ipv4_regex.fullmatch(host) is not None:
             return True
         
-        if _ipv6_regex.match(host) is not None:
+        if _ipv6_regex.fullmatch(host) is not None:
             return True
         
         return False
         
     if isinstance(host, (bytes, bytearray, memoryview)):
-        if _ipv4_regex_b.match(host) is not None:
+        if _ipv4_regex_b.fullmatch(host) is not None:
             return True
         
-        if _ipv6_regex_b.match(host) is not None:
+        if _ipv6_regex_b.fullmatch(host) is not None:
             return True
         
         return False
     
     raise TypeError(
-        f'`host` can be `None`, `str`, `bytes-like`, got {host.__class__.__name__}; {host!r}.'
+        f'`host` can be `None`, `str`, `bytes-like`, got {type(host).__name__}; {host!r}.'
+    )
+
+
+def is_ipv4_address(host):
+    """
+    Returns whether the given host is an `ipv4` ip address.
+    
+    Parameters
+    ----------
+    host : None | str | bytes-like`
+        Host value.
+    
+    Returns
+    -------
+    is_ipv4_address : `bool`
+    
+    Raises
+    ------
+    TypeError
+        - If `host`'s type is invalid.
+    """
+    if host is None:
+        return False
+    
+    if isinstance(host, str):
+        if _ipv4_regex.fullmatch(host) is not None:
+            return True
+        
+        return False
+    
+    if isinstance(host, (bytes, bytearray, memoryview)):
+        if _ipv4_regex_b.fullmatch(host) is not None:
+            return True
+        
+        return False
+    
+    raise TypeError(
+        f'`host` can be `None`, `str`, `bytes-like`, got {type(host).__name__}; {host!r}.'
+    )
+
+
+def is_ipv6_address(host):
+    """
+    Returns whether the given host is an `ipv6` ip address.
+    
+    Parameters
+    ----------
+    host : None | str | bytes-like`
+        Host value.
+    
+    Returns
+    -------
+    is_ipv6_address : `bool`
+    
+    Raises
+    ------
+    TypeError
+        - If `host`'s type is invalid.
+    """
+    if host is None:
+        return False
+    
+    if isinstance(host, str):
+        if _ipv6_regex.fullmatch(host) is not None:
+            return True
+        
+        return False
+    
+    if isinstance(host, (bytes, bytearray, memoryview)):
+        if _ipv6_regex_b.fullmatch(host) is not None:
+            return True
+        
+        return False
+    
+    raise TypeError(
+        f'`host` can be `None`, `str`, `bytes-like`, got {type(host).__name__}; {host!r}.'
     )
 
 
@@ -297,6 +238,7 @@ class Timeout:
         
         self._task = None
     
+    
     def __enter__(self):
         """
         Enters the timeouter as a context manager.
@@ -315,7 +257,7 @@ class Timeout:
         task = self._loop.current_task
         if (task is None):
             raise RuntimeError(
-                f'`{self.__class__.__name__}` entered outside of a `{Task.__name__}`!'
+                f'`{type(self).__name__}` entered outside of a `{Task.__name__}`!'
             )
         
         state = self._state
@@ -327,10 +269,11 @@ class Timeout:
             pass
         else:
             raise RuntimeError(
-                f'`{self.__class__.__name__}` already used.'
+                f'`{type(self).__name__}` already used.'
             )
         
         return self
+    
     
     def _timeout(self):
         """
@@ -349,7 +292,8 @@ class Timeout:
         if (task is not None):
             task.cancel()
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    
+    def __exit__(self, exception_type, exception_value, exception_traceback):
         """
         Exits from the timeouter. If the timeout occurs, then raises ``TimeoutError`` from the received cancellation.
         """
@@ -362,29 +306,29 @@ class Timeout:
         
         state = self._state
         self._state = TIMEOUT_STATE_EXITED
-        if (state == TIMEOUT_STATE_TIMED_OUT) and (exc_type is CancelledError):
+        if (state == TIMEOUT_STATE_TIMED_OUT) and issubclass(exception_type, CancelledError):
             raise TimeoutError from None
         
         return False
     
+    
     def __repr__(self):
         """Returns the timeout's representation."""
-        return f'<{self.__class__.__name__}>'
+        return f'<{type(self).__name__}>'
 
 
-def tcp_nodelay(transport, value):
+def set_tcp_nodelay(transport, value):
     """
     Sets or removes tcp nodelay socket option to the given transport's socket if applicable.
     
     Parameters
     ----------
-    transport : `object`
+    transport : ``AbstractTransportLayerBase``
         Asynchronous transport implementation.
     value : `bool`
         Value to set tcp nodelay to.
     """
     socket = transport.get_extra_info('socket')
-    
     if socket is None:
         return
     
@@ -396,3 +340,166 @@ def tcp_nodelay(transport, value):
         socket.setsockopt(module_socket.IPPROTO_TCP, module_socket.TCP_NODELAY, value)
     except OSError:
         pass
+
+
+def freeze_headers(headers):
+    """
+    Creates a frozen version of the given headers.
+    
+    Parameters
+    ----------
+    headers : `None | IgnoreCaseMultiValueDictionary`
+        Proxy headers.
+    
+    Returns
+    -------
+    proxy_headers_frozen : `None | tuple<(str, tuple<str>)>`
+    """
+    if (headers is not None) and headers:
+        return (*((key, tuple(headers.get_all(key, ()))) for key in sorted(headers.keys())),)
+
+
+HTTP_STATUS_RP = re_compile(b'[ \t]*HTTP/(\\d+)\\.(\\d+)[ \t]+(\\d\\d\\d)(?:[ \t]+(.*?))?[ \t]*(?:\r\n|$)')
+HTTP_REQUEST_RP = re_compile(b'[ \t]*([^ \t]+)[ \t]+([^ \t]+)[ \t]+HTTP/(\\d+)\\.(\\d+)[ \t]*(?:\r\n|$)')
+
+
+def parse_http_response(data):
+    """
+    Parses http response message.
+    
+    Parameters
+    ----------
+    data : `bytes`
+        Data to parse from.
+    
+    Returns
+    -------
+    response_message : ``RawResponseMessage``
+    
+    Raises
+    ------
+    PayloadError
+        Invalid data received.
+    """
+    parsed = HTTP_STATUS_RP.match(data, 0)
+    if parsed is None:
+        line_end = data.find(b'\r\n')
+        if line_end == -1:
+            line_end = len(data)
+        
+        raise PayloadError(f'Invalid status line: {data[0 : line_end]!r}.')
+    
+    offset = parsed.end()
+    major, minor, status, reason = parsed.groups()
+    if reason is None:
+        pass
+    if not reason:
+        reason = None
+    else:
+        reason = reason.decode('utf-8', errors = 'surrogateescape')
+    
+    headers = parse_http_headers(data, offset)
+    return RawResponseMessage(HttpVersion(int(major), int(minor)), int(status), reason, headers)
+
+
+def parse_http_request(data):
+    """
+    Parses http request message.
+    
+    Parameters
+    ----------
+    data : `bytes`
+        Data to parse from.
+    
+    Returns
+    -------
+    request_message : ``RawRequestMessage``
+    
+    Raises
+    ------
+    PayloadError
+        Invalid data received.
+    """
+    parsed = HTTP_REQUEST_RP.match(data, 0)
+    if parsed is None:
+        line_end = data.find(b'\r\n')
+        if line_end == -1:
+            line_end = len(data)
+        
+        raise PayloadError(f'Invalid request line: {data[0 : line_end]!r}.')
+    
+    offset = parsed.end()
+    method, path, major, minor = parsed.groups()
+    method = method.decode('utf-8', 'surrogateescape').upper()
+    path = path.decode('utf-8', 'surrogateescape')
+
+    headers = parse_http_headers(data, offset)
+    return RawRequestMessage(HttpVersion(int(major), int(minor)), method, path, headers)
+
+
+def parse_http_headers(data, offset):
+    """
+    Parses http headers from the given data.
+    
+    Parameters
+    ----------
+    data : `bytes`
+        Data to parse from.
+    
+    offset : `int`
+        Position to start parsing at.
+    
+    Returns
+    -------
+    headers : ``IgnoreCaseMultiValueDictionary``
+    
+    Raises
+    ------
+    PayloadError
+        Invalid data received.
+    """
+    headers = IgnoreCaseMultiValueDictionary()
+    while True:
+        end_index = data.find(b'\r\n', offset)
+        if end_index == -1:
+            end_index = len(data)
+        
+        # Found \r\n instantly, we done!
+        # The case, when there is nothing inside of the headers.
+        if end_index <= offset:
+            return headers
+        
+        # At this case something is in the line, but is it a header?
+        middle_index = data.find(b':', offset, end_index)
+        if middle_index <= offset:
+            raise PayloadError(f'Invalid header line: {data[offset : end_index]!r}.')
+        
+        name = data[offset : middle_index].lstrip()
+        value = data[middle_index + 1 : end_index].strip()
+        offset = end_index + 2
+            
+        name = name.decode('utf-8', 'surrogateescape')
+        
+        # continuous?
+        if (len(data) > offset) and data[offset] in (b'\t'[0], b' '[0]):
+            value_continuous = [value]
+            while True:
+                end_index = data.find(b'\r\n', offset)
+                if end_index == -1:
+                    end_index = len(data)
+                
+                # find \r\n
+                value_continuous.append(data[offset : end_index].strip())
+                # add \r\n shift
+                offset = end_index + 2
+                
+                # continuous again?
+                if (len(data) > offset) and data[offset] in (b'\t'[0], b' '[0]):
+                    continue
+                break
+            
+            value = b' '.join(value_continuous)
+            value_continuous = None
+        
+        # Store, nice!
+        headers[name] = value.decode('utf-8', 'surrogateescape')

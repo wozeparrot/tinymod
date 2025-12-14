@@ -46,7 +46,7 @@ class AbstractTransportLayerBase:
         protocol : ``ProtocolBase``
             Asynchronous protocol implementation.
         """
-        pass
+        return
     
     
     def is_closing(self):
@@ -66,16 +66,21 @@ class AbstractTransportLayerBase:
         
         If the transport is already closing, does nothing.
         """
-        pass
+        return
     
     
-    def abort(self):
+    def abort(self, exception = None):
         """
         Closes the transport immediately.
         
         The buffered data will be lost.
+        
+        Parameters
+        ----------
+        exception : `None | BaseException` = `None`, Optional
+            Exception caused aborting cause if any.
         """
-        pass
+        return
     
     
     def write(self, data):
@@ -96,7 +101,7 @@ class AbstractTransportLayerBase:
         RuntimeError : `bool`
             If ``.write_eof`` was already called.
         """
-        pass
+        return
     
     
     def writelines(self, lines):
@@ -123,7 +128,7 @@ class AbstractTransportLayerBase:
         By default ``SubprocessStreamWriter``'s transport is ``UnixWritePipeTransport``, what will call connection lost
         as well when the write buffer is empty.
         """
-        pass
+        return
     
     
     def can_write_eof(self):
@@ -178,9 +183,9 @@ class AbstractTransportLayerBase:
         
         Parameters
         ----------
-        high : `None`, `int` = `None`, Optional
+        high : `None | int` = `None`, Optional
             High limit to stop reading if reached.
-        low : `None`, `int` = `None`, Optional
+        low : `None | int` = `None`, Optional
             Low limit to start reading if reached.
         
         Raises
@@ -188,7 +193,7 @@ class AbstractTransportLayerBase:
         ValueError
             If `low` is lower than `0` or if `low` is higher than `high`.
         """
-        pass
+        return
     
     
     def pause_reading(self):
@@ -264,7 +269,7 @@ class AbstractProtocolBase:
             Asynchronous transport implementation, what calls the protocol's ``.data_received`` when data is
             received.
         """
-        pass
+        return
     
     
     def connection_lost(self, exception):
@@ -279,14 +284,14 @@ class AbstractProtocolBase:
             If the connection was closed, then `exception` is given as `None`. This can happen at the case, when eof is
             received as well.
         """
-        pass
+        return
     
     
     def close(self):
         """
         Closes the protocol by closing it's transport if applicable.
         """
-        pass
+        return
     
     
     def close_transport(self, force = False):
@@ -314,7 +319,7 @@ class AbstractProtocolBase:
         -------
         transport : `None`, ``AbstractTransportLayerBase``
         """
-        pass
+        return
     
     
     def get_extra_info(self, name, default = None):
@@ -344,7 +349,7 @@ class AbstractProtocolBase:
         ----------
         exception : `BaseException`
         """
-        pass
+        return
     
     
     def eof_received(self):
@@ -361,7 +366,7 @@ class AbstractProtocolBase:
             
             Always returns `False`.
         """
-        pass
+        return
     
     
     def data_received(self, data):
@@ -373,7 +378,7 @@ class AbstractProtocolBase:
         data : `bytes`
             The received data.
         """
-        pass
+        return
     
     
     def pause_writing(self):
@@ -383,7 +388,7 @@ class AbstractProtocolBase:
         ``.pause_writing`` is called when the buffer goes over the high-water mark, and eventually
         ``.resume_writing`` is called when the buffer size reaches the low-water mark.
         """
-        pass
+        return
     
     
     def resume_writing(self):
@@ -392,7 +397,7 @@ class AbstractProtocolBase:
         
         See ``.pause_writing`` for details.
         """
-        pass
+        return
     
     
     def write(self, data):
@@ -409,7 +414,7 @@ class AbstractProtocolBase:
         RuntimeError
             Protocol has no attached transport.
         """
-        pass
+        return
     
     
     def writelines(self, lines):
@@ -426,14 +431,14 @@ class AbstractProtocolBase:
         RuntimeError
             Protocol has no attached transport.
         """
-        pass
+        return
     
     
     def write_eof(self):
         """
         Writes eof to the transport's protocol if applicable.
         """
-        pass
+        return
     
     
     def can_write_eof(self):
@@ -444,7 +449,7 @@ class AbstractProtocolBase:
         -------
         can_write_eof : `bool`
         """
-        pass
+        return
     
     
     async def drain(self):
@@ -458,7 +463,7 @@ class AbstractProtocolBase:
         BaseException
             Connection lost exception if applicable.
         """
-        pass
+        return
     
     
     def datagram_received(self, data, address):
@@ -472,7 +477,7 @@ class AbstractProtocolBase:
         address : `tuple` (`str`, `int`)
             The address from where the data was received.
         """
-        pass
+        return
     
     
     def error_received(self, exception):
@@ -484,7 +489,7 @@ class AbstractProtocolBase:
         exception : `OSError`
             The catched exception.
         """
-        pass
+        return
 
 
 class AbstractBidirectionalTransportLayerBase(AbstractTransportLayerBase, AbstractProtocolBase):

@@ -22,7 +22,7 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
     
     Attributes
     ----------
-    _extra : `None`, `dict` of (`str`, `object`) items
+    _extra : `None`, `dict<str, object>`
         Optional transport information.
     _loop : ``EventThread``
         The event loop to what the transport is bound to.
@@ -62,10 +62,18 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
         '_write_backlog'
     )
     
-    def __new__(cls, loop, protocol, ssl_context, connection_made_waiter, server_side, server_host_name,
-            call_connection_made):
+    def __new__(
+        cls,
+        loop,
+        protocol,
+        ssl_context,
+        connection_made_waiter,
+        server_side,
+        server_host_name,
+        call_connection_made,
+    ):
         """
-        Creates a new ``SSLProtocol``.
+        Creates a new ssl protocol layer.
         
         Parameters
         ----------
@@ -129,10 +137,7 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
     
     def __repr__(self):
         """Returns the ssl protocol transport's representation."""
-        repr_parts = [
-            '<',
-            self.__class__.__name__,
-        ]
+        repr_parts = ['<', type(self).__name__]
         
         if self._closing:
             repr_parts.append(' closing')
@@ -148,7 +153,7 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
                 field_added = True
             
             repr_parts.append(' transport = ')
-            repr_parts.append(transport.__class__.__name__)
+            repr_parts.append(type(transport).__name__)
         
         protocol = self._protocol
         if (protocol is not None):
@@ -156,7 +161,7 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
                 repr_parts.append(',')
             
             repr_parts.append(' protocol = ')
-            repr_parts.append(protocol.__class__.__name__)
+            repr_parts.append(type(protocol).__name__)
         
         repr_parts.append('>')
         return ''.join(repr_parts)
@@ -172,7 +177,7 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
         
         Parameters
         ----------
-        exception : `None`, ``BaseException`` = `None`, Optional
+        exception : `None`, `BaseException` = `None`, Optional
             Exception to throw into ``._connection_made_waiter`` if any.
         """
         connection_made_waiter = self._connection_made_waiter
@@ -221,8 +226,8 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
     def data_received(self, data):
         try:
             ssl_data, application_data = self._ssl_pipe.feed_ssl_data(data)
-        except SSLError:
-            self.abort()
+        except SSLError as exception:
+            self.abort(exception)
             return
         
         for chunk in ssl_data:
@@ -265,7 +270,7 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
     
     def _write_application_data(self, data):
         """
-        Writes data to the ``SSLProtocol`` to be sent.
+        Writes data to be sent.
         
         Parameters
         ----------
@@ -299,7 +304,7 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
         if (handshake_exception is not None):
             self._transport.close()
             self._wake_up_connection_made_waiter(handshake_exception)
-            raise
+            raise handshake_exception
         
         # Add extra info that becomes available after handshake.
         extra = self._extra
@@ -359,17 +364,13 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
                 
                 # An entire chunk from the backlog was processed. We can delete it and reduce the outstanding buffer
                 # size.
-                del self._write_backlog[0]
+                del write_backlog[0]
         
         except BaseException as err:
             if self._in_handshake:
                 self._handshake_completed(err)
             else:
                 self._fatal_error(err, 'Fatal error on SSL transport.')
-            
-            if not isinstance(err, Exception):
-                # BaseException
-                raise
     
     
     @copy_docs(TransportLayerBase._fatal_error)
@@ -383,7 +384,7 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
     
     def _finalize(self):
         """
-        Closes the ``SSLProtocol``'s transport.
+        Closes the ssl protocol's transport.
         
         Called after shutdown or abortion.
         """
@@ -422,11 +423,11 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
     
     
     @copy_docs(TransportLayerBase.abort)
-    def abort(self):
+    def abort(self, exception = None):
         transport = self._transport
         if (transport is not None):
             try:
-                transport.abort()
+                transport.abort(exception)
             finally:
                 self._finalize()
 
@@ -435,7 +436,7 @@ class SSLBidirectionalTransportLayer(TransportLayerBase, AbstractBidirectionalTr
     def write(self, data):
         if not isinstance(data, (bytes, bytearray, memoryview)):
             raise TypeError(
-                f'`data` can be `bytes-like`, got {data.__class__.__name__}; {reprlib.repr(data)}.'
+                f'`data` can be `bytes-like`, got {type(data).__name__}; {reprlib.repr(data)}.'
             )
         
         if data:

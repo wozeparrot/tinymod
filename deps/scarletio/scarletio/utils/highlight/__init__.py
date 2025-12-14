@@ -1,10 +1,14 @@
 from .ansi import *
 from .constants import *
 from .default import *
+from .flags import *
 from .formatter_context import *
 from .formatter_detail import *
 from .formatter_node import *
+from .highlight_streamer import *
+from .layer import *
 from .matching import *
+from .parse_result import *
 from .parser_context import *
 from .token import *
 from .token_types import *
@@ -20,10 +24,14 @@ __all__ = (
     *ansi.__all__,
     *constants.__all__,
     *default.__all__,
+    *flags.__all__,
     *formatter_context.__all__,
     *formatter_detail.__all__,
     *formatter_node.__all__,
+    *highlight_streamer.__all__,
+    *layer.__all__,
     *matching.__all__,
+    *parse_result.__all__,
     *parser_context.__all__,
     *token.__all__,
     *token_types.__all__,

@@ -1,11 +1,13 @@
 __all__ = ()
 
+from ....utils import RichAttributeErrorBaseType
+
 
 def _validate_buffer(buffer):
     """
     Parameters
     ----------
-    buffer : `None`, `list` of `str`
+    buffer : `None | list<str>`
         A precreated buffer which commands the initial lines of the input to write.
     
     Returns
@@ -28,7 +30,7 @@ def _validate_buffer(buffer):
     return buffer
 
 
-class EditorBase:
+class EditorBase(RichAttributeErrorBaseType):
     """
     Base editor implementation.
     
@@ -59,7 +61,7 @@ class EditorBase:
         
         Parameters
         ----------
-        buffer : `None`, `list` of `str`
+        buffer : `None | list<str>`
             A precreated buffer which commands the initial lines of the input to write.
         file_name : `str`
             File name of the code produced by the editor.
@@ -69,7 +71,7 @@ class EditorBase:
             Non-first line's prefix.
         prefix_length : `int`
             As how long should the prefix's length be interpreted.
-        highlighter : `None`, ``HighlightFormatterContext``
+        highlighter : ``None | HighlightFormatterContext``
             Formatter storing highlighting details.
         history : ``History``
             History used for caching inputs.

@@ -4,7 +4,7 @@ from itertools import zip_longest
 from types import FunctionType
 
 from .async_utils import is_coroutine_function, is_coroutine_generator_function
-from .code import CO_VARARGS, CO_VARKEYWORDS
+from .code import CODE_FLAG_VARARGS, CODE_FLAG_VARKEYWORDS
 from .method_like import MethodLike
 
 
@@ -75,7 +75,7 @@ class Parameter:
         """Returns the parameter's representation."""
         repr_parts = []
         repr_parts.append('<')
-        repr_parts.append(self.__class__.__name__)
+        repr_parts.append(type(self).__name__)
         repr_parts.append(' ')
         
         if self.reserved:
@@ -499,9 +499,9 @@ class CallableAnalyzer:
         parameters = []
         if (real_function is not None):
             parameter_count = real_function.__code__.co_argcount
-            accepts_args = real_function.__code__.co_flags & CO_VARARGS
+            accepts_args = real_function.__code__.co_flags & CODE_FLAG_VARARGS
             keyword_only_parameter_count = real_function.__code__.co_kwonlyargcount
-            accepts_kwargs = real_function.__code__.co_flags & CO_VARKEYWORDS
+            accepts_kwargs = real_function.__code__.co_flags & CODE_FLAG_VARKEYWORDS
             positional_only_parameter_count = getattr(real_function.__code__, 'co_posonlyargcount', 0)
             default_parameter_values = real_function.__defaults__
             default_keyword_only_parameter_values = real_function.__kwdefaults__
@@ -556,8 +556,8 @@ class CallableAnalyzer:
             if (method_allocation > parameter_count) and (args_name is None):
                 raise TypeError(
                     f'Received a `method-like`, but has not enough positional parameters, got '
-                    f'{real_function.__class__.__name__}; {real_function!r}; '
-                    f'allocated parameter count={method_allocation!r}; total parameter count={parameter_count!r}.'
+                    f'{type(real_function).__name__}; {real_function!r}; '
+                    f'allocated parameter count = {method_allocation!r}; total parameter count = {parameter_count!r}.'
                 )
             
             index = 0
@@ -926,18 +926,25 @@ class CallableAnalyzer:
         -----
         `*args` parameter is ignored from the calculation.
         """
-        iterator = iter(self.parameters)
+        parameters = self.parameters
+        length = len(parameters)
+        index = 0
         start = 0
-        for parameter in iterator:
+        
+        while index < length:
+            parameter = parameters[index]
             if not parameter.is_positional():
                 return start, start
             
             if parameter.reserved:
+                index += 1
                 continue
             
             if parameter.has_default:
+                start = index
                 break
             
+            index += 1
             start += 1
             continue
         
@@ -945,9 +952,11 @@ class CallableAnalyzer:
             return start, start
         
         end = start
-        for parameter in iterator:
+        while index < length:
             if not parameter.is_positional():
                 return start, end
+            
+            index += 1
             
             if parameter.reserved:
                 continue

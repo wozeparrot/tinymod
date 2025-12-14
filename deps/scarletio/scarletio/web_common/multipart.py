@@ -3,7 +3,7 @@ __all__ = ('create_payload', )
 from base64 import b64encode as base_64_encode
 from binascii import b2a_qp as qp_encode
 from io import BufferedRandom, BufferedReader, BytesIO, IOBase, StringIO, TextIOBase
-from mimetypes import guess_type as guess_mime_type
+from mimetypes import guess_type as guess_content_type
 from os import SEEK_END, fstat as stat
 from re import compile as re_compile, escape as re_escape, sub as re_sub
 from urllib.parse import urlencode as url_encode
@@ -16,7 +16,7 @@ from .compressors import BROTLI_COMPRESSOR, ZLIB_COMPRESSOR, ZLIB_MAX_WBITS
 from .exceptions import ContentEncodingError
 from .header_building_and_parsing import CHARS, TOKENS, build_content_disposition_header
 from .headers import CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TRANSFER_ENCODING, CONTENT_TYPE
-from .mime_type import MimeType
+from .content_type import parse_content_type
 from .quoting import unquote
 
 
@@ -91,9 +91,9 @@ class PayloadBase:
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
     __slots__ = ('content_type', 'data', 'encoding', 'file_name', 'headers', 'size', )
@@ -108,7 +108,7 @@ class PayloadBase:
                 `BytesIO`, `StringIO`, `TextIOBase`, `BufferedReader`, `BufferedRandom`, `IOBase`, ``AsyncIO``, \
                 `async-iterable`
             The payload's data.
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Additional keyword parameters.
         """
         self.data = data
@@ -123,7 +123,7 @@ class PayloadBase:
             if file_name is None:
                 content_type = DEFAULT_CONTENT_TYPE
             else:
-                mime = guess_mime_type(file_name)[0]
+                mime = guess_content_type(file_name)[0]
                 if mime is None:
                     content_type = DEFAULT_CONTENT_TYPE
                 else:
@@ -147,7 +147,7 @@ class PayloadBase:
         ----------
         disposition_type : `str`
             The disposition's type.
-        parameters : `dict` of (`str`, `str`) items
+        parameters : `dict<str, str>`
             Additional parameters.
         quote_fields : `bool`
             Whether field values should be quoted.
@@ -169,6 +169,38 @@ class PayloadBase:
             Http writer to write the payload's data to.
         """
         pass
+    
+    
+    def __eq__(self, other):
+        """Returns whether the two payloads are equal."""
+        if type(self) is not type(other):
+            return NotImplemented
+        
+        # content_type
+        if self.content_type != other.content_type:
+            return False
+        
+        # data
+        if self.data != other.data:
+            return False
+        
+        # encoding
+        if self.encoding != other.encoding:
+            return False
+        
+        # file_name
+        if self.file_name != other.file_name:
+            return False
+        
+        # headers
+        if self.headers != other.headers:
+            return False
+        
+        # size
+        if self.size != other.size:
+            return False
+        
+        return True
 
 
 class BytesPayload(PayloadBase):
@@ -185,9 +217,9 @@ class BytesPayload(PayloadBase):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
     __slots__ = ()
@@ -200,7 +232,7 @@ class BytesPayload(PayloadBase):
         ----------
         data : `bytes`, `bytearray`, `memoryview`
             The payload's data.
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Additional keyword parameters.
         """
         keyword_parameters.setdefault('content_type', DEFAULT_CONTENT_TYPE)
@@ -237,9 +269,9 @@ class StringPayload(BytesPayload):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
     __slots__ = ()
@@ -252,7 +284,7 @@ class StringPayload(BytesPayload):
         ----------
         data : `str`
             The payload's data.
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Additional keyword parameters.
         """
         encoding = keyword_parameters.get('encoding', None)
@@ -264,8 +296,8 @@ class StringPayload(BytesPayload):
                 
                 keyword_parameters['content_type'] = content_type
             else:
-                mime_type = MimeType(content_type)
-                encoding = mime_type.parameters.get('charset', 'utf-8')
+                content_type, content_type_parsing_error = parse_content_type(content_type)
+                encoding = content_type.get_parameter('charset', 'utf-8')
             
             keyword_parameters['encoding'] = encoding
         
@@ -293,9 +325,9 @@ class StringIOPayload(StringPayload):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
     __slots__ = ()
@@ -308,7 +340,7 @@ class StringIOPayload(StringPayload):
         ----------
         data : `StringIO`
             The payload's data.
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Additional keyword parameters.
         """
         data = data.read()
@@ -329,9 +361,9 @@ class IOBasePayload(PayloadBase):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
     __slots__ = ()
@@ -343,7 +375,7 @@ class IOBasePayload(PayloadBase):
         ----------
         data : `IOBase`
             The payload's data.
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Additional keyword parameters.
         """
         if 'file_name' not in keyword_parameters:
@@ -399,9 +431,9 @@ class TextIOPayload(IOBasePayload):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
     __slots__ = ()
@@ -414,7 +446,7 @@ class TextIOPayload(IOBasePayload):
         ----------
         data : `TextIOBase`
             The payload's data.
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Additional keyword parameters.
         """
         encoding = keyword_parameters.get('encoding', None)
@@ -426,8 +458,8 @@ class TextIOPayload(IOBasePayload):
                 
                 keyword_parameters['content_type'] = content_type
             else:
-                mime_type = MimeType(content_type)
-                encoding = mime_type.parameters.get('charset', 'utf-8')
+                content_type, content_type_parsing_error = parse_content_type(content_type)
+                encoding = content_type.get_parameter('charset', 'utf-8')
             
             keyword_parameters['encoding'] = encoding
         else:
@@ -483,11 +515,13 @@ class BytesIOPayload(IOBasePayload):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
+    __slots__ = ()
+    
     def __init__(self, data, keyword_parameters):
         """
         Creates a new ``BytesIOPayload``.
@@ -496,7 +530,7 @@ class BytesIOPayload(IOBasePayload):
         ----------
         data : `BytesIO`
             The payload's data.
-        keyword_parameters : `IgnoreCaseMultiValueDictionary<str, str>`
+        keyword_parameters : ``IgnoreCaseMultiValueDictionary<str, str>``
             Additional keyword parameters.
         """
         IOBasePayload.__init__(self, data, keyword_parameters)
@@ -521,9 +555,9 @@ class BufferedReaderPayload(IOBasePayload):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
     __slots__ = ()
@@ -536,7 +570,7 @@ class BufferedReaderPayload(IOBasePayload):
         ----------
         data : `BufferedReader`, `BufferedRandom`
             The payload's data.
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Additional keyword parameters.
         """
         IOBasePayload.__init__(self, data, keyword_parameters)
@@ -563,9 +597,9 @@ class JsonPayload(BytesPayload):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
     __slots__ = ()
@@ -578,7 +612,7 @@ class JsonPayload(BytesPayload):
         ----------
         data : `None`, `str`, `int`, `float`, `list` of repeat, `dict` of (`str`, repeat) items
             The payload's data.
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Additional keyword parameters.
         """
         encoding = keyword_parameters.get('encoding', None)
@@ -605,9 +639,9 @@ class AsyncIterablePayload(PayloadBase):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
     __slots__ = ('_iterator',)
@@ -620,13 +654,13 @@ class AsyncIterablePayload(PayloadBase):
         ----------
         data : `async-iterable`
             The payload's data.
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Additional keyword parameters.
         """
         keyword_parameters.setdefault('content_type', DEFAULT_CONTENT_TYPE)
         
         PayloadBase.__init__(self, data, keyword_parameters)
-        self._iterator = data.__class__.__aiter__(data)
+        self._iterator = type(data).__aiter__(data)
     
     
     async def write(self, writer):
@@ -641,13 +675,18 @@ class AsyncIterablePayload(PayloadBase):
             Http writer to write the payload's data to.
         """
         iterator = self._iterator
-        anext = iterator.__class__.__anext__
+        anext = type(iterator).__anext__
         try:
             while True:
                 chunk = await anext(iterator)
                 await writer.write(chunk)
         except StopAsyncIteration:
             self._iterator = None
+
+    
+    # __eq__
+    # Ignore `._iterator` being new attribute.
+    # We really only care about the object being equal.
 
 
 class AsyncIOPayload(IOBasePayload):
@@ -664,11 +703,13 @@ class AsyncIOPayload(IOBasePayload):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
+    __slots__ = ()
+    
     async def write(self, writer):
         """
         Writes the payload to the given http writer.
@@ -705,11 +746,13 @@ class BodyPartReaderPayload(PayloadBase):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     """
+    __slots__ = ()
+    
     def __init__(self, data, keyword_parameters):
         """
         Creates a new ``BodyPartReaderPayload``.
@@ -718,7 +761,7 @@ class BodyPartReaderPayload(PayloadBase):
         ----------
         data : ``BodyPartReader``
             The payload's data.
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Additional keyword parameters.
         """
         PayloadBase.__init__(self, data, keyword_parameters)
@@ -843,7 +886,7 @@ def _is_extended_parameter(string):
 def _is_rfc5987(string):
     """
     Returns whether the given string is an extended notation based on `rfc5987` using `'` signs to capture the language
-        parameter.
+    parameter.
     
     Parameters
     ----------
@@ -854,6 +897,20 @@ def _is_rfc5987(string):
     -------
     is_rfc5987 : `bool`
     """
+    # Default format:
+    # foo: bar; title=Economy
+    
+    # Non extended:
+    # foo: bar; title="US-$ rates"
+    
+    # With language | This is matched.
+    # foo: bar; title*=iso-8859-1'en'%A3%20rates
+    
+    # Without language | This is matched.
+    # foo: bar; title*=UTF-8''%c2%a3%20and%20%e2%82%ac%20rates
+    
+    # I do not think `parse_content_disposition` handles all these cases correctly, so will have to be rewritten.
+    
     return _is_token(string) and string.count("'") == 2
 
 
@@ -888,7 +945,7 @@ def parse_content_disposition(header):
     -------
     disposition_type : `None`, `str`
         The disposition's type if anything found.
-    parameters : `dict` of (`str`, `str`) items
+    parameters : `dict<str, str>`
         The parsed out parameters.
     """
     if not header:
@@ -922,12 +979,12 @@ def parse_content_disposition(header):
                 continue
         
         elif _is_extended_parameter(key):
-            if _is_rfc5987(value):
-                encoding, _, value = value.split("'", 2)
-                if not encoding:
-                    encoding = 'utf-8'
-            else:
+            if not _is_rfc5987(value):
                 continue
+            
+            encoding, _, value = value.split("'", 2)
+            if not encoding:
+                encoding = 'utf-8'
             
             try:
                 value = unquote(value, encoding, 'strict')
@@ -953,7 +1010,7 @@ def parse_content_disposition(header):
         
         parameters[key] = value
     
-    return disposition_type.lower(), parameters
+    return disposition_type.casefold(), parameters
 
 
 def get_content_disposition_file_name(parameters, name = 'filename'):
@@ -962,7 +1019,7 @@ def get_content_disposition_file_name(parameters, name = 'filename'):
     
     Parameters
     ----------
-    parameters : `dict` of (`str`, `str`) items
+    parameters : `dict<str, str>`
         The content disposition parameters parsed from a header value.
     name : `str` = `'filename'`, Optional
         File name to get.
@@ -1024,9 +1081,9 @@ class MultipartWriter(PayloadBase):
         The payload's file's name if applicable.
     encoding : `None` or`str`
         Encoding used to encode the payload's data.
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         Payload specific headers.
-    size : `None`, `int`
+    size : `None | int`
         The payload's size if applicable.
     _boundary : `bytes`
         Boundary to mark the payload's start and end.
@@ -1117,7 +1174,7 @@ class MultipartWriter(PayloadBase):
         ----------
         body_part : ``PayloadBase``, ``BodyPartReader``, `bytes`, `bytearray`, `memoryview`, `BytesIO`, `StringIO`, \
             `TextIOBase`, `BufferedReader`, `BufferedRandom`, `IOBase`, ``AsyncIO``, `async-iterable`
-        headers : `None`, `IgnoreCaseMultiValueDictionary<str, str>` = `None`, Optional
+        headers : `None`, ``IgnoreCaseMultiValueDictionary<str, str>`` = `None`, Optional
             Optional headers for the field.
         
         Returns
@@ -1253,7 +1310,7 @@ class MultipartWriter(PayloadBase):
         ----------
         obj : `None`, `str`, `int`, `float`, `list` of repeat, `dict` of (`str`, repeat) items
             The payload's data.
-        headers : `None`, `IgnoreCaseMultiValueDictionary<str, str>` = `None`, Optional
+        headers : `None`, ``IgnoreCaseMultiValueDictionary<str, str>`` = `None`, Optional
             Optional headers for the json field.
 
         Returns
@@ -1284,7 +1341,7 @@ class MultipartWriter(PayloadBase):
         ----------
         obj : `mapping` of (`str`, `object`) items, `sequence` of `tuple` (`str`, `object`) items
             The object, what should be percent encoded for a post request.
-        headers : `None`, `IgnoreCaseMultiValueDictionary<str, str>` = `None`, Optional
+        headers : `None`, ``IgnoreCaseMultiValueDictionary<str, str>`` = `None`, Optional
             Optional headers for the url_encoded field.
         
         Returns

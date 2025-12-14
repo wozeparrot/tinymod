@@ -21,7 +21,10 @@ class docs_property:
     
     def __get__(self, obj, type_):
         if obj is None:
-            return type_.__class_doc__
+            try:
+                return type_.__type_doc__
+            except AttributeError:
+                return type_.__class_doc__
         else:
             return obj.__instance_doc__
     
@@ -123,7 +126,7 @@ class module_property:
 class class_property:
     __doc__ = docs_property()
     
-    __class_doc__ = ("""
+    __type_doc__ = ("""
     Class level property.
     
     Attributes
@@ -152,7 +155,7 @@ class class_property:
             Setter method.
         fdel : `None`, `callable` = `None`, Optional
             Deleter method.
-        doc : `None`, `object` = `None`, Optional
+        doc : `None | object` = `None`, Optional
             Documentation for the property.
         """
         if (doc is None) and (fget is not None):
@@ -246,7 +249,7 @@ class cached_property:
     name : `str`
         The name of the cached property.
     """
-    __slots__ = ('fget', 'name',)
+    __slots__ = ('fget', 'fset', 'name',)
     
     @has_docs
     def __new__(cls, fget):
@@ -265,7 +268,7 @@ class cached_property:
         """
         name = getattr(fget, '__name__', None)
         
-        name_type = name.__class__
+        name_type = type(name)
         if name_type is NoneType:
             name_type_correct = False
         elif name_type is str:
@@ -283,14 +286,29 @@ class cached_property:
         
         self = object.__new__(cls)
         self.fget = fget
+        self.fset = None
         self.name = name
         return self
+    
+    
+    def setter(self, fset):
+        new = object.__new__(type(self))
+        new.fget = self.fget
+        new.fset = fset
+        new.name = self.name
+        return new
+        
     
     def __get__(self, obj, type_):
         if obj is None:
             return self
         
-        value = obj._cache.get(self.name, ...)
+        cache = obj._cache
+        if cache is None:
+            cache = {}
+            obj._cache = cache
+        
+        value = cache.get(self.name, ...)
         if value is ...:
             value = self.fget(obj)
             obj._cache[self.name] = value
@@ -298,7 +316,19 @@ class cached_property:
         return value
     
     def __set__(self, obj, value):
-        raise AttributeError('can\'t set attribute')
+        fset = self.fset
+        if fset is None:
+            raise AttributeError('can\'t set attribute')
+        
+        value = fset(value)
+        
+        cache = obj._cache
+        if cache is None:
+            cache = {}
+            obj._cache = cache
+        
+        cache[self.name] = value
+    
     
     def __delete__(self, obj):
         raise AttributeError('can\'t delete attribute')
