@@ -34,6 +34,7 @@ async def commit_table(client: Client, event):
   message = yield InteractionResponse(content="generating commit table...", message=message)
 
   # run python extra/weekly_commit_table.py and capture output
+  logging.info("Generating commit table...")
   p = await get_event_loop().subprocess_shell("python extra/weekly_commits_table.py", cwd=REPO_DIR)
   stdout, stderr = await p.communicate()
   content = stdout.decode()
