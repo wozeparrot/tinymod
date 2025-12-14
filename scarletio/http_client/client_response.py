@@ -1,27 +1,26 @@
 __all__ = ()
 
-import codecs, re
+from codecs import lookup as lookup_encoding
+from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
+from warnings import warn
 
-from ..core import Task
-from ..utils import from_json
-from ..web_common.headers import CONNECTION, CONTENT_TYPE, METHOD_HEAD, SET_COOKIE
-from ..web_common.helpers import HttpVersion10
-from ..web_common.multipart import MimeType
+from ..utils import RichAttributeErrorBaseType, from_json
+from ..web_common import parse_content_type
+from ..web_common.headers import CONTENT_TYPE, METHOD_CONNECT, METHOD_HEAD, SET_COOKIE
 
+from .constants import JSON_RE
 
 try:
-    import cchardet as chardet
+    from cchardet import detect as detect_encoding
 except ImportError:
     try:
-        import chardet
+        from chardet import detect as detect_encoding
     except ImportError as err:
-        chardet = None
-
-JSON_RE = re.compile(r'^application/(?:[\w.+-]+?\+)?json')
+        detect_encoding = None
 
 
-class ClientResponse:
+class ClientResponse(RichAttributeErrorBaseType):
     """
     Http response class used by ``HTTPClient``.
     
@@ -29,87 +28,92 @@ class ClientResponse:
     ----------
     _released : `bool`
         Whether the connection is released.
-    body : `None`, `bytes`
+    
+    body : `None | bytes`
         The received response body. Set as `None` if the response body is not yet received, or if it is empty.
+        Not set as non-`None` if the payload was streamed.
+    
     closed : `bool`
         Whether the response is closed.
-    connection : `None`, ``Connection``
-        Connection used to receive the request response. Set as `None` if the response is ``.close``-d or
-        ``.release``-d.
-    payload_waiter : `None`, ``Future``
-        Future used to retrieve the response's body. It's result is set, when the respective protocol's reader task
-        finished.
+    
+    connection : `None | Connection`
+        Connection used to receive the request response.
+        Set as `None` if the response is ``.close``-d or ``.release``-d.
+    
     cookies : `http.cookies.SimpleCookie`
         Received cookies with the response.
-    headers : `None`, ``IgnoreCaseMultiValueDictionary``
-        Headers of the response. Set when the http response is successfully received.
-    history : `None`, `tuple` of ``ClientResponse``
+    
+    history : `None | tuple<ClientResponse>`
         Response history. Set as `tuple` of responses from outside.
+    
     loop : ``EventThread``
         The event loop, trough what the request is executed.
+    
     method : `str`
         Method of the respective request.
-    status : `int`
-        Received status code. Set as `0` by default.
+    
+    payload_stream : `None | PayloadStream`
+        Future used to retrieve the response's body.
+        It's result is set, when the respective protocol's reader task finished.
+    
+    raw_message : `None | RawResponseMessage`
+        Raw received http response.
+    
     url : ``URL``
         The requested url.
-    writer : ``Task`` of ``ClientRequest.write_bytes``
+    
+    write_body_task : `None | Task<ClientRequest.write_body>`
         Payload writer task of the respective request.
-    raw_message : `None`, ``RawResponseMessage``
-        Raw received http response.
     """
     __slots__ = (
-        '_released', 'body', 'closed', 'connection', 'payload_waiter', 'cookies', 'headers', 'history', 'loop',
-        'method', 'status', 'url', 'writer', 'raw_message'
+        '_released', 'body', 'closed', 'connection', 'cookies', 'history', 'loop', 'method', 'payload_stream',
+        'raw_message', 'url', 'write_body_task' 
     )
        
     def __new__(cls, request, connection):
         """
-        Crates a new ``ClientResponse`` from the given request and connection.
+        Crates a new client response from the given request and connection.
         
         Parameters
         ----------
         request : ``ClientRequest``
             The respective request.
+        
         connection : ``Connection``
             The connection used to send the request and receive the response.
         """
         self = object.__new__(cls)
+        
+        self._released = False
+        self.body = None
+        self.closed = False
+        self.connection = connection
+        self.cookies = SimpleCookie()
+        self.history = None
         self.loop = request.loop
         self.method = request.method
-        self.url = request.original_url
-        
-        self.writer = request.writer
-        self.closed = False
-        self.cookies = SimpleCookie()
-        self._released = False
-        
-        self.body = None
-        self.status = 0
-        self.payload_waiter = None
-        self.headers = None
-        self.connection = connection
-        
+        self.payload_stream = None
         self.raw_message = None
-        self.history = None  # will be added later
+        self.url = request.original_url
+        self.write_body_task = request.write_body_task
         
         return self
     
     
-    @property
-    def reason(self):
-        """
-        Returns the server response reason.
+    def __repr__(self):
+        """Returns the response's representation."""
+        repr_parts = ['<', type(self).__name__]
         
-        Returns
-        -------
-        reason : `None`, `str`
-        """
-        message = self.raw_message
-        if (message is not None):
-            reason = message.reason
-            if (reason is not None):
-                return reason.decode()
+        # url
+        repr_parts.append(' url = ')
+        repr_parts.append(str(self.url))
+        
+        # status & reason
+        repr_parts.append(', response = ')
+        repr_parts.append(repr(f'{self.status!s} {self.reason!s}'))
+        
+        repr_parts.append('>')
+        return ''.join(repr_parts)
     
     
     def __del__(self):
@@ -120,75 +124,112 @@ class ClientResponse:
         self._release_connection()
     
     
-    def __repr__(self):
-        """Returns the response's representation."""
-        ascii_encodable_url = str(self.url)
+    @property
+    def headers(self):
+        """
+        Headers of the response. Set when the http response is successfully received.
         
-        return f'<{self.__class__.__name__}({ascii_encodable_url}) [{self.status} {self.reason!r}]>'
+        Returns
+        --------
+        headers : `None | IgnoreCaseMultiValueDictionary<str, str>`
+        """
+        message = self.raw_message
+        if (message is None):
+            return None
+        
+        return message.headers
     
     
-    async def start(self):
+    @property
+    def reason(self):
+        """
+        Returns the server response reason.
+        
+        Returns
+        -------
+        reason : `None | str`
+        """
+        message = self.raw_message
+        if (message is None):
+            return None
+        
+        reason = message.reason
+        if (reason is not None):
+            return reason
+        
+        return HTTPStatus(message.status).phrase
+    
+    
+    @property
+    def status(self):
+        """
+        Received status code. Returns `0` by default.
+        
+        Returns
+        -------
+        status : `int`
+        """
+        message = self.raw_message
+        if (message is None):
+            return 0
+        
+        return message.status
+    
+    
+    async def start_processing(self):
         """
         Starts response processing.
         
         This method is a coroutine.
-        
-        Returns
-        -------
-        self : ``ClientResponse``
         """
         try:
             protocol = self.connection.protocol
+            self.raw_message = message = await protocol.read_http_response()
             
-            payload_waiter = protocol.set_payload_reader(protocol._read_http_response())
-            self.raw_message = message = await payload_waiter
+            if self.method == METHOD_CONNECT:            
+                # Do not read anything if we are doing a connect request.
+                payload_stream = None
             
-            if self.method == METHOD_HEAD:
-                payload_reader = None
             else:
-                payload_reader = protocol.get_payload_reader_task(message)
+                if self.method == METHOD_HEAD:
+                    payload_reader = None
+                else:
+                    payload_reader = protocol.get_payload_reader_task(message)
+                
+                if (payload_reader is None):
+                    payload_stream = None
+                    self._response_eof(None)
+                else:
+                    payload_stream = protocol.set_payload_reader(payload_reader)
+                    payload_stream.add_done_callback(self._response_eof)
+                    protocol.handle_payload_stream_abortion()
             
-            if (payload_reader is None):
-                payload_waiter = None
-                self._response_eof(None)
-            else:
-                payload_waiter = protocol.set_payload_reader(payload_reader)
-                protocol.handle_payload_waiter_cancellation()
-                payload_waiter.add_done_callback(self._response_eof)
-            
-            # response status
-            self.status = message.status
-            # headers
-            self.headers = message.headers
-            # OwO
-            self.payload_waiter = payload_waiter
+            self.payload_stream = payload_stream
             
             # cookies
-            for header in self.headers.get_all(SET_COOKIE, ()):
-                try:
-                    self.cookies.load(header)
-                except CookieError: # so sad
-                    pass
+            headers = message.headers
+            if (headers is not None):
+                for header in headers.get_all(SET_COOKIE, ()):
+                    try:
+                        self.cookies.load(header)
+                    except CookieError: # so sad
+                        pass
         except:
             self.close()
             raise
-        
-        return self
     
     
-    def _response_eof(self, future):
+    def _response_eof(self, payload_stream):
         """
         Future callback added to the payload waiter future, to release the used connection.
         
         Parameters
         ----------
-        future : ``Future``
-            ``.payload_waiter`` future.
+        payload_stream : `None | PayloadStream`
+            The respective payload stream.
         """
         if self.closed:
             return
-        
-        self.payload_waiter = None
         
         connection = self.connection
         if (connection is not None):
@@ -196,62 +237,58 @@ class ClientResponse:
             if (connection.protocol is not None) and self.raw_message.upgraded:
                 return
             
+            self._released = True
             self._release_connection()
         
         self.closed = True
-        self._cleanup_writer()
+        self._clean_up_writer()
     
     
     def _release_connection(self):
         """
         Releases the response's connection.
         
-        If the connection type is "close", closes the protocol as well.
+        If the connection type is `close`, closes the protocol as well.
         """
         connection = self.connection
         if connection is None:
             return
         
-        headers = self.headers
-        if (headers is None):
-            connection_type = None
+        raw_message = self.raw_message
+        if raw_message is None:
+            keep_alive = None
         else:
-            connection_type = headers.get(CONNECTION, None)
+            keep_alive = raw_message.keep_alive
         
-        if (
-            (self.raw_message.version <= HttpVersion10) if
-            (connection_type is None) else
-            (connection_type.lower() == 'close')
-        ):
-            connection.close()
-        else:
-            connection.release()
         self.connection = None
+        connection.release(keep_alive)
     
     
     def _notify_content(self):
         """
-        Called when response reading is cancelled or released. Sets `ConnectionError` to the respective protocol if
-        the payload is still reading.
+        Called when response reading is cancelled or released.
+        Sets `ConnectionError` to the respective protocol if the payload is still reading.
         """
-        payload_waiter = self.payload_waiter
-        if (payload_waiter is not None):
+        payload_stream = self.payload_stream
+        if (payload_stream is not None):
             connection = self.connection
             if (connection is not None):
-                connection.protocol.set_exception(ConnectionError('Connection closed.'))
+                protocol = connection.protocol
+                if (protocol is not None):
+                    protocol.set_exception(ConnectionError('Connection closed.'))
         
         self._released = True
     
     
-    def _cleanup_writer(self):
+    def _clean_up_writer(self):
         """
         Cancels the writer task of the respective request. Called when the response is cancelled or released, or if
         reading the whole response is done.
         """
-        writer = self.writer
-        if (writer is not None):
-            self.writer = None
-            writer.cancel()
+        write_body_task = self.write_body_task
+        if (write_body_task is not None):
+            self.write_body_task = None
+            write_body_task.cancel()
     
     
     async def read(self):
@@ -262,16 +299,16 @@ class ClientResponse:
         
         Returns
         -------
-        body : `bytes`
+        body : `None | bytes`
         """
-        payload_waiter = self.payload_waiter
-        if (payload_waiter is None):
+        payload_stream = self.payload_stream
+        if (payload_stream is None):
             body = self.body
         else:
             try:
-                self.body = body = await payload_waiter
+                self.body = body = await payload_stream
             finally:
-                self.payload_waiter = None
+                self.payload_stream = None
         
         return body
     
@@ -285,32 +322,43 @@ class ClientResponse:
         encoding : `str`
             Defaults to `'utf-8'`.
         """
-        content_type = self.headers.get(CONTENT_TYPE, '').lower()
-        mime_type = MimeType(content_type)
+        headers = self.headers
+        if headers is None:
+            return 'utf-8'
         
-        encoding = mime_type.parameters.get('charset', None)
-        if encoding is not None:
+        content_type, content_type_parsing_error = parse_content_type(headers.get(CONTENT_TYPE, ''))
+        
+        encoding = content_type.get_parameter('charset', None)
+        if (encoding is not None):
+            encoding = encoding.casefold()
             try:
-                codecs.lookup(encoding)
+                lookup_encoding(encoding)
             except LookupError:
-                encoding = None
-        
-        if encoding is None:
-            if mime_type.type == 'application' and mime_type.sub_type == 'json':
-                encoding = 'utf-8' # RFC 7159 states that the default encoding is UTF-8.
+                pass
             else:
-                if chardet is None:
-                    encoding = 'utf-8'
-                else:
-                    encoding = chardet.detect(self.body)['encoding']
+                return encoding
         
-        if not encoding:
+        # RFC 7159 states that the default encoding is utf-8.
+        if (content_type.type == 'application' and content_type.sub_type in ('json', 'rdap')):
+            return 'utf-8'
+        
+        # If we cannot detect encoding leave
+        if (detect_encoding is None):
+            return 'utf-8'
+        
+        # Can we detect encoding from anything even?
+        body = self.body
+        if (body is None):
+            return 'utf-8'
+        
+        encoding = detect_encoding(body)['encoding']
+        if encoding is None:
             encoding = 'utf-8'
         
-        return encoding
+        return encoding.casefold()
     
     
-    async def text(self, encoding = None, errors = 'strict'):
+    async def text(self, *, encoding = None, errors = 'strict'):
         """
         Loads the response's content as text.
         
@@ -318,9 +366,10 @@ class ClientResponse:
         
         Parameters
         ----------
-        encoding : `None`, `str` = `None`, Optional
-            If no encoding is given, then detects it from the payload-
-        errors : `str` = `'strict'`, Optional
+        encoding : `None`, `str` = `None`, Optional (Keyword only)
+            If no encoding is given, then detects it from the payload.
+        
+        errors : `str` = `'strict'`, Optional (Keyword only)
             May be given to set a different error handling scheme. The default `errors` value is `'strict'`, meaning
             that encoding errors raise a `UnicodeError`. Other possible values are `'ignore'`, `'replace'`,
             `'xmlcharrefreplace'`, `'backslashreplace'` and any other name registered via `codecs.register_error()`.
@@ -339,7 +388,7 @@ class ClientResponse:
         return body.decode(encoding, errors)
     
     
-    async def json(self, encoding = None, loader = from_json, content_type = None):
+    async def json(self, *, content_type = None, encoding = None, loader = from_json):
         """
         Loads the response's content as a json.
         
@@ -347,13 +396,16 @@ class ClientResponse:
         
         Parameters
         ----------
-        encoding : None`, `str` = `None`, Optional
-            Encoding to use instead of the response's. If given as `None` (so by default), then will use the response's
-            own encoding.
-        loader : `callable` = ``from_json``, Optional
+        content_type : `None | str` = `None`, Optional (Keyword only)
+            Content type to use instead of the default one.
+            Pass it as empty string to disable the check.
+        
+        encoding : `None | str` = `None`, Optional (Keyword only)
+            Encoding to use instead of the response's.
+            If not given then will use the response's own encoding.
+        
+        loader : `callable` = ``from_json``, Optional (Keyword only)
             Json loader. Defaults to json.loads`.
-        content_type : `None`, `str` = `None`, Optional
-            Content type to use instead of the default one. Defaults to `'application/json'`.
         
         Returns
         -------
@@ -364,49 +416,38 @@ class ClientResponse:
         TypeError
             If the response's mime_type do not match.
         """
+        # body
         body = await self.read()
         if body is None:
-            return
-        
-        if content_type is not None:
-            received_content_type = self.headers.get(CONTENT_TYPE, '').lower()
-            
-            if (
-                (JSON_RE.match(received_content_type) is None)
-                     if (content_type is None) else
-                (content_type not in received_content_type)
-            ):
-                raise TypeError(
-                    f'Attempt to decode JSON with unexpected mime_type: {received_content_type!r}.'
-                )
-        
-        stripped = body.strip()
-        if not stripped:
             return None
         
+        
+        # content_type
+        while True:
+            # At this point we should have headers, but in tests we have only `.body`.
+            headers = self.headers
+            if headers is None:
+                break
+            
+            received_content_type = headers.get(CONTENT_TYPE, '').casefold()
+            
+            if content_type is None:
+                if (JSON_RE.match(received_content_type) is not None):
+                    break
+            
+            else:
+                if (content_type in received_content_type):
+                    break
+            
+            raise TypeError(
+                f'Attempt to decode JSON with unexpected mime_type: {received_content_type!r}.'
+            )
+        
+        # encoding
         if encoding is None:
             encoding = self.get_encoding()
         
-        return loader(stripped.decode(encoding))
-    
-    
-    async def __aenter__(self):
-        """
-        Enters the client response as an asynchronous context manager.
-        
-        This method is a coroutine.
-        """
-        return self
-    
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """
-        Releases the response if not yet closed.
-        
-        This method is a coroutine.
-        """
-        self.release()
-        return False
+        return loader(body.decode(encoding))
     
     
     def close(self):
@@ -426,7 +467,7 @@ class ClientResponse:
             self.connection = None
             connection.close()
         
-        self._cleanup_writer()
+        self._clean_up_writer()
     
     
     def release(self):
@@ -442,4 +483,21 @@ class ClientResponse:
         self.closed = True
         
         self._release_connection()
-        self._cleanup_writer()
+        self._clean_up_writer()
+    
+    
+    @property
+    def payload_waiter(self):
+        """
+        Deprecated and will be removed in 2025 October. Please use `.payload_stream` instead.
+        """
+        warn(
+            (
+                f'`{type(self).__name__}.payload_waiter` is deprecated and will be removed in 2025 October. '
+                f'Please use `.payload_stream` instead. Note that it is a different type.'
+            ),
+            FutureWarning,
+            stacklevel = 2,
+        )
+    
+        return self.payload_stream

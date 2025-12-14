@@ -1,3 +1,381 @@
+# 1.0.95 *\[2025-10-28\]*
+
+#### Improvements
+
+- Highlighter now stores nesting layers.
+      Add a new function `get_highlight_parse_result` to retrieve the generates layers with their tokens.
+- Trace expression parser now uses the highlighter to rely on expression locations.
+
+# 1.0.94 *\[2025-08-26\]*
+
+#### Bug fixes
+
+- Fix `quote` interpreted `%` as start of a percentage quoted value instead as `%`. 
+
+# 1.0.93 *\[2025-08-15\]*
+
+#### Improvements
+
+- Highlighter now creates value-less tokens. Instead it stores their position.
+    Currently there is no logic sitting on it, but it opens up more possibilities in the future.
+- Each brace in highlighter now has its own type to improve value-less parsing. This also includes string quotes.
+    Note that `TOKEN_TYPE_STRING_UNICODE_FORMAT` has been renamed to `TOKEN_TYPE_STRING_FORMAT`.
+- Fix relaxed format strings did not allow multi-line format code while turned out it is supported.
+- Highlighter now inserts 0 length tokens for missing closing brackets & quotes.
+
+#### Bug fixes
+
+- Fix `Timeout` not converting `CancelledError` to `TimeoutError` as intended.
+
+# 1.0.92 *\[2025-05-25\]*
+
+#### Improvements
+
+- Last update increased trace rendering code length dramatically. Most of this overhead has been removed.
+
+# 1.0.91 *\[2025-04-28\]*
+
+How highlights are produces has been reworked, with 2 goals:
+- Instead of requiring a token, require a `(token_type, content)` pair.
+    In the future tokens may not contain the represented value, only its location.
+- Do not require tokens to be merged, instead let the highlighting process to handle token chaining.
+    This also eliminates most reset format codes.
+
+#### Improvements
+
+- Added spaces and linebreaks in trace rendering are now also affected by the highlighter.
+- When highlighting the tokens are not highlighted separately, but a stream, removing most reset codes and reducing
+    produced string size.
+- Cause group rendering is not recursive anymore.
+- Add `FormatterDetailBase`, `FormatterDetailANSI`, `FormatterDetailHTML` to be passed to
+  `HighlightFormatterContext.set_highlight_detail` as the second parameter. (It was previously a ggenerator).
+- Add `get_highlight_streamer` to get a one-to-many stream of `(token_type, content)` to `part`.
+- Add `iter_highlight_code_token_types_and_values` to yield `(token_type, content)` pairs representing the highlighted
+    code (joined code, not line by line).
+
+#### Renames, Deprecation & Removals
+
+- Rename `AnsiTextDecoration` to `ANSITextDecoration`.
+- Deprecate `HighlightFormatterContext.highlight_as`, `.generate_highlighted`, `.set_highlight_html_class`,
+    `.set_highlight_ansi_code`.
+- Deprecate `iter_highlight_code_lines`, `add_highlighted_part_into`, `add_highlighted_parts_into`.
+
+# 1.0.90 *\[2025-03-18\]*
+
+#### Bug fixes
+
+- `stream_zip` did not handle custom name deduplicators correctly.
+
+# 1.0.89 *\[2025-03-09\]*
+
+#### Improvements
+
+- Add helpers for streaming: `ResourceStream` & `ResourceStreamFunction` for reusable coroutine generators.
+- Add support for zip streaming: `ZipStreamFile`, `name_deduplicator_default`, `create_zip_stream_resource`,
+    `zip_stream`.
+- Add some streaming documentation. Its currently located under `scarletio/streaming/README.md`.
+
+#### Renames, Deprecation & Removals
+
+- Rename `__class_doc__` to `__type_doc__`.
+
+# 1.0.88 *\[2025-02-25\]*
+
+#### Improvements
+
+- Support python 3.12 format string syntax when highlighting.
+
+# 1.0.87 *\[2025-02-18\]*
+
+#### Bug fixes
+
+- Fix `os.sysconf` not available on non-unix operation systems. (Since last update)
+
+# 1.0.86 *\[2025-02-16\]*
+
+#### Improvements
+
+- Use `SocketType.sendmsg` when available.
+
+# 1.0.85 *\[2025-02-08\]*
+
+#### Bug fixes
+
+- Fix executor staggered releasing was not working as intended.
+
+# 1.0.84 *\[2025-01-28\]*
+
+#### Improvements
+
+- Add `ContentTypeParsingError`.
+- Add missing `ContentType.__eq__`, `ContentType.__hash__`.
+- Add `parse_content_type(string)` replacing `ContentType(string)`.
+    It returns `(ContentType, None | ContentTypeParsingError)`.
+- Replace `ContentType.__init__` with `ContentType.__new__`. Its now a normal constructor and does not do any parsing.
+- Add `ContentType.create_empty`.
+
+#### Bug fixes
+
+- Fix `ClientResponse.get_encoding` could return non-case-folded value due to charset's output were not normalized.
+- Fix `content-type` parsing incorrectly handled tokens, quoted values. Now the parsing is way more stricter. 
+
+#### Renames, Deprecation & Removals
+
+- `HTTPClient`'s `params` parameters renamed to `query` to keep it in sync with `URL` implementation.
+- Rename `MIMEType` to `ContentType` to better reflect what its purpose is.
+
+# 1.0.83 *\[2024-12-23\]*
+
+#### Improvements
+
+- Add `get_token_type_and_repr_mode_for_variable`, `add_highlighted_part_into` and `add_highlighted_parts_into`
+    for helping for custom highlighters.
+- Add new highlight token types for styled texts:
+    - TOKEN_TYPE_TEXT
+    - TOKEN_TYPE_TEXT_NEGATIVE
+    - TOKEN_TYPE_TEXT_POSITIVE
+    - TOKEN_TYPE_TEXT_NEUTRAL
+    - TOKEN_TYPE_TEXT_UNKNOWN
+    - TOKEN_TYPE_TEXT_HIGHLIGHT
+- Update a few default highlight colors.
+
+# 1.0.82 *\[2024-11-29\]*
+
+#### Improvements
+
+- Add missing `ClientRequest.__repr__`.
+
+#### Bug fixes
+
+- Interactive console at a few cases did not display `SyntaxError` as intended while it should have.
+    This was due to badly built exceptions in the compiler. Workaround has been added.
+- Fix `CallableAnalyzer.get_non_reserved_positional_parameter_range` could return incorrect value if there were
+    parameters with default values set.
+- Fix `TypeError: BaseException.__new__(AttributeError) is not safe, use AttributeError.__new__()` in
+    `AttributeError.__new__` on pypy3.8.13.
+- Fix `URLQuery` and other url parts could apply quoting on a stacked way depending on cache order. (from 1.0.80)
+- Fix `ProtocolBasket.pop_available_protocol` could remove incorrect protocol from the basket. (from 1.0.81)
+
+# 1.0.81 *\[2024-11-21\]*
+
+#### Improvements
+
+- Add `URL.is_host_ip`.
+- `ProtocolBasket.pop_available_protocol` now always returns the protocol that is the closest to expiration.
+
+#### Bug fixes
+
+- Fix `ConnectorTCP` did not cache `HostInfoBasket`-s as intended.
+
+# 1.0.80 *\[2024-11-21\]*
+
+#### Improvements
+
+- Add `KeepAliveInfo`.
+- Add `Connection.performed_requests`.
+- Add `ProtocolBasket` to group  `ConnectorBase.acquired_protocols_per_host` and
+    `ConnectorBase.alive_protocols_per_host` into a  single `.protocols_by_host`.
+- Add `Keep-Alive` header support.
+- `URL` implementation has been completely rewritten changing the defaults of many properties = methods.
+- Add `URL.is_host_ip_v4`.
+- Add `URL.is_host_ip_v6`.
+- Add `Proxy`.
+- Add `proxy` parameter to `HTTPClient.__new__` and `HTTPClient._request2` methods.
+- Add support for `scheme`-less urls.
+
+#### Bug fixes
+
+- Fix `RawMessage.encoding` was not cached correctly.
+- Fix fatal `SSLError`-s were not propagated.
+- Fix `ConnectorTcp.create_proxy_connection`.
+
+#### Renames, Deprecation & Removals
+
+- Rename `Connection.transport` to `.get_transport`.
+- Rename `Connection.closed` to `.is_closed`.
+- Rename `BasicAuth` to `BasicAuthorization`.
+- Rename `auth` parameters & attributes to `.authorization`. Also affects the ones with the `proxy_` prefix as well.
+- Rename `URL.raw_subdomain` to `URL.raw_sub_domain`.
+- Rename `URL.subdomain` to `URL.sub_domain`.
+- Deprecate `URL.raw_parts`.
+- Deprecate `URL.raw_name`.
+- Deprecate `HTTPClient.__new__` and `HTTPClient._request2`'s `proxy_auth`, `proxy_url`, `proxy_haders` parameters,
+    use `proxy` instead.
+
+# 1.0.79 *\[2024-10-13\]*
+
+#### Improvements
+
+- `ClientRequest` now supports streaming the response data through async iterating over its `.payload_stream`.
+- Add `PayloadStream`.
+- Add `WebsocketFrame.__eq__`.
+- Add `WebsocketFrame.__repr__`.
+
+#### Renames, Deprecation & Removals
+
+- Rename `WebsocketFrame.head_1` to `.head_0`.
+- Rename `WebsocketFrame.is_final` to `.final`.
+- Deprecate `WebsocketFrame.rsv1`, `.rsv2`, `.rsv3`.
+- Rename `ClientResponse.payload_waiter` to `.payload_stream`.
+
+# 1.0.78 *\[2024-09-26\]*
+
+#### Bug fixes
+
+- Fix `UnboundLocalError` in `WebSocketCommonProtocol.transfer_data`. (Since 1.0.77)
+
+# 1.0.77 *\[2024-09-15\]*
+
+#### Improvements
+
+- Add `highlighter` parameter to `Task.print_stack`. If no file is given it will default to the default highlighter.
+- Add `highlighter` parameter to `ExecutorThread.print_stack`.
+    If no file is given it will default to the default highlighter.
+- Improve highlighting in `Task.print_stack`.
+- Improve highlighting in `ExecutorThread.print_stack`.
+- Add `SSLFingerprint.__eq__`.
+- Add `SSLFingerprint.__repr__`.
+- Add `SSLFingerprint.__hash__`.
+- Improve error messages in `SSLFingerprint.__new__` and `.check`.
+- `SSLFingerprint` is now directly importable from `scarletio.http_client`.
+- Add `proxy_headers` parameter to `HTTPClient.__new__`. `proxy_auth` and `prrxy_url` are now keyword only.
+- Add `proxy_headers` parameter to `HTTPClient.request2`.
+- `ConnectorTCP.create_direct_connection` now uses `CauseGroup`.
+- Add `ConnectionKey.copy_proxyless`.
+- Add `RequestInfo.__eq__`.
+- Add `RequestInfo.__hash__`.
+- Add `RequestContextManager.__repr__`.
+- Add `WebSocketContextManager.__repr__`.
+- Add `HostInfo.__new__`.
+- Add `HostInfoBasket.resolve_host_iterator` now will not yield an element twice.
+- `encoding` parameters passed to `BasicAuth` are now keyword only.
+- Add `BasicAuth.__eq__`.
+- Add `BasicAuth.__hash__`.
+- Add `PayloadBase.__eq__`.
+- Add `ConnectorBase.__repr__`.
+- Move `HostInfoBasket.__new__` to `.from_address_infos` to add a new constructor.
+- Add `HostInfoBasket.__mod__`.
+- Add `HostInfoBasket.__contains__`.
+- Add `RawMessage.__eq__`.
+- `RawResponseMessage.reason` is now `None | str`. Cannot be empty string.
+- Add `RawMessage.keep_alive`.
+- Push up `.version` to `RawMessage` in inheritance.
+- `ClientResponse.text` and `.json` now uses keyword only attributes.
+
+#### Bug fixes
+
+- Fix `SocketTransportLayerBase.__repr__` output formatting.
+- Fix `cli` display that we have a `debug-character` command while it is called `debug-key` actually.
+- Fix `Task.print_stack` defaulted to `sys.stdout` instead of the documented `sys.stderr`.
+- Fix `ExecutorThread.print_stack` defaulted to `sys.stdout` instead of the documented `sys.stderr`.
+- Interactive console now should show correctly what `Task.print_stack` prints.
+- Remove duplicate `most recent call last` text in `Task.print_stack` when printing an exception.
+- Fix `TypeError` in `Fingerprint.check` if the protocol has no peer name.
+- Fix `AttributeError` caused by a premature `ClientResponse.release` call.
+- Fix `AttributeError` caused by a premature `WebSocketCommonProtocol.close` call.
+- Fix `ClientRequest` rejected `CONTENT_ENCODING` header to enable compression.
+- Fix bracket ipv6 addresses in HOST header.
+- Fix remove trailing dots in in HOST header.
+- Fix remove extra trailing dots from host & server names.
+- Fix request path when connecting to ipv6 address.
+- Fix request path when connecting without port.
+- Fix cancelled or destroyed host info lookups could reraise the same exception.
+     Now it raises `ConnectionError` instead.
+- Fix some formatting issues in `RawMessage.__repr__`.
+- Fix `ClientResponse` body is never set if body reading finishes before `.read()` is called.
+
+#### Renames, Deprecation & Removals
+
+- Rename `Fingerprint` to `SSLFingerprint`. Note that it was not a top level import anyways, for some reason.
+- Deprecate the `ssl` parameter in `HTTPClient.request2` use either `ssl_context` or `ssl_fingerprint` instead.
+- Rename `ClientRequest.is_ssl` to `.is_secure`, `.ssl` to `.ssl_context` & `.ssl_fingerprint`.
+- Rename `ConnectionKey.is_ssl` to `.secure`, `.ssl` to `.ssl_context` & `.ssl_fingerprint`.
+- Rename `RequestInfo.real_url` to `original_url`.
+- Rename `websocket` directory and files to `web_socket`.
+- Deprecate `websocket_kwargs` parameter in `WebSocketServer.__new__`. Use `web_socket_keyword_parameters` instead.
+- Rename `HostInfoContianer` to `HostInfoBasket`.
+- Rename `HostInfoBasket.net_addresses` to `.get_next_rotation`.
+- Rename `HostInfoBasket.expired` to `.is_expired`.
+- Deprecate the `ssl` parameter in `TCPConnector.__new__` use either `ssl_context` or `ssl_fingerprint` instead.
+- Deprecate the `ssl` parameter in `TCPConnector.__new__` use either `ssl_context` or `ssl_fingerprint` instead.
+- Rename `TCPConnector` to `ConnectorTCP`. `TCP` connector functionality had a major overhaul in both code & naming.
+- Rename `BasicAuth.decode` to `.from_header`.
+- Rename `BasicAuth.encode` to `.to_header`.
+- Remove unused `ClientRequest.terminate`.
+
+(And way more other renames...)
+
+# 1.0.76 *\[2024-08-05\]*
+
+#### Bug fixes
+
+- Fix recursion grouping. Did not work as intended since mention (or alikeness as its new name)
+    counting was moved after grouping. (from 1.0.74)
+
+# 1.0.75 *\[2024-07-30\]*
+
+#### Improvements
+
+- Improve `AttributeError` message: add suggestion for unset attribute.
+- Improve `AttributeError` message: add suggestion for variable called the same.
+- Improve `AttributeError` message: add suggestion for attributes of other variables.
+- Add `ExceptionProxyBase.apply_frame_filter`.
+- Add `FrameGroup.apply_frame_filter`.
+
+#### Renames, Deprecation & Removals
+
+- Rename `should_ignore_frame` to `should_keep_frame` and invert its output to match `filter` behavior.
+
+# 1.0.74 *\[2024-07-14\]*
+
+#### Improvements
+
+- Add `FrameGroup.copy_without_variables`.
+- Add `FrameGroup.drop_ignored_frames`.
+- Add `FrameGroup.iter_frames_no_repeat`.
+
+##### ext.asyncio
+- Add every missing python 3.11 and python 3.12 asyncio features.
+
+#### Bug fixes
+
+- Fix `Deprecationwarning`-s on python 3.12.
+
+# 1.0.73 *\[2024-07-04\]*
+
+#### Bug fixes
+
+- Fix traceback rendering failed on invalid characters in files.
+- Fix traceback rendering let python decide file encoding (it decided to choose a wrong one obviously).
+
+# 1.0.72 *\[2024-07-04\]*
+
+#### Bug fixes
+
+- Fix `EditorAdvanced` showing async content incorrectly. (Since 1.0.71)
+- Allow multi-digit http versions.
+- Fix `SyntaxWarning`-s on python 3.12.
+
+# 1.0.71 *\[2024-06-24\]*
+
+#### Improvements
+
+- `EditorAdvanced` now writes big chunks at once instead many small.
+- `EditorAdvanced` now only writes the difference between 2 display states if applicable.
+
+#### Bug fixes
+
+- Fix `EditorAdvanced` calculated line length wrong on resize (decrease) for last line if its full.
+- Fix `EditorAdvanced` calculated line count of not rendered outputs incorrectly.
+- Fix `EditorAdvanced` wrote continuous prefixes twice. Was not visible due to it rewriting the same line after.
+- Fix `EditorAdvanced` cleared its lines when writing even tho it cleared the input before.
+
+# 1.0.70 *\[2024-06-14\]*
+
+#### Improvements
+
+- Add `debug-key` cli command.
+
 # 1.0.69 *\[2024-05-23\]*
 
 #### Bug fixes

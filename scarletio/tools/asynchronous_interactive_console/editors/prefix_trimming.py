@@ -9,7 +9,7 @@ class PrefixTrimmer:
     
     Attributes
     ----------
-    excludes : `None`, `frozenset` of `str`
+    excludes : `None | frozenset<str>`
         Strings to exclude from matching.
     prefix_continuous_pattern : `re.Pattern`
         Prefix pattern matching continuous lines.
@@ -41,7 +41,7 @@ class PrefixTrimmer:
             
             > Not compiled.
         
-        excludes  : `None`, `list` of `str`
+        excludes  : `None | list<str>`
             Strings to exclude from matching.
         """
         prefix_continuous_pattern = re_compile(prefix_continuous_pattern)
@@ -294,9 +294,9 @@ class PrefixTrimmer:
 
 
 PREFIX_TRIMMERS = (
-    PrefixTrimmer('In \[\d+\]\: ', ' +\.\.\.\: ', ' +\.\.\.\: ?', None), # scarletio
-    PrefixTrimmer('\>\>\> ', '\.\.\. ', '\.\.\. ?', ['...']), # cpython
-    PrefixTrimmer('\>\>\>\> ', '\.\.\.\. ', '\.\.\.\. ?', None), # pypy
+    PrefixTrimmer('In \\[\\d+\\]\\: ', ' +\\.\\.\\.\\: ', ' +\\.\\.\\.\\: ?', None), # scarletio
+    PrefixTrimmer('\\>\\>\\> ', '\\.\\.\\. ', '\\.\\.\\. ?', ['...']), # cpython
+    PrefixTrimmer('\\>\\>\\>\\> ', '\\.\\.\\.\\. ', '\\.\\.\\.\\. ?', None), # pypy
 )
 
 

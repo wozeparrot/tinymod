@@ -3,6 +3,7 @@ from sys import _getframe as get_frame
 import vampytest
 
 from ...expression_parsing import ExpressionInfo
+from ...tests.helper_create_dummy_expression_info import create_dummy_expression_info
 
 from ..frame_proxy_frame import FrameProxyFrame
 from ..frame_proxy_virtual import FrameProxyVirtual
@@ -90,8 +91,6 @@ def test__populate_frame_proxies():
     
     for frame_proxy in frame_proxies:
         vampytest.assert_instance(frame_proxy.expression_info, ExpressionInfo)
-    
-    vampytest.assert_eq(frame_proxy.mention_count, 2)
 
 
 def test__populate_frame_proxies__desync():
@@ -101,7 +100,7 @@ def test__populate_frame_proxies__desync():
     Case: Desync while populating.
     """
     frame_proxy = FrameProxyVirtual.from_fields(file_name = 'koishi.py')
-    expression_info = ExpressionInfo(frame_proxy.expression_key, [], 0, True)
+    expression_info = create_dummy_expression_info(frame_proxy.expression_key, '')
     new_file_name = 'kokoro.py'
     
     def mock_get_expression_info(expression_key):

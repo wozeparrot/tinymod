@@ -11,9 +11,9 @@ from threading import current_thread, get_ident
 
 from ...utils import (
     DEFAULT_ANSI_HIGHLIGHTER, HIGHLIGHT_TOKEN_TYPES, HighlightFormatterContext, alchemy_incendiary, call, export,
-    include, render_exception_into, render_frames_into
+    get_highlight_streamer, include, render_exception_into, render_frames_into
 )
-from ...utils.trace.rendering import _add_typed_part_into
+from ...utils.trace.trace import _produce_exception
 
 from .event_loop import get_event_loop
 
@@ -36,13 +36,13 @@ async def render_frames_into_async(frames, extend = None, *, filter = None, high
     frames : `list` of (`FrameType`, `TraceBack`, ``FrameProxyType``)
         The frames to render.
     
-    extend : `None`, `list` of `str` = `None`, Optional
+    extend : `None | list<str>` = `None`, Optional
         Whether the frames should be rendered into an already existing list.
     
     filter : `None`, `callable` = `None`, Optional (Keyword only)
         Additional filter to check whether a frame should be shown.
     
-    highlighter : `None`, ``HighlightFormatterContext`` = `None`, Optional (Keyword only)
+    highlighter : ``None | HighlightFormatterContext`` = `None`, Optional (Keyword only)
         Formatter storing highlighting details.
     
     loop : `None`, ``EventThread`` = `None`, Optional (Keyword only)
@@ -85,13 +85,13 @@ async def render_exception_into_async(exception, extend = None, *, filter = None
     exception : `BaseException`
         The exception to render.
     
-    extend : `None`, `list` of `str` = `None`, Optional
+    extend : `None | list<str>` = `None`, Optional
         Whether the frames should be rendered into an already existing list.
     
     filter : `None`, `callable` = `None`, Optional (Keyword only)
         Additional filter to check whether a frame should be shown.
     
-    highlighter : `None`, ``HighlightFormatterContext`` = `None`, Optional (Keyword only)
+    highlighter : ``None | HighlightFormatterContext`` = `None`, Optional (Keyword only)
         Formatter storing highlighting details.
     
     Returns
@@ -111,36 +111,36 @@ async def render_exception_into_async(exception, extend = None, *, filter = None
     )
 
 
-def _build_additional_title(title):
+def _build_additional_title_lines(title):
     """
     Builds additional title represented by `before` and `after` parameters of ``write_exception_sync``.
     
     Parameters
     ----------
-    title : `str`, `list` of `str`
+    title : `None | str | object | list<object>` 
         The title to put before or after an exception traceback.
     
     Returns
     -------
-    built_title : `None`, `str`
+    built_title_lines : `None | list<str>`
     """
     if title is None:
         return None
     
     if isinstance(title, str):
-        return _build_additional_title_str(title)
+        return _build_additional_title_lines_str(title)
     
     if isinstance(title, list):
-        return _build_additional_title_list(title)
+        return _build_additional_title_lines_list(title)
     
-    return _build_additional_title_object(title)
+    return _build_additional_title_lines_object(title)
 
 
-def _build_additional_title_str(title):
+def _build_additional_title_lines_str(title):
     """
     Builds additional title represented by `before` and `after` parameters of ``write_exception_sync``.
     
-    > This function is a type specific version called by ``_build_additional_title``.
+    > This function is a type specific version called by ``_build_additional_title_lines``.
     
     Parameters
     ----------
@@ -149,22 +149,29 @@ def _build_additional_title_str(title):
     
     Returns
     -------
-    built_title : `None`, `str`
+    built_title_lines : `None | list<str>`
     """
     if not title:
         return None
     
-    if title.endswith('\n'):
-        return title
+    lines = title.splitlines()
+    while lines:
+        if lines[-1]:
+            break
         
-    return title + '\n'
+        del lines[-1]
+    
+    else:
+        lines = None
+    
+    return lines
 
 
-def _build_additional_title_list(title_parts):
+def _build_additional_title_lines_list(title_parts):
     """
     Builds additional title represented by `before` and `after` parameters of ``write_exception_sync``.
     
-    > This function is a type specific version called by ``_build_additional_title``.
+    > This function is a type specific version called by ``_build_additional_title_lines``.
     
     Parameters
     ----------
@@ -173,7 +180,7 @@ def _build_additional_title_list(title_parts):
     
     Returns
     -------
-    built_title : `None`, `str`
+    built_title_lines : `None | list<str>`
     """
     title_elements = []
     
@@ -187,17 +194,14 @@ def _build_additional_title_list(title_parts):
     if not title_elements:
         return None
     
-    if not title_elements[-1].endswith('\n'):
-        title_elements.append('\n')
-    
-    return ''.join(title_elements)
+    return _build_additional_title_lines_str(''.join(title_elements))
 
 
-def _build_additional_title_object(title_object):
+def _build_additional_title_lines_object(title_object):
     """
     Builds additional title represented by `before` and `after` parameters of ``write_exception_sync``.
     
-    > This function is a type specific version called by ``_build_additional_title``.
+    > This function is a type specific version called by ``_build_additional_title_lines``.
     
     Parameters
     ----------
@@ -206,9 +210,9 @@ def _build_additional_title_object(title_object):
     
     Returns
     -------
-    built_title : `None`, `str`
+    built_title_lines : `None | list<str>`
     """
-    return _build_additional_title_str(repr(title_object))
+    return _build_additional_title_lines_str(repr(title_object))
 
 
 def write_exception_sync(exception, before = None, after = None, file = None, *, filter = None, highlighter = None):
@@ -217,15 +221,15 @@ def write_exception_sync(exception, before = None, after = None, file = None, *,
     
     Parameters
     ----------
-    exception : ``BaseException``
+    exception : `BaseException`
         The exception to render.
     
-    before : `None`, `str`, `list` of `str` = `None`, Optional
+    before : `None | str | list<str>` = `None`, Optional
         Any content, what should go before the exception's traceback.
         
         If given as `str`, or if `list`, then the last element of it should end with linebreak.
     
-    after : `None`, `str`, `list` of `str` = `None`, Optional
+    after : `None | str | list<str>` = `None`, Optional
         Any content, what should go after the exception's traceback.
         
         If given as `str`, or if `list`, then the last element of it should end with linebreak.
@@ -236,34 +240,45 @@ def write_exception_sync(exception, before = None, after = None, file = None, *,
     filter : `None`, `callable` = `None`, Optional (Keyword only)
         Additional filter to check whether a frame should be shown.
     
-    highlighter : `None`, ``HighlightFormatterContext`` = `None`, Optional (Keyword only)
+    highlighter : ``None | HighlightFormatterContext`` = `None`, Optional (Keyword only)
         Formatter storing highlighting details.
     """
-    before = _build_additional_title(before)
-    after = _build_additional_title(after)
+    before_lines = _build_additional_title_lines(before)
+    after_lines = _build_additional_title_lines(after)
     
     if (file is None) and (highlighter is None):
         highlighter = get_default_trace_writer_highlighter()
     
+    highlight_streamer = get_highlight_streamer(highlighter)
+    
     extend = []
     
-    if (before is not None):
-        _add_typed_part_into(
-            HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE_ADDITIONAL_BEFORE,
-            before,
-            extend,
-            highlighter,
-        )
+    if (before_lines is not None):
+        for line in before_lines:
+            extend.extend(highlight_streamer.asend((
+                HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE_ADDITIONAL_BEFORE,
+                line,
+            )))
+            extend.extend(highlight_streamer.asend((
+                HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_LINE_BREAK,
+                '\n',
+            )))
     
-    render_exception_into(exception, extend, filter = filter, highlighter = highlighter)
+    for item in _produce_exception(exception, filter):
+        extend.extend(highlight_streamer.asend(item))
     
-    if (after is not None):
-        _add_typed_part_into(
-            HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE_ADDITIONAL_AFTER,
-            after,
-            extend,
-            highlighter,
-        )
+    if (after_lines is not None):
+        for line in after_lines:
+            extend.extend(highlight_streamer.asend((
+                HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_TRACE_TITLE_ADDITIONAL_AFTER,
+                line,
+            )))
+            extend.extend(highlight_streamer.asend((
+                HIGHLIGHT_TOKEN_TYPES.TOKEN_TYPE_LINE_BREAK,
+                '\n',
+            )))
+    
+    extend.extend(highlight_streamer.asend(None))
     
     if file is None:
         # ignore exception cases
@@ -286,15 +301,15 @@ def write_exception_async(
     
     Parameters
     ----------
-    exception : ``BaseException``
+    exception : `BaseException`
         The exception to render.
     
-    before : `None`, `str`, `list` of `str` = `None`, Optional
+    before : `None | str | list<str>` = `None`, Optional
         Any content, what should go before the exception's traceback.
         
         If given as `str`, or if `list`, then the last element of it should end with linebreak.
     
-    after : `None`, `str`, `list` of `str` = `None`, Optional
+    after : `None | str | list<str>` = `None`, Optional
         Any content, what should go after the exception's traceback.
         
         If given as `str`, or if `list`, then the last element of it should end with linebreak.
@@ -305,7 +320,7 @@ def write_exception_async(
     filter : `None`, `callable` = `None`, Optional (Keyword only)
         Additional filter to check whether a frame should be shown.
     
-    highlighter : `None`, ``HighlightFormatterContext`` = `None`, Optional (Keyword only)
+    highlighter : ``None | HighlightFormatterContext`` = `None`, Optional (Keyword only)
         Formatter storing highlighting details.
     
     loop : `None`, ``EventThread`` = `None`, Optional (Keyword only)
@@ -340,15 +355,15 @@ def write_exception_maybe_async(
     
     Parameters
     ----------
-    exception : ``BaseException``
+    exception : `BaseException`
         The exception to render.
     
-    before : `None`, `str`, `list` of `str` = `None`, Optional
+    before : `None | str | list<str>` = `None`, Optional
         Any content, what should go before the exception's traceback.
         
         If given as `str`, or if `list`, then the last element of it should end with linebreak.
     
-    after : `None`, `str`, `list` of `str` = `None`, Optional
+    after : `None | str | list<str>` = `None`, Optional
         Any content, what should go after the exception's traceback.
         
         If given as `str`, or if `list`, then the last element of it should end with linebreak.
@@ -359,7 +374,7 @@ def write_exception_maybe_async(
     filter : `None`, `callable` = `None`, Optional (Keyword only)
         Additional filter to check whether a frame should be shown.
     
-    highlighter : `None`, ``HighlightFormatterContext`` = `None`, Optional (Keyword only)
+    highlighter : ``None | HighlightFormatterContext`` = `None`, Optional (Keyword only)
         Formatter storing highlighting details.
     """
     local_thread = current_thread()
@@ -380,7 +395,7 @@ def get_default_trace_writer_highlighter():
     
     Returns
     -------
-    highlighter : `None`, ``HighlightFormatterContext``
+    highlighter : ``None | HighlightFormatterContext``
     """
     return _DEFAULT_TRACE_WRITER_HIGHLIGHTER
 
@@ -412,7 +427,7 @@ def set_trace_writer_highlighter(highlighter):
     
     Parameters
     ----------
-    highlighter : `None`, ``HighlightFormatterContext``
+    highlighter : ``None | HighlightFormatterContext``
         The highlighter to set.
     
     Raises
@@ -425,7 +440,7 @@ def set_trace_writer_highlighter(highlighter):
     if (highlighter is not None) and (not isinstance(highlighter, HighlightFormatterContext)):
         raise TypeError(
             f'`highlighter` can be `None`, `{HighlightFormatterContext.__name__}, got '
-            f'{highlighter.__class__.__name__}; {highlighter!r}'
+            f'{type(highlighter).__name__}; {highlighter!r}'
         )
     
     _DEFAULT_TRACE_WRITER_HIGHLIGHTER = highlighter
@@ -453,7 +468,7 @@ class ExceptionWriterContextManager:
     
     Attributes
     ----------
-    exclude : `None`, ``BaseException``, `tuple` of `BaseException`
+    exclude : `None`, `BaseException`, `tuple` of `BaseException`
         The exception types to not catch.
         
         > By default ignores `GeneratorExit` if inside of a task.
@@ -461,10 +476,10 @@ class ExceptionWriterContextManager:
     filter : `None`, `callable`
         Additional filter to check whether a frame should be shown.
     
-    highlighter : `None`, ``HighlightFormatterContext``
+    highlighter : ``None | HighlightFormatterContext``
         Formatter storing highlighting details.
     
-    include : `None`, ``BaseException``, `tuple` of `BaseException`
+    include : `None`, `BaseException`, `tuple` of `BaseException`
         The exception types to catch.
         
         > By default catches everything.
@@ -481,12 +496,12 @@ class ExceptionWriterContextManager:
         
         Parameters
         ----------
-        include : `None`, ``BaseException``, `tuple` of `BaseException` = `None`, Optional
+        include : `None`, `BaseException`, `tuple` of `BaseException` = `None`, Optional
             The exception types to catch.
             
             > By default allows all exceptions.
         
-        exclude : `None`, ``BaseException``, `tuple` of `BaseException` = `None`, Optional 
+        exclude : `None`, `BaseException`, `tuple` of `BaseException` = `None`, Optional 
             The exception types to not catch.
             
             > By default excludes only `GeneratorExit` if inside of a task.
@@ -497,7 +512,7 @@ class ExceptionWriterContextManager:
         filter : `None`, `callable` = `None`, Optional (Keyword only)
             Additional filter to check whether a frame should be shown.
         
-        highlighter : `None`, ``HighlightFormatterContext`` = `None`, Optional (Keyword only)
+        highlighter : ``None | HighlightFormatterContext`` = `None`, Optional (Keyword only)
             Formatter storing highlighting details.
         """
         self = object.__new__(cls)
@@ -625,7 +640,7 @@ class ExceptionWriterContextManager:
         return True
     
     
-    async def __aexit__(self, exception_type, exception, exception_traceback):
+    async def __aexit__(self, exception_type, exception_value, exception_traceback):
         """
         Exits the context manager.
         
@@ -634,7 +649,7 @@ class ExceptionWriterContextManager:
         exception_type : `None`, `type<BaseException>`
             The occurred exception's type if any.
         
-        exception : `None`, `BaseException`
+        exception_value : `None`, `BaseException`
             The occurred exception if any.
         
         exception_traceback : `None`, `TracebackType`
@@ -645,11 +660,11 @@ class ExceptionWriterContextManager:
         captured : `bool`
             Whether the exception was captured.
         """
-        if not self._should_capture(exception, True):
+        if not self._should_capture(exception_value, True):
             return False
         
         await write_exception_async(
-            exception,
+            exception_value,
             before = self._get_location_message(),
             filter = self.filter,
             highlighter = self.highlighter,

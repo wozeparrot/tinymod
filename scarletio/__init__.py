@@ -1,4 +1,4 @@
-__version__ = '1.0.69'
+__version__ = '1.0.95'
 
 
 from .core import *
@@ -15,3 +15,5 @@ __all__ = (
 
 from .utils.export_include import check_satisfaction
 check_satisfaction()
+
+AnsiTextDecoration = ANSITextDecoration

@@ -4,8 +4,7 @@ __all__ = ('collect_module_variables', 'create_banner', 'create_exit_message')
 import sys
 
 from ... import __package__ as PACKAGE_NAME
-from ...utils import HIGHLIGHT_TOKEN_TYPES
-from ...utils.trace.rendering import _add_typed_parts_into
+from ...utils import HIGHLIGHT_TOKEN_TYPES, add_highlighted_parts_into, get_highlight_streamer
 
 from .editors.compilation import PYTHON_COMPILE_FLAG_ALLOW_TOP_LEVEL_AWAIT
 
@@ -40,9 +39,9 @@ def _produce_banner(package, logo):
             f'                     _      _   _\n'
             f'                    | |    | | (_)\n'
             f'  ___  ___ __ _ _ __| | ___| |_ _  ___\n'
-            f' / __|/ __/ _` | \'__| |/ _ \ __| |/ _ \\\n'
-            f' \__ \ (_| (_| | |  | |  __/ |_| | (_) |\n'
-            f' |___/\___\__,_|_|  |_|\___|\__|_|\___/\n'
+            f' / __|/ __/ _` | \'__| |/ _ \\ __| |/ _ \\\n'
+            f' \\__ \\ (_| (_| | |  | |  __/ |_| | (_) |\n'
+            f' |___/\\___\\__,_|_|  |_|\\___|\\__|_|\\___/\n'
         )
     
     
@@ -103,7 +102,7 @@ def create_banner(package = None, logo = None, *, highlighter = None):
     logo : `None`, `str` = `None`, Optional
         The logo of the package if any.
     
-    highlighter : `None`, ``HighlightFormatterContext`` = `None`, Optional (Keyword only)
+    highlighter : ``None | HighlightFormatterContext`` = `None`, Optional (Keyword only)
         Formatter storing highlighting details.
     
     Returns
@@ -111,7 +110,14 @@ def create_banner(package = None, logo = None, *, highlighter = None):
     banner : `str`
         Console banner.
     """
-    return ''.join(_add_typed_parts_into(_produce_banner(package, logo), [], highlighter))
+    highlight_streamer = get_highlight_streamer(highlighter)
+    
+    parts = []
+    for item in _produce_banner(package, logo):
+        parts.extend(highlight_streamer.asend(item))
+    
+    parts.extend(highlight_streamer.asend(None))
+    return ''.join(parts)
 
 
 def create_exit_message(package = None):
@@ -145,7 +151,7 @@ def collect_module_variables(module):
     
     Returns
     -------
-    interactive_console_locals : `dict` of (`str`, `object`) items
+    interactive_console_locals : `dict<str, object>`
     """
     interactive_console_locals = {}
     

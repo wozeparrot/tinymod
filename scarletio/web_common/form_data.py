@@ -2,7 +2,6 @@ __all__ = ('FormData', )
 
 from io import IOBase
 from urllib.parse import urlencode
-from warnings import warn
 
 from ..utils import IgnoreCaseMultiValueDictionary, MultiValueDictionary, RichAttributeErrorBaseType, to_json
 
@@ -18,7 +17,7 @@ class FormDataField(RichAttributeErrorBaseType):
     """
     Attributes
     ----------
-    headers : `IgnoreCaseMultiValueDictionary<str, str>`
+    headers : ``IgnoreCaseMultiValueDictionary<str, str>``
         The field specific headers.
     type : `int`
         The field's type.
@@ -39,7 +38,7 @@ class FormDataField(RichAttributeErrorBaseType):
             The field's type.
         type_options : `MultiValueDictionary<str, str>`
             Additional information used by the created ``PayloadBase`` when the field is generated.
-        headers : `IgnoreCaseMultiValueDictionary<str, str>`
+        headers : ``IgnoreCaseMultiValueDictionary<str, str>``
             The field specific headers.
         value : `object`
             The field's value.
@@ -246,7 +245,7 @@ class FormData(RichAttributeErrorBaseType):
         self.fields.append(FormDataField(FORM_DATA_FIELD_TYPE_JSON, type_options, headers, value))
     
     
-    def add_field(self, name, value, content_type = None, filename = ..., file_name = None, transfer_encoding = None):
+    def add_field(self, name, value, content_type = None, file_name = None, transfer_encoding = None):
         """
         Adds a field to the form data.
         
@@ -269,18 +268,6 @@ class FormData(RichAttributeErrorBaseType):
         TypeError
             - If a parameter's type is incorrect.
         """
-        if filename is not ...:
-            warn(
-                (
-                    f'`filename` parameter of `{type(self).__name__}.add_field` is deprecated. '
-                    f'And will be removed in 2024 August. Please use `file_name` instead.'
-                ),
-                FutureWarning,
-                stacklevel = 2
-                
-            )
-            file_name = filename
-        
         if isinstance(value, IOBase):
             self.multipart = True
         

@@ -2,7 +2,9 @@ __all__ = ('convert_frames_to_frame_proxies', 'get_exception_frames', 'populate_
 
 from types import FrameType, TracebackType
 
-from ..expression_parsing import ExpressionInfo, LineCacheSession, get_expression_info
+from ...highlight import ParseResult
+
+from ..expression_parsing import ExpressionInfo, FileInfo, LineCacheSession, get_expression_info
 
 from .frame_proxy_base import FrameProxyBase
 from .frame_proxy_frame import FrameProxyFrame
@@ -102,6 +104,7 @@ def populate_frame_proxies(frames):
             if expression_value is None:
                 expressions[expression_key] = get_expression_info(expression_key)
     
+    
     for frame in frames:
         expression_key = frame.expression_key
         
@@ -109,8 +112,26 @@ def populate_frame_proxies(frames):
             expression_info = expressions[expression_key]
         except KeyError:
             # A frame changed while we were rendering, create a dummy 
-            expression_info = ExpressionInfo(expression_key, [], 0, True)
+            expression_info = ExpressionInfo(
+                expression_key,
+                FileInfo(
+                    expression_key.file_name,
+                    0,
+                    0.0,
+                    '',
+                    ParseResult([], []),
+                    False,
+                    False,
+                ),
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                '',
+            )
             expressions.setdefault(expression_key, expression_info)
         
-        expression_info.do_mention()
         frame.expression_info = expression_info

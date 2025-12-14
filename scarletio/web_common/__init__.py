@@ -1,4 +1,9 @@
+from .url import *
+
+from .basic_authorization import *
 from .compressors import *
+from .constants import *
+from .content_type import *
 from .cookiejar import *
 from .exceptions import *
 from .form_data import *
@@ -8,17 +13,21 @@ from .helpers import *
 from .http_message import *
 from .http_protocol import *
 from .http_stream_writer import *
-from .mime_type import *
+from .keep_alive_info import *
 from .multipart import *
 from .quoting import *
-from .url import *
-from .websocket_frame import *
+from .web_socket_frame import *
 
 from . import headers
 
+
 __all__ = (
-    'headers',
+    *url.__all__,
+    
+    *basic_authorization.__all__,
     *compressors.__all__,
+    *constants.__all__,
+    *content_type.__all__,
     *cookiejar.__all__,
     *exceptions.__all__,
     *form_data.__all__,
@@ -28,13 +37,29 @@ __all__ = (
     *http_message.__all__,
     *http_protocol.__all__,
     *http_stream_writer.__all__,
-    *mime_type.__all__,
+    *keep_alive_info.__all__,
     *multipart.__all__,
     *quoting.__all__,
-    *url.__all__,
-    *websocket_frame.__all__,
+    *web_socket_frame.__all__,
+    
+    'headers',
 )
 
 
-# Keep reference for the old name for now.
-Formdata = FormData
+# Deprecations
+
+from warnings import warn
+
+def __getattr__(attribute_name):
+    if attribute_name == 'BasicAuth':
+        warn(
+            (
+                f'`BasicAuth` has been renamed to `BasicAuthorization`.'
+                f'`BasicAuth` will be removed in 2025 November.'
+            ),
+            FutureWarning,
+            stacklevel = 2,
+        )
+        return BasicAuthorization
+    
+    raise AttributeError(attribute_name)
