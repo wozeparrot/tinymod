@@ -13,8 +13,6 @@ from hata.ext.slash import setup_ext_slash
 
 from scarletio import get_or_create_event_loop, sleep
 
-from stats.api import Api
-
 # Presetup some stuff
 assert (TOKEN := os.getenv("TOKEN")), 'Environment variable "TOKEN" not found. Add it to your local .env file.'
 GUILD = Guild.precreate(os.getenv("GUILD_ID", 1068976834382925865))
@@ -52,10 +50,5 @@ async def main():
   # Start bot
   TinyMod.start()
   logging.info("Bot started.")
-
-  # start stats api
-  stats_api = Api()
-  await stats_api.start()
-  logging.info("Stats API started.")
 LOOP.run(main())
 wait_for_interruption()
