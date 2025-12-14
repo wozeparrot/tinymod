@@ -1,5 +1,7 @@
 __all__ = ('User',)
 
+from warnings import warn
+
 from scarletio import copy_docs
 
 from ....env import CACHE_PRESENCE, CACHE_USER
@@ -8,18 +10,48 @@ from ...core import GUILDS, USERS
 from ...precreate_helpers import process_precreate_parameters_and_raise_extra
 
 from ..guild_profile import GuildProfile
+from ..status_by_platform import Status, StatusByPlatform
 
 from .client_user_base import ClientUserBase
 from .client_user_presence_base import ClientUserPBase
 from .fields import (
     parse_bot, parse_id, validate_activities, validate_avatar_decoration, validate_banner_color, validate_bot,
-    validate_clan, validate_discriminator, validate_display_name, validate_flags, validate_id, validate_name,
-    validate_status, validate_statuses
+    validate_discriminator, validate_display_name, validate_flags, validate_id, validate_name, validate_name_plate,
+    validate_primary_guild_badge, validate_status, validate_status_by_platform
 )
 from .flags import UserFlag
 from .orin_user_base import USER_BANNER
-from .preinstanced import Status
 from .user_base import USER_AVATAR
+
+
+def _validate_statuses_deprecated(input_value):
+    warn(
+        (
+            f'`statuses` is deprecated and will be removed in 2026 february. '
+            f'Please use `status_by_platform` instead.'
+        ),
+        FutureWarning,
+        stacklevel = 3,
+    )
+    
+    if (input_value is None):
+        return None
+    
+    if isinstance(input_value, dict):
+        if not input_value:
+            return None
+        
+        unexpected_keys = {*input_value.keys()} - {'desktop', 'embedded', 'mobile', 'web'}
+        if unexpected_keys:
+            raise ValueError(
+                f'`statuses contains unexpected keys: {", ".join([repr(key) for key in unexpected_keys])}'
+            )
+        
+        return StatusByPlatform.from_data(input_value)
+    
+    raise TypeError(
+        f'`statuses` can be `None | dict<str, str>`, got {type(input_value).__name__}; {input_value!r}.'
+    )
 
 
 PRECREATE_FIELDS = {
@@ -28,11 +60,12 @@ PRECREATE_FIELDS = {
     'banner': ('banner', USER_BANNER.validate_icon),
     'banner_color': ('banner_color', validate_banner_color),
     'bot': ('bot', validate_bot),
-    'clan': ('clan', validate_clan),
     'discriminator': ('discriminator', validate_discriminator),
     'display_name': ('display_name', validate_display_name),
     'flags': ('flags', validate_flags),
     'name': ('name', validate_name),
+    'name_plate': ('name_plate', validate_name_plate),
+    'primary_guild_badge': ('primary_guild_badge', validate_primary_guild_badge),
 }
 
 if not CACHE_PRESENCE:
@@ -45,7 +78,8 @@ else:
         **PRECREATE_FIELDS,
         'activities': ('activities', validate_activities),
         'status': ('status', validate_status),
-        'statuses': ('statuses', validate_statuses),
+        'status_by_platform': ('status_by_platform', validate_status_by_platform),
+        'statuses': ('status_by_platform', _validate_statuses_deprecated),
     }
 
 
@@ -55,7 +89,7 @@ class User(USER_BASE_TYPE):
     
     Attributes
     ----------
-    activities : `None`, `list` of ``Activity``
+    activities : ``None | list<Activity>``
         A list of the client's activities. Defaults to `None`
         
         > Only available if presence caching is enabled.
@@ -66,7 +100,7 @@ class User(USER_BASE_TYPE):
     avatar_type : ``IconType``
         The user's avatar's type.
     
-    avatar_decoration : `None`, ``AvatarDecoration``
+    avatar_decoration : ``None | AvatarDecoration``
         The user's avatar decorations.
     
     banner_color : `None`, ``Color``
@@ -81,9 +115,6 @@ class User(USER_BASE_TYPE):
     bot : `bool`
         Whether the user is a bot or a user account.
     
-    clan : `None`, ``UserClan``
-        The user's primary clan.
-    
     discriminator : `int`
         The user's discriminator. Given to avoid overlapping names.
     
@@ -93,7 +124,7 @@ class User(USER_BASE_TYPE):
     flags : ``UserFlag``
         The user's user flags.
     
-    guild_profiles : `dict` of (`int`, ``GuildProfile``) items
+    guild_profiles : ``dict<int, GuildProfile>``
         A dictionary, which contains the user's guild profiles. If a user is member of a guild, then it should
         have a respective guild profile accordingly.
     
@@ -103,17 +134,23 @@ class User(USER_BASE_TYPE):
     name : `str`
         The user's name.
     
+    name_plate : ``None | NamePlate``
+        The user's name plate.
+    
+    primary_guild_badge : ``None | GuildBadge``
+        The user's primary guild's badge.
+    
     status : ``Status``
         The user's display status.
         
         > Only available if presence caching is enabled.
     
-    statuses : `None`, `dict` of (`str`, `str`) items
-        The user's statuses for each platform.
+    status_by_platform : ``None | StatusByPlatform`
+        The user's status for each platform.
         
         > Only available if presence caching is enabled.
     
-    thread_profiles : `None`, `dict` (``Channel``, ``ThreadProfile``) items
+    thread_profiles : ``None | dict<int, ThreadProfile>``
         A Dictionary which contains the thread profiles for the user in thread channel - thread profile relation.
         Defaults to `None`.
     
@@ -137,7 +174,7 @@ class User(USER_BASE_TYPE):
                 self.guild_profiles = {}
                 self.thread_profiles = None
                 self.status = Status.offline
-                self.statuses = None
+                self.status_by_platform = None
                 self.activities = None
                 
                 USERS[user_id] = self
@@ -258,22 +295,22 @@ class User(USER_BASE_TYPE):
             
             > Only available if presence caching is enabled.
         
-        avatar : `None`, ``Icon``, `str`, Optional (Keyword only)
+        avatar : ``None | str | Icon``, Optional (Keyword only)
             The user's avatar.
         
-        avatar_decoration : `None`, ``AvatarDecoration``, Optional (Keyword only)
+        avatar_decoration : ``None | AvatarDecoration``, Optional (Keyword only)
             The user's avatar decoration.
         
-        banner : `None`, ``Icon``, `str`, Optional (Keyword only)
+        name_plate : ``None | NamePlate``, Optional (Keyword only)
+            The user's name plate.
+        
+        banner : ``None | str | Icon``, Optional (Keyword only)
             The user's banner.
             
             > Mutually exclusive with `banner_type` and `banner_hash`.
         
         banner_color : `None`, ``Color``
             The user's banner color.
-        
-        clan : `None`, ``UserClan``, Optional (Keyword only)
-            The user's primary clan.
         
         bot : `bool`, Optional (Keyword only)
             Whether the user is a bot account.
@@ -283,6 +320,9 @@ class User(USER_BASE_TYPE):
         
         name : `str`, Optional (Keyword only)
             The user's ``.name``.
+        
+        primary_guild_badge : ``None | GuildBadge``, Optional (Keyword only)
+            The user's primary guild's badge.
         
         discriminator : `int`, `str`, Optional (Keyword only)
             The user's discriminator.
@@ -295,8 +335,8 @@ class User(USER_BASE_TYPE):
         
             > Only available if presence caching is enabled.
         
-        statuses : `None`, `dict` of (`str`, `str`) items, Optional (Keyword only)
-            The user's statuses for each platform.
+        status_by_platform : ``None | StatusByPlatform`, Optional (Keyword only)
+            The user's status for each platform.
         
             > Only available if presence caching is enabled.
         

@@ -3,7 +3,7 @@ __all__ = ('OperationSystem',)
 from ...bases import Preinstance as P, PreinstancedBase
 
 
-class OperationSystem(PreinstancedBase):
+class OperationSystem(PreinstancedBase, value_type = str):
     """
     Represents a ``ApplicationExecutable``'s operation system.
     
@@ -11,39 +11,41 @@ class OperationSystem(PreinstancedBase):
     ----------
     name : `str`
         The name of the operation system.
+    
     value : `str`
         The Discord side identifier value of the os.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`str`, ``Os``) items
-        Stores the created os instances. This container is accessed when translating a Discord
-        os' value to it's representation.
-    VALUE_TYPE : `type` = `str`
-        The os' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the oss.
-    
-    Every predefined os can be accessed as class attribute as well:
-    +-----------------------+-----------+---------------+
-    | Class attribute name  | name      | value         |
-    +=======================+===========+===============+
-    | none                  | none      | `''`          |
-    +-----------------------+-----------+---------------+
-    | darwin                | darwin    | '`darwin'`    |
-    +-----------------------+-----------+---------------+
-    | linux                 | linux     | '`linux`'     |
-    +-----------------------+-----------+---------------+
-    | windows               | windows   | `'win32'`     |
-    +-----------------------+-----------+---------------+
+    Type Attributes
+    ---------------
+    Every predefined os can be accessed as type attribute as well:
+    +-----------------------+---------------+-------------------+
+    | Type attribute name   | name          | value             |
+    +=======================+===============+===================+
+    | none                  | none          | `''`              |
+    +-----------------------+---------------+-------------------+
+    | android               | android       | `'android'`       |
+    +-----------------------+---------------+-------------------+
+    | darwin                | darwin        | '`darwin'`        |
+    +-----------------------+---------------+-------------------+
+    | ios                   | ios           | `'ios'`           |
+    +-----------------------+---------------+-------------------+
+    | linux                 | linux         | '`linux`'         |
+    +-----------------------+---------------+-------------------+
+    | playstation           | playstation   | `'playstation'`   |
+    +-----------------------+---------------+-------------------+
+    | windows               | windows       | `'win32'`         |
+    +-----------------------+---------------+-------------------+
+    | xbox                  | xbox          | `'xbox'`          |
+    +-----------------------+---------------+-------------------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = str
-    
     __slots__ = ()
     
     # predefined
     none = P('', 'none')
+    android = P('android', 'android')
     darwin = P('darwin', 'darwin')
+    ios = P('ios', 'ios')
     linux = P('linux', 'linux')
+    playstation = P('playstation', 'playstation')
     windows = P('win32', 'windows')
+    xbox = P('xbox', 'xbox')

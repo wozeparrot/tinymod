@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
@@ -7,7 +7,9 @@ from ....channel import Channel
 from ....client import Client
 from ....guild import Guild
 from ....user import User
-from ....utils import is_url
+
+from ...schedule import Schedule
+from ...scheduled_event_occasion_overwrite import ScheduledEventOccasionOverwrite
 
 from ..preinstanced import PrivacyLevel, ScheduledEventEntityType, ScheduledEventStatus
 from ..scheduled_event import ScheduledEvent
@@ -21,12 +23,13 @@ def test__ScheduledEvent__copy():
     """
     channel_id = 202303160071
     description = 'koishi'
-    end = DateTime(2016, 3, 10)
+    end = DateTime(2016, 3, 10, tzinfo = TimeZone.utc)
     entity_type = ScheduledEventEntityType.location
     image = Icon(IconType.static, 45)
     name = 'komeiji'
     privacy_level = PrivacyLevel.public
-    start = DateTime(2017, 4, 6)
+    schedule = Schedule(occurrence_spacing = 2)
+    start = DateTime(2017, 4, 6, tzinfo = TimeZone.utc)
     status = ScheduledEventStatus.active
     location = 'hell'
     
@@ -38,6 +41,7 @@ def test__ScheduledEvent__copy():
         image = image,
         name = name,
         privacy_level = privacy_level,
+        schedule = schedule,
         start = start,
         status = status,
         location = location,
@@ -50,7 +54,7 @@ def test__ScheduledEvent__copy():
     vampytest.assert_eq(scheduled_event, copy)
 
 
-def test__ScheduledEvent__copy_with__0():
+def test__ScheduledEvent__copy_with__no_fields():
     """
     Tests whether ``ScheduledEvent.copy_with`` works as intended.
     
@@ -58,12 +62,13 @@ def test__ScheduledEvent__copy_with__0():
     """
     channel_id = 202303160072
     description = 'koishi'
-    end = DateTime(2016, 3, 10)
+    end = DateTime(2016, 3, 10, tzinfo = TimeZone.utc)
     entity_type = ScheduledEventEntityType.location
     image = Icon(IconType.static, 45)
     name = 'komeiji'
     privacy_level = PrivacyLevel.public
-    start = DateTime(2017, 4, 6)
+    schedule = Schedule(occurrence_spacing = 2)
+    start = DateTime(2017, 4, 6, tzinfo = TimeZone.utc)
     status = ScheduledEventStatus.active
     location = 'hell'
     
@@ -75,6 +80,7 @@ def test__ScheduledEvent__copy_with__0():
         image = image,
         name = name,
         privacy_level = privacy_level,
+        schedule = schedule,
         start = start,
         status = status,
         location = location,
@@ -87,7 +93,7 @@ def test__ScheduledEvent__copy_with__0():
     vampytest.assert_eq(scheduled_event, copy)
 
 
-def test__ScheduledEvent__copy_with__1():
+def test__ScheduledEvent__copy_with__all_fields():
     """
     Tests whether ``ScheduledEvent.copy_with`` works as intended.
     
@@ -95,23 +101,25 @@ def test__ScheduledEvent__copy_with__1():
     """
     old_channel_id = 202303160073
     old_description = 'koishi'
-    old_end = DateTime(2016, 3, 10)
+    old_end = DateTime(2016, 3, 10, tzinfo = TimeZone.utc)
     old_entity_type = ScheduledEventEntityType.location
     old_image = Icon(IconType.static, 45)
     old_name = 'komeiji'
     old_privacy_level = PrivacyLevel.public
-    old_start = DateTime(2017, 4, 6)
+    old_schedule = Schedule(occurrence_spacing = 2)
+    old_start = DateTime(2017, 4, 6, tzinfo = TimeZone.utc)
     old_status = ScheduledEventStatus.active
     old_location = 'hell'
     
     new_channel_id = 202303160074
     new_description = 'yakumo'
-    new_end = DateTime(2016, 4, 10)
+    new_end = DateTime(2016, 4, 10, tzinfo = TimeZone.utc)
     new_entity_type = ScheduledEventEntityType.stage
     new_image = Icon(IconType.animated, 46)
     new_name = 'yukari'
     new_privacy_level = PrivacyLevel.guild_only
-    new_start = DateTime(2017, 5, 6)
+    new_schedule = Schedule(occurrence_spacing = 3)
+    new_start = DateTime(2017, 5, 6, tzinfo = TimeZone.utc)
     new_status = ScheduledEventStatus.cancelled
     new_speaker_ids = [202303160075, 202303160076]
     
@@ -123,6 +131,7 @@ def test__ScheduledEvent__copy_with__1():
         image = old_image,
         name = old_name,
         privacy_level = old_privacy_level,
+        schedule = old_schedule,
         start = old_start,
         status = old_status,
         location = old_location,
@@ -136,6 +145,7 @@ def test__ScheduledEvent__copy_with__1():
         image = new_image,
         name = new_name,
         privacy_level = new_privacy_level,
+        schedule = new_schedule,
         start = new_start,
         status = new_status,
         speaker_ids = new_speaker_ids,
@@ -151,6 +161,7 @@ def test__ScheduledEvent__copy_with__1():
     vampytest.assert_eq(copy.image, new_image)
     vampytest.assert_eq(copy.name, new_name)
     vampytest.assert_is(copy.privacy_level, new_privacy_level)
+    vampytest.assert_eq(copy.schedule, new_schedule)
     vampytest.assert_eq(copy.start, new_start)
     vampytest.assert_is(copy.status, new_status)
 
@@ -175,10 +186,10 @@ def test__ScheduledEvent__delete():
     vampytest.assert_instance(output, bool)
     vampytest.assert_eq(output, True)
     
-    vampytest.assert_eq(guild.scheduled_events, {})
+    vampytest.assert_eq(guild.scheduled_events, None)
 
 
-def test__ScheduledEvent__partial__0():
+def test__ScheduledEvent__partial__fully_partial():
     """
     Tests whether ``ScheduledEvent.partial`` works as intended.
     
@@ -191,7 +202,7 @@ def test__ScheduledEvent__partial__0():
     vampytest.assert_eq(output, True)
 
 
-def test__ScheduledEvent__partial__1():
+def test__ScheduledEvent__partial__not_linked_to_its_guild():
     """
     Tests whether ``ScheduledEvent.partial`` works as intended.
     
@@ -213,7 +224,7 @@ def test__ScheduledEvent__partial__1():
     vampytest.assert_eq(output, True)
 
 
-def test__ScheduledEvent__partial__2():
+def test__ScheduledEvent__partial__linked_to_guild_guild_not_partial():
     """
     Tests whether ``ScheduledEvent.partial`` works as intended.
     
@@ -247,27 +258,42 @@ def test__ScheduledEvent__partial__2():
         client = None
 
 
-def test__ScheduledEvent__channel():
+def _iter_options__channel():
+    channel_id = 202303160083
+
+    yield 202303160090, 0, None
+    yield 202303160084, channel_id, Channel.precreate(channel_id)
+
+
+@vampytest._(vampytest.call_from(_iter_options__channel()).returning_last())
+def test__ScheduledEvent__channel(scheduled_event_id, channel_id):
     """
     Tests whether ``ScheduledEvent.channel`` works as intended.
-    """
-    channel_id = 202303160083
     
-    for scheduled_event_id, input_value, expected_output in (
-        (202303160090, 0, None),
-        (202303160084, channel_id, Channel.precreate(channel_id)),
-    ):
-        scheduled_event = ScheduledEvent.precreate(scheduled_event_id, channel_id = input_value)
-        vampytest.assert_is(scheduled_event.channel, expected_output)
+    Parameters
+    ----------
+    scheduled_event_id : `int`
+        Identifier of the scheduled event to create.
+    channel_id : `int`
+        The channel's identifier.
+    
+    Returns
+    -------
+    output : `None | Channel`
+    """
+    scheduled_event = ScheduledEvent.precreate(scheduled_event_id, channel_id = channel_id)
+    output = scheduled_event.channel
+    vampytest.assert_instance(output, Channel, nullable = True)
+    return output
 
 
 def _iter_options__guild():
     guild_id_0 = 202303160085
     guild_id_1 = 202303160086
     
-    yield (202303160087, 0, None)
-    yield (202303160088, guild_id_0, None)
-    yield (202303160089, guild_id_1, Guild.precreate(guild_id_1))
+    yield 202303160087, 0, None
+    yield 202303160088, guild_id_0, None
+    yield 202303160089, guild_id_1, Guild.precreate(guild_id_1)
     
 
 @vampytest._(vampytest.call_from(_iter_options__guild()).returning_last())
@@ -284,10 +310,12 @@ def test__ScheduledEvent__guild(scheduled_event_id, guild_id):
     
     Returns
     -------
-    output : `None | Guild`
+    output : ``None | Guild``
     """
     scheduled_event = ScheduledEvent.precreate(scheduled_event_id, guild_id = guild_id)
-    return scheduled_event.guild
+    output = scheduled_event.guild
+    vampytest.assert_instance(output, Guild, nullable = True)
+    return output
 
 
 def test__ScheduledEvent__creator_id():
@@ -305,23 +333,36 @@ def test__ScheduledEvent__creator_id():
     vampytest.assert_eq(output, creator_id)
 
 
-def test__ScheduledEvent__iter_sku_ids():
-    """
-    Tests whether ``ScheduledEvent.iter_sku_ids`` works as intended.
-    """
+def _iter_options__iter_sku_ids():
     sku_id_0 = 202303170002
     sku_id_1 = 202303170003
     
-    for scheduled_event_id, input_value, expected_output in (
-        (202303170004, None, []),
-        (202303170005, [sku_id_0], [sku_id_0]),
-        (202303170006, [sku_id_0, sku_id_1], [sku_id_0, sku_id_1]),
-    ):
-        scheduled_event = ScheduledEvent.precreate(scheduled_event_id, sku_ids = input_value)
-        vampytest.assert_eq([*scheduled_event.iter_sku_ids()], expected_output)
+    yield 202303170004, None, []
+    yield 202303170005, [sku_id_0], [sku_id_0]
+    yield 202303170006, [sku_id_0, sku_id_1], [sku_id_0, sku_id_1]
 
 
-def test__ScheduledEvent__entity__0():
+@vampytest._(vampytest.call_from(_iter_options__iter_sku_ids()).returning_last())
+def test__ScheduledEvent__iter_sku_ids(scheduled_event_id, input_value):
+    """
+    Tests whether ``ScheduledEvent.iter_sku_ids`` works as intended.
+    
+    Parameters
+    ----------
+    scheduled_event_id : `int`
+        Identifier to create the scheduled event with.
+    input_value : `None | list<int>`
+        Stock keeping unit identifiers.
+    
+    Returns
+    -------
+    output : `list<str>`
+    """
+    scheduled_event = ScheduledEvent.precreate(scheduled_event_id, sku_ids = input_value)
+    return [*scheduled_event.iter_sku_ids()]
+
+
+def test__ScheduledEvent__entity__no_id_has_type():
     """
     Tests whether ``ScheduledEvent.entity`` works as intended.
     
@@ -341,7 +382,7 @@ def test__ScheduledEvent__entity__0():
     vampytest.assert_is(output, None)
     
 
-def test__ScheduledEvent__entity__1():
+def test__ScheduledEvent__entity__has_id_no_type():
     """
     Tests whether ``ScheduledEvent.entity`` works as intended.
     
@@ -361,7 +402,7 @@ def test__ScheduledEvent__entity__1():
     vampytest.assert_is(output, None)
     
 
-def test__ScheduledEvent__entity__2():
+def test__ScheduledEvent__entity__voice_channel():
     """
     Tests whether ``ScheduledEvent.entity`` works as intended.
     
@@ -383,7 +424,7 @@ def test__ScheduledEvent__entity__2():
     vampytest.assert_eq(output.id, entity_id)
 
 
-def test__ScheduledEvent__entity__3():
+def test__ScheduledEvent__entity__stage_channel():
     """
     Tests whether ``ScheduledEvent.entity`` works as intended.
     
@@ -405,22 +446,138 @@ def test__ScheduledEvent__entity__3():
     vampytest.assert_eq(output.id, entity_id)
 
 
-def test__ScheduledEvent__url():
+def _iter_options__url():
+    yield 202303190000, 202303190001, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__url()).returning_last())
+def test__ScheduledEvent__url(scheduled_event_id, guild_id):
     """
-    Tests whether ``ScheduledEvent.url`` works as intended.
+    tests whether ``ScheduledEvent.url`` works as intended.
     
-    Case: stage channel.
+    Parameters
+    ----------
+    scheduled_event_id : `int`
+        ScheduledEvent identifier.
+    
+    guild_id : `int`
+        Scheduled event's guild's identifier.
+    
+    Returns
+    -------
+    has_url `bool`
     """
-    scheduled_event_id = 202303190000
-    guild_id = 202303190001
-    
-    scheduled_event = ScheduledEvent.precreate(
-        scheduled_event_id,
-        guild_id = guild_id,
-    )
-    
+    scheduled_event = ScheduledEvent.precreate(scheduled_event_id, guild_id = guild_id)
     output = scheduled_event.url
     vampytest.assert_instance(output, str)
-    vampytest.assert_true(is_url(output))
-    vampytest.assert_in(str(scheduled_event_id), output)
-    vampytest.assert_in(str(guild_id), output)
+    return True
+
+
+def _iter_options__image_url():
+    yield 202506010000, None, False
+    yield 202506010001, Icon(IconType.animated, 5), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__image_url()).returning_last())
+def test__ScheduledEvent__image_url(scheduled_event_id, icon):
+    """
+    Tests whether ``ScheduledEvent.image_url`` works as intended.
+    
+    Parameters
+    ----------
+    scheduled_event_id : `int`
+        Identifier to create scheduled event with.
+    
+    icon : ``None | Icon``
+        Icon to create the scheduled event with.
+    
+    Returns
+    -------
+    has_image_url : `bool`
+    """
+    scheduled_event = ScheduledEvent.precreate(
+        scheduled_event_id,
+        image = icon,
+    )
+    
+    output = scheduled_event.image_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__image_url_as():
+    yield 202506010002, None, {'ext': 'webp', 'size': 128}, False
+    yield 202506010003, Icon(IconType.animated, 5), {'ext': 'webp', 'size': 128}, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__image_url_as()).returning_last())
+def test__ScheduledEvent__image_url_as(scheduled_event_id, icon, keyword_parameters):
+    """
+    Tests whether ``ScheduledEvent.image_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    scheduled_event_id : `int`
+        Identifier to create scheduled event with.
+    
+    icon : ``None | Icon``
+        Icon to create the scheduled event with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_image_url : `bool`
+    """
+    scheduled_event = ScheduledEvent.precreate(
+        scheduled_event_id,
+        image = icon,
+    )
+    
+    output = scheduled_event.image_url_as(**keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__iter_occasion_overwrites():
+    occasion_overwrite_0 = ScheduledEventOccasionOverwrite(
+        timestamp = DateTime(2016, 5, 14, 13, 0, 0, tzinfo = TimeZone.utc),
+    )
+    
+    occasion_overwrite_1 = ScheduledEventOccasionOverwrite(
+        timestamp = DateTime(2016, 5, 16, 13, 10, 0, tzinfo = TimeZone.utc),
+    )
+    
+    yield 202506210035, None, []
+    yield 202506210036, [occasion_overwrite_0, occasion_overwrite_1], [occasion_overwrite_0, occasion_overwrite_1]
+
+
+@vampytest._(vampytest.call_from(_iter_options__iter_occasion_overwrites()).returning_last())
+def test__ScheduledEvent__iter_occasion_overwrites(scheduled_event_id, occasion_overwrites):
+    """
+    Tests whether ``ScheduledEvent.iter_occasion_overwrites`` works as intended.
+    
+    Parameters
+    ----------
+    scheduled_event_id : `int`
+        Identifier to create scheduled event with.
+    
+    occasion_overwrites : ``None | list<ScheduledEventOccasionOverwrite>``
+        Cancellations to create scheduled event with.
+    
+    Returns
+    -------
+    output : ``list<ScheduledEventOccasionOverwrite>``
+    """
+    scheduled_event = ScheduledEvent.precreate(
+        scheduled_event_id,
+        occasion_overwrites = occasion_overwrites,
+    )
+    
+    output = [*scheduled_event.iter_occasion_overwrites()]
+    
+    for element in output:
+        vampytest.assert_instance(element, ScheduledEventOccasionOverwrite)
+    
+    return output

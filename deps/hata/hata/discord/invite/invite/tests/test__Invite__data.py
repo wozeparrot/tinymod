@@ -1,10 +1,11 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
 from ....application import Application
 from ....channel import Channel, create_partial_channel_data
-from ....guild import Guild, create_partial_guild_data
+from ....guild import Guild, GuildActivityOverview, create_partial_guild_data
+from ....permission import Permission
 from ....user import User
 from ....utils import datetime_to_timestamp
 
@@ -22,9 +23,14 @@ def test__Invite__set_attributes():
     invite = Invite.precreate('202308060015')
     
     channel = Channel.precreate(202308060016)
-    created_at = DateTime(2016, 5, 14)
+    created_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     flags = InviteFlag(11)
     guild = Guild.precreate(
+        202308060017,
+        approximate_online_count = 21,
+        approximate_user_count = 23,
+    )
+    guild_activity_overview = GuildActivityOverview.precreate(
         202308060017,
         approximate_online_count = 21,
         approximate_user_count = 23,
@@ -37,6 +43,9 @@ def test__Invite__set_attributes():
     target_user = User.precreate(202308060020)
     temporary = True
     invite_type = InviteType.guild
+    user_permissions = Permission().update_by_keys(
+        change_nickname = True,
+    )
     uses = 69
     approximate_online_count = 11
     approximate_user_count = 13
@@ -46,6 +55,7 @@ def test__Invite__set_attributes():
         'created_at': datetime_to_timestamp(created_at),
         'flags': int(flags),
         'guild': create_partial_guild_data(guild),
+        'profile': guild_activity_overview.to_data(include_internals = True),
         'inviter': inviter.to_data(include_internals = True),
         'max_age': max_age,
         'max_uses': max_uses,
@@ -54,6 +64,7 @@ def test__Invite__set_attributes():
         'target_user': target_user.to_data(include_internals = True),
         'temporary': temporary,
         'type': invite_type.value,
+        'is_nickname_changeable': True if user_permissions & Permission.change_nickname.mask else False,
         'uses': uses,
         'approximate_presence_count': approximate_online_count,
         'approximate_member_count': approximate_user_count,
@@ -64,6 +75,7 @@ def test__Invite__set_attributes():
     vampytest.assert_eq(invite.created_at, created_at)
     vampytest.assert_eq(invite.flags, flags)
     vampytest.assert_is(invite.guild, guild)
+    vampytest.assert_eq(invite.guild_activity_overview, guild_activity_overview)
     vampytest.assert_is(invite.inviter, inviter)
     vampytest.assert_eq(invite.max_age, max_age)
     vampytest.assert_eq(invite.max_uses, max_uses)
@@ -72,6 +84,7 @@ def test__Invite__set_attributes():
     vampytest.assert_is(invite.target_user, target_user)
     vampytest.assert_eq(invite.temporary, temporary)
     vampytest.assert_is(invite.type, invite_type)
+    vampytest.assert_eq(invite.user_permissions, user_permissions)
     vampytest.assert_eq(invite.uses, uses)
     
     vampytest.assert_eq(invite.approximate_online_count, approximate_online_count)
@@ -122,9 +135,14 @@ def test__Invite__update_attributes():
     invite = Invite.precreate('202308060023')
     
     channel = Channel.precreate(202308060024)
-    created_at = DateTime(2016, 5, 14)
+    created_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     flags = InviteFlag(11)
     guild = Guild.precreate(
+        202308060025,
+        approximate_online_count = 21,
+        approximate_user_count = 23,
+    )
+    guild_activity_overview = GuildActivityOverview.precreate(
         202308060025,
         approximate_online_count = 21,
         approximate_user_count = 23,
@@ -137,6 +155,9 @@ def test__Invite__update_attributes():
     target_user = User.precreate(202308060028)
     temporary = True
     invite_type = InviteType.guild
+    user_permissions = Permission().update_by_keys(
+        change_nickname = True,
+    )
     uses = 69
     approximate_online_count = 11
     approximate_user_count = 13
@@ -146,6 +167,7 @@ def test__Invite__update_attributes():
         'created_at': datetime_to_timestamp(created_at),
         'flags': int(flags),
         'guild': create_partial_guild_data(guild),
+        'profile': guild_activity_overview.to_data(include_internals = True),
         'inviter': inviter.to_data(include_internals = True),
         'max_age': max_age,
         'max_uses': max_uses,
@@ -155,6 +177,7 @@ def test__Invite__update_attributes():
         'temporary': temporary,
         'type': invite_type.value,
         'uses': uses,
+        'is_nickname_changeable': True if user_permissions & Permission.change_nickname.mask else False,
         'approximate_presence_count': approximate_online_count,
         'approximate_member_count': approximate_user_count,
     }
@@ -164,6 +187,7 @@ def test__Invite__update_attributes():
     vampytest.assert_eq(invite.created_at, created_at)
     vampytest.assert_eq(invite.flags, flags)
     vampytest.assert_is(invite.guild, guild)
+    vampytest.assert_eq(invite.guild_activity_overview, guild_activity_overview)
     vampytest.assert_is(invite.inviter, inviter)
     vampytest.assert_eq(invite.max_age, max_age)
     vampytest.assert_eq(invite.max_uses, max_uses)
@@ -172,6 +196,7 @@ def test__Invite__update_attributes():
     vampytest.assert_is(invite.target_user, target_user)
     vampytest.assert_eq(invite.temporary, temporary)
     vampytest.assert_is(invite.type, invite_type)
+    vampytest.assert_eq(invite.user_permissions, user_permissions)
     vampytest.assert_eq(invite.uses, uses)
     
     vampytest.assert_eq(invite.approximate_online_count, approximate_online_count)
@@ -352,9 +377,14 @@ def test__Invite__from_data():
     """
     code = '202308060039'
     channel = Channel.precreate(202308060040)
-    created_at = DateTime(2016, 5, 14)
+    created_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     flags = InviteFlag(11)
     guild = Guild.precreate(
+        202308060041,
+        approximate_online_count = 21,
+        approximate_user_count = 23,
+    )
+    guild_activity_overview = GuildActivityOverview.precreate(
         202308060041,
         approximate_online_count = 21,
         approximate_user_count = 23,
@@ -367,6 +397,9 @@ def test__Invite__from_data():
     target_user = User.precreate(202308060044)
     temporary = True
     invite_type = InviteType.guild
+    user_permissions = Permission().update_by_keys(
+        change_nickname = True,
+    )
     uses = 69
     approximate_online_count = 11
     approximate_user_count = 13
@@ -377,6 +410,7 @@ def test__Invite__from_data():
         'created_at': datetime_to_timestamp(created_at),
         'flags': int(flags),
         'guild': create_partial_guild_data(guild),
+        'profile': guild_activity_overview.to_data(include_internals = True),
         'inviter': inviter.to_data(include_internals = True),
         'max_age': max_age,
         'max_uses': max_uses,
@@ -385,6 +419,7 @@ def test__Invite__from_data():
         'target_user': target_user.to_data(include_internals = True),
         'temporary': temporary,
         'type': invite_type.value,
+        'is_nickname_changeable': True if user_permissions & Permission.change_nickname.mask else False,
         'uses': uses,
         'approximate_presence_count': approximate_online_count,
         'approximate_member_count': approximate_user_count,
@@ -397,6 +432,7 @@ def test__Invite__from_data():
     vampytest.assert_eq(invite.created_at, created_at)
     vampytest.assert_eq(invite.flags, flags)
     vampytest.assert_is(invite.guild, guild)
+    vampytest.assert_eq(invite.guild_activity_overview, guild_activity_overview)
     vampytest.assert_is(invite.inviter, inviter)
     vampytest.assert_eq(invite.max_age, max_age)
     vampytest.assert_eq(invite.max_uses, max_uses)
@@ -405,6 +441,7 @@ def test__Invite__from_data():
     vampytest.assert_is(invite.target_user, target_user)
     vampytest.assert_eq(invite.temporary, temporary)
     vampytest.assert_is(invite.type, invite_type)
+    vampytest.assert_eq(invite.user_permissions, user_permissions)
     vampytest.assert_eq(invite.uses, uses)
     
     vampytest.assert_eq(invite.approximate_online_count, approximate_online_count)
@@ -441,9 +478,14 @@ def test__Invite__to_data__with_internals():
     """
     code = '202308060053'
     channel = Channel.precreate(202308060054)
-    created_at = DateTime(2016, 5, 14)
+    created_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     flags = InviteFlag(11)
     guild = Guild.precreate(
+        202308060055,
+        approximate_online_count = 21,
+        approximate_user_count = 23,
+    )
+    guild_activity_overview = GuildActivityOverview.precreate(
         202308060055,
         approximate_online_count = 21,
         approximate_user_count = 23,
@@ -456,6 +498,9 @@ def test__Invite__to_data__with_internals():
     target_user = User.precreate(202308060058)
     temporary = True
     invite_type = InviteType.guild
+    user_permissions = Permission().update_by_keys(
+        change_nickname = True,
+    )
     uses = 69
     approximate_online_count = 11
     approximate_user_count = 13
@@ -466,6 +511,7 @@ def test__Invite__to_data__with_internals():
         created_at = created_at,
         flags = flags,
         guild = guild,
+        guild_activity_overview = guild_activity_overview,
         inviter = inviter,
         max_age = max_age,
         max_uses = max_uses,
@@ -474,6 +520,7 @@ def test__Invite__to_data__with_internals():
         target_user = target_user,
         temporary = temporary,
         invite_type = invite_type,
+        user_permissions = user_permissions,
         uses = uses,
         approximate_online_count = approximate_online_count,
         approximate_user_count = approximate_user_count,
@@ -493,11 +540,13 @@ def test__Invite__to_data__with_internals():
         'code': code,
         'created_at': datetime_to_timestamp(created_at),
         'guild': create_partial_guild_data(guild),
+        'profile': guild_activity_overview.to_data(defaults = True, include_internals = True),
         'guild_id': str(guild.id),
         'inviter': inviter.to_data(defaults = True, include_internals = True),
         'target_application': target_application.to_data_invite(defaults = True, include_internals = True),
         'target_user': target_user.to_data(defaults = True, include_internals = True),
         'type': invite_type.value,
+        'is_nickname_changeable': True if user_permissions & Permission.change_nickname.mask else False,
         'uses': uses,
     }
     
@@ -512,9 +561,14 @@ def test__Invite__to_data__without_internals():
     """
     code = '202308060059'
     channel = Channel.precreate(202308060060)
-    created_at = DateTime(2016, 5, 14)
+    created_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     flags = InviteFlag(11)
     guild = Guild.precreate(
+        202308060061,
+        approximate_online_count = 21,
+        approximate_user_count = 23,
+    )
+    guild_activity_overview = GuildActivityOverview.precreate(
         202308060061,
         approximate_online_count = 21,
         approximate_user_count = 23,
@@ -527,6 +581,9 @@ def test__Invite__to_data__without_internals():
     target_user = User.precreate(202308060064)
     temporary = True
     invite_type = InviteType.guild
+    user_permissions = Permission().update_by_keys(
+        change_nickname = True,
+    )
     uses = 69
     approximate_online_count = 11
     approximate_user_count = 13
@@ -537,6 +594,7 @@ def test__Invite__to_data__without_internals():
         created_at = created_at,
         flags = flags,
         guild = guild,
+        guild_activity_overview = guild_activity_overview,
         inviter = inviter,
         max_age = max_age,
         max_uses = max_uses,
@@ -545,6 +603,7 @@ def test__Invite__to_data__without_internals():
         target_user = target_user,
         temporary = temporary,
         invite_type = invite_type,
+        user_permissions = user_permissions,
         uses = uses,
         approximate_online_count = approximate_online_count,
         approximate_user_count = approximate_user_count,

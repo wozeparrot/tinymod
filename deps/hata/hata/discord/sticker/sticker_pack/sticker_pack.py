@@ -4,13 +4,13 @@ from scarletio import export
 
 from ...bases import DiscordEntity
 from ...core import STICKER_PACKS
-from ...http import urls as module_urls
+from ...http.urls import build_sticker_pack_banner_url, build_sticker_pack_banner_url_as
 from ...precreate_helpers import process_precreate_parameters_and_raise_extra
 
 from .fields import (
     parse_banner_id, parse_cover_sticker_id, parse_description, parse_id, parse_name, parse_sku_id, parse_stickers,
-    put_banner_id_into, put_cover_sticker_id_into, put_description_into, put_id_into, put_name_into, put_sku_id_into,
-    put_stickers_into, validate_banner_id, validate_cover_sticker_id, validate_description, validate_id, validate_name,
+    put_banner_id, put_cover_sticker_id, put_description, put_id, put_name, put_sku_id,
+    put_stickers, validate_banner_id, validate_cover_sticker_id, validate_description, validate_id, validate_name,
     validate_sku_id, validate_stickers
 )
 
@@ -142,7 +142,7 @@ class StickerPack(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             sticker-pack data.
         force_update : `bool` = `False`, Optional (Keyword only)
             Whether the sticker should be updated.
@@ -174,7 +174,7 @@ class StickerPack(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Sticker-pack data.
         """
         self.banner_id = parse_banner_id(data)
@@ -196,16 +196,16 @@ class StickerPack(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
-        put_banner_id_into(self.banner_id, data, defaults)
-        put_cover_sticker_id_into(self.cover_sticker_id, data, defaults)
-        put_description_into(self.description, data, defaults)
-        put_id_into(self.id, data, defaults)
-        put_name_into(self.name, data, defaults)
-        put_sku_id_into(self.sku_id, data, defaults)
-        put_stickers_into(self.stickers, data, defaults)
+        put_banner_id(self.banner_id, data, defaults)
+        put_cover_sticker_id(self.cover_sticker_id, data, defaults)
+        put_description(self.description, data, defaults)
+        put_id(self.id, data, defaults)
+        put_name(self.name, data, defaults)
+        put_sku_id(self.sku_id, data, defaults)
+        put_stickers(self.stickers, data, defaults)
         return data
     
     
@@ -539,9 +539,6 @@ class StickerPack(DiscordEntity, immortal = True):
         return new
     
     
-    banner_url = property(module_urls.sticker_pack_banner)
-    
-    
     @property
     def partial(self):
         """
@@ -587,3 +584,34 @@ class StickerPack(DiscordEntity, immortal = True):
             return False
         
         return (sticker in stickers)
+    
+    
+    @property
+    def banner_url(self):
+        """
+        Returns the sticker pack's banner's url. If the sticker pack has no banner, then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_sticker_pack_banner_url(self.banner_id)
+    
+    
+    def banner_url_as(self, ext = None, size = None):
+        """
+        Returns the sticker pack's banner's url. If the sticker pack has no banner, then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_sticker_pack_banner_url_as(self.banner_id, ext, size)

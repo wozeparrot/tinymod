@@ -3,7 +3,7 @@ __all__ = ('PollResult',)
 from scarletio import RichAttributeErrorBaseType
 
 from .fields import (
-    parse_answer_id, parse_count, put_answer_id_into, put_count_into, validate_answer_id, validate_count, validate_users
+    parse_answer_id, parse_count, put_answer_id, put_count, validate_answer_id, validate_count, validate_users
 )
 
 
@@ -15,9 +15,11 @@ class PollResult(RichAttributeErrorBaseType):
     ----------
     answer_id : `int`
         The represented answer's identifier.
+    
     count : `int`
         The amount of votes.
-    users : `None | set<ClientUserBase>`
+    
+    users : ``None | set<ClientUserBase>``
         The known voters.
     """
     __slots__ = ('answer_id', 'count', 'users')
@@ -105,8 +107,8 @@ class PollResult(RichAttributeErrorBaseType):
         data : `dict<str, object>`
         """
         data = {}
-        put_answer_id_into(self.answer_id, data, defaults)
-        put_count_into(self.count, data, defaults)
+        put_answer_id(self.answer_id, data, defaults)
+        put_count(self.count, data, defaults)
         return data
     
     
@@ -365,7 +367,7 @@ class PollResult(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        some_users : `list` of ``ClientUserBase``
+        some_users : ``list<ClientUserBase>``
             The users who voted.
         """
         users = self.users
@@ -387,7 +389,7 @@ class PollResult(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        all_users : `list` of ``ClientUserBase``
+        all_users : ``list<ClientUserBase>``
             The users who voted.
         """
         users = self.users
@@ -477,7 +479,7 @@ class PollResult(RichAttributeErrorBaseType):
         
         Returns
         -------
-        users : `list` of ``ClientUserBase``
+        users : ``list<ClientUserBase>``
         """
         users = self.users
         if users is None:
@@ -487,3 +489,18 @@ class PollResult(RichAttributeErrorBaseType):
         filtered_users.sort()
         del filtered_users[limit:]
         return filtered_users
+    
+    
+    def iter_users(self):
+        """
+        Iterates over the known voters.
+        
+        This method is an iterable generator.
+        
+        Yields
+        ------
+        user : ``ClientUserBase``
+        """
+        users = self.users
+        if (users is not None):
+            yield from users

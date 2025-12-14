@@ -11,7 +11,7 @@ from ...field_parsers import (
 from ...field_putters import (
     bool_optional_putter_factory, entity_id_optional_putter_factory, entity_id_putter_factory,
     force_string_putter_factory, nullable_entity_array_optional_putter_factory,
-    nullable_functional_optional_putter_factory, nullable_string_putter_factory, preinstanced_array_putter_factory,
+    nullable_functional_optional_putter_factory, nullable_string_putter_factory, preinstanced_optional_putter_factory,
     preinstanced_putter_factory
 )
 from ...field_validators import (
@@ -27,29 +27,22 @@ from ...utils import is_valid_application_command_name
 
 from ..application_command_option import ApplicationCommandOption
 
-from .constants import (
-    DESCRIPTION_LENGTH_MAX, DESCRIPTION_LENGTH_MIN,
-    NAME_LENGTH_MAX, NAME_LENGTH_MIN, OPTIONS_MAX
-)
+from .constants import DESCRIPTION_LENGTH_MAX, DESCRIPTION_LENGTH_MIN, NAME_LENGTH_MAX, NAME_LENGTH_MIN, OPTIONS_MAX
 from .preinstanced import (
-    INTEGRATION_CONTEXT_TYPES_ALL, ApplicationCommandIntegrationContextType,
-    ApplicationCommandTargetType
+    ApplicationCommandHandlerType, ApplicationCommandIntegrationContextType, ApplicationCommandTargetType
 )
 
-# allow_in_dm
-
-validate_allow_in_dm = bool_validator_factory('allow_in_dm', True)
 
 # application_id
 
 parse_application_id = entity_id_parser_factory('application_id')
-put_application_id_into = entity_id_putter_factory('application_id')
+put_application_id = entity_id_putter_factory('application_id')
 validate_application_id = entity_id_validator_factory('application_id', Application)
 
 # description
 
 parse_description = nullable_string_parser_factory('description')
-put_description_into = nullable_string_putter_factory('description')
+put_description = nullable_string_putter_factory('description')
 validate_description = nullable_string_validator_factory(
     'description', DESCRIPTION_LENGTH_MIN, DESCRIPTION_LENGTH_MAX
 )
@@ -59,7 +52,7 @@ validate_description = nullable_string_validator_factory(
 parse_description_localizations = nullable_functional_parser_factory(
     'description_localizations', build_locale_dictionary
 )
-put_description_localizations_into = nullable_functional_optional_putter_factory(
+put_description_localizations = nullable_functional_optional_putter_factory(
     'description_localizations', destroy_locale_dictionary
 )
 validate_description_localizations = partial_func(
@@ -69,13 +62,23 @@ validate_description_localizations = partial_func(
 # guild_id
 
 parse_guild_id = entity_id_parser_factory('guild_id')
-put_guild_id_into = entity_id_optional_putter_factory('guild_id')
+put_guild_id = entity_id_optional_putter_factory('guild_id')
 validate_guild_id = entity_id_validator_factory('guild_id', Guild)
+
+
+# handler_type
+
+parse_handler_type = preinstanced_parser_factory(
+    'handler', ApplicationCommandHandlerType, ApplicationCommandHandlerType.none
+)
+put_handler_type = preinstanced_optional_putter_factory('handler', ApplicationCommandHandlerType.none)
+validate_handler_type = preinstanced_validator_factory('handler_type', ApplicationCommandHandlerType)
+
 
 # id
 
 parse_id = entity_id_parser_factory('id')
-put_id_into = entity_id_putter_factory('id')
+put_id = entity_id_putter_factory('id')
 validate_id = entity_id_validator_factory('id')
 
 # integration_context_types
@@ -85,22 +88,22 @@ parse_integration_context_types = preinstanced_array_parser_factory(
 )
 
 
-def put_integration_context_types_into(integration_context_types, data, defaults):
+def put_integration_context_types(integration_context_types, data, defaults):
     """
     Puts the `integration_context_types`'s data into the given `data` json serializable object.
     
     Parameters
     ----------
     integration_context_types : `None | tuple<ApplicationCommandIntegrationContextType>`
-        The places where the application command shows up. `None` means all.
-    data : `dict` of (`str`, `object`) items
+        The places where the application command shows up.
+    data : `dict<str, object>`
         Json serializable dictionary.
     defaults : `bool`
         Whether default values should be included as well.
     
     Returns
     -------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
     """
     if integration_context_types is None:
         raw = None
@@ -111,38 +114,9 @@ def put_integration_context_types_into(integration_context_types, data, defaults
     return data
 
 
-_validate_integration_context_types = preinstanced_array_validator_factory(
+validate_integration_context_types = preinstanced_array_validator_factory(
     'integration_context_types', ApplicationCommandIntegrationContextType
 )
-
-
-def validate_integration_context_types(integration_context_types):
-    """
-    Validates whether the given `integration_context_types` are valid and returns the validated version.
-    
-    Parameters
-    ----------
-    integration_context_types : `None`, ``ApplicationCommandIntegrationContextType``, `int`, \
-            `iterable<ApplicationCommandIntegrationContextType | int>`
-        Value to validate.
-    
-    Returns
-    -------
-    integration_context_types : `None | tuple<ApplicationCommandIntegrationContextType>`
-    
-    Raises
-    ------
-    TypeError
-        - If `integration_context_types` type is invalid.
-    """
-    integration_context_types = _validate_integration_context_types(integration_context_types)
-    if (
-        (integration_context_types is not None) and
-        (integration_context_types == INTEGRATION_CONTEXT_TYPES_ALL)
-    ):
-        integration_context_types = None
-    
-    return integration_context_types
 
 
 # integration_types
@@ -150,7 +124,7 @@ def validate_integration_context_types(integration_context_types):
 parse_integration_types = preinstanced_array_parser_factory('integration_types', ApplicationIntegrationType)
 
 
-def put_integration_types_into(integration_types, data, defaults):
+def put_integration_types(integration_types, data, defaults):
     """
     Puts the `integration_types`'s data into the given `data` json serializable object.
     
@@ -158,14 +132,14 @@ def put_integration_types_into(integration_types, data, defaults):
     ----------
     integration_types : `None | tuple<ApplicationIntegrationType>`
         The options where the application command can be integrated to.
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Json serializable dictionary.
     defaults : `bool`
         Whether default values should be included as well.
     
     Returns
     -------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
     """
     if integration_types is None:
         raw = None
@@ -182,7 +156,7 @@ validate_integration_types = preinstanced_array_validator_factory('integration_t
 # name
 
 parse_name = force_string_parser_factory('name')
-put_name_into = force_string_putter_factory('name')
+put_name = force_string_putter_factory('name')
 
 
 def validate_name(name):
@@ -240,7 +214,7 @@ def validate_name(name):
 parse_name_localizations = nullable_functional_parser_factory(
     'name_localizations', build_locale_dictionary
 )
-put_name_localizations_into = nullable_functional_optional_putter_factory(
+put_name_localizations = nullable_functional_optional_putter_factory(
     'name_localizations', destroy_locale_dictionary
 )
 validate_name_localizations = partial_func(
@@ -250,13 +224,13 @@ validate_name_localizations = partial_func(
 # nsfw
 
 parse_nsfw = bool_parser_factory('nsfw', False)
-put_nsfw_into = bool_optional_putter_factory('nsfw', False)
+put_nsfw = bool_optional_putter_factory('nsfw', False)
 validate_nsfw = bool_validator_factory('nsfw', False)
 
 # options
 
 parse_options = nullable_object_array_parser_factory('options', ApplicationCommandOption)
-put_options_into = nullable_entity_array_optional_putter_factory('options', ApplicationCommandOption)
+put_options = nullable_entity_array_optional_putter_factory('options', ApplicationCommandOption)
 _pre_validate_options = nullable_object_array_validator_factory('options', ApplicationCommandOption)
 
 
@@ -292,7 +266,7 @@ def validate_options(options):
 parse_required_permissions = flag_parser_factory('default_member_permissions', Permission)
 
 
-def put_required_permissions_into(required_permissions, data, defaults):
+def put_required_permissions(required_permissions, data, defaults):
     """
     Puts the given application command's required permissions into the given data.
     
@@ -300,14 +274,14 @@ def put_required_permissions_into(required_permissions, data, defaults):
     ----------
     required_permissions : ``Permission``
         The required permissions a user should have to use the command.
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Json serializable dictionary.
     defaults : `bool`
         Whether default values should be included as well.
     
     Returns
     -------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
     """
     if required_permissions:
         required_permissions = format(required_permissions, 'd')
@@ -324,11 +298,11 @@ validate_required_permissions = flag_validator_factory('required_permissions', P
 parse_target_type = preinstanced_parser_factory(
     'type', ApplicationCommandTargetType, ApplicationCommandTargetType.none
 )
-put_target_type_into = preinstanced_putter_factory('type')
+put_target_type = preinstanced_putter_factory('type')
 validate_target_type = preinstanced_validator_factory('target_type', ApplicationCommandTargetType)
 
 # version
 
 parse_version = entity_id_parser_factory('version')
-put_version_into = entity_id_optional_putter_factory('version')
+put_version = entity_id_optional_putter_factory('version')
 validate_version = entity_id_validator_factory('version')

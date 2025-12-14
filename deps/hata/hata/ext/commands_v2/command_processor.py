@@ -156,7 +156,7 @@ class CommandProcessor(EventWaitforBase):
     _prefix_raw : `str`, `tuple` of `str`, `callable`
         Raw prefix of the command processor.
     
-    _self_reference : `None`, ``WeakReferer`` to ``CommandProcessor``
+    _self_reference : `None | WeakReferer<instance>`
         Reference to the command processor itself.
     
     _unknown_command : `None`, `FunctionType`
@@ -918,12 +918,12 @@ class CommandProcessor(EventWaitforBase):
             Async callable to add as a command.
         name : `None`, `str`, `tuple` of (`None`, `Ellipsis`, `str`) = `None`, Optional
             The name to be used instead of the passed `command`'s.
-        description : `None`, `object`, `tuple` of (`None`, `Ellipsis`, `object`) = `None`, Optional
+        description : `None | object | tuple<None | Ellipsis | object>` = `None`, Optional
             Description added to the command. If no description is provided, then it will check the commands'
             `.__doc__` attribute for it. If the description is a string instance, then it will be normalized with the
             ``normalize_description`` function. If it ends up as an empty string, then `None` will be set as the
             description.
-        aliases : `None`, `str`, `list` of `str`, `tuple` of (`None, `Ellipsis`, `str`, `list` of `str`) = `None`
+        aliases : `None | str | list<str> | tuple<None | Ellipsis | str | list<str>>` = `None`
                 , Optional
             The aliases of the command.
         category : `None`, ``Category``, `str`, `tuple` of (`None`, `Ellipsis`, ``Category``, `str`) = `None`
@@ -974,28 +974,6 @@ class CommandProcessor(EventWaitforBase):
             
             if isinstance(command, Router):
                 command = command[0]
-        
-        self._add_command(command)
-        return command
-    
-    
-    def create_event_from_class(self, klass):
-        """
-        Breaks down the given class to it's class attributes and tries to add it as a command.
-    
-        Parameters
-        ----------
-        klass : `type`
-            The class, from what's attributes the command will be created.
-        
-        Returns
-        -------
-        command : ``Command``
-            The added command instance.
-        """
-        command = Command.from_class(klass)
-        if isinstance(command, Router):
-            command = command[0]
         
         self._add_command(command)
         return command

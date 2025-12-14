@@ -1,12 +1,13 @@
 __all__ = ('Client', )
 
-import sys, warnings
+import sys
 from json import JSONDecodeError
 from math import inf
+from warnings import warn
 
 from scarletio import (
-    CancelledError, CompoundMetaType, EventThread, Future, LOOP_TIME, Task, copy_docs, export, from_json,
-    methodize, run_coroutine, sleep, write_exception_async
+    CancelledError, CompoundMetaType, EventThread, Future, LOOP_TIME, Task, copy_docs, export, from_json, methodize,
+    run_coroutine, sleep, write_exception_async
 )
 
 from ...env import CACHE_USER
@@ -31,9 +32,9 @@ from ..user import (
 )
 from ..user.user.fields import (
     parse_email, parse_email_verified, parse_locale, parse_mfa_enabled, parse_premium_type, validate_avatar_decoration,
-    validate_banner_color, validate_bot, validate_clan, validate_discriminator, validate_display_name, validate_email,
-    validate_email_verified, validate_flags, validate_locale, validate_mfa_enabled, validate_name,
-    validate_premium_type, validate_status
+    validate_banner_color, validate_bot, validate_discriminator, validate_display_name, validate_email,
+    validate_email_verified, validate_flags, validate_locale, validate_mfa_enabled, validate_name, validate_name_plate,
+    validate_premium_type, validate_primary_guild_badge, validate_status
 )
 
 from .compounds import CLIENT_COMPOUNDS
@@ -57,7 +58,7 @@ class Client(
     metaclass = CompoundMetaType.with_(ClientUserPBase),
 ):
     """
-    Discord client class used to interact with the Discord API.
+    Discord client type used to interact with the Discord API.
     
     Attributes
     ----------
@@ -96,7 +97,7 @@ class Client(
         
         Nonce `0` is allocated for the case, when all the guild's users are requested.
     
-    activities : `None`, `list` of ``Activity``
+    activities : ``None | list<Activity>``
         A list of the client's activities. Defaults to `None`.
     
     api : ``DiscordApiClient``
@@ -111,7 +112,7 @@ class Client(
     avatar_type : ``IconType``
         The client's avatar's type.
     
-    avatar_decoration : `None`, ``AvatarDecoration``
+    avatar_decoration : ``None | AvatarDecoration``
         The client's avatar decorations.
     
     banner_color : `None`, ``Color``
@@ -126,16 +127,13 @@ class Client(
     bot : `bool`
         Whether the client is a bot.
     
-    clan : `None`, ``UserClan``
-        The client's primary clan.
-    
     discriminator : `int`
         The client's discriminator. Given to avoid overlapping names.
     
-    display_name : `None`, `str`
+    display_name : `None | str`
         The clients' non-unique display name.
     
-    email : `None`, `str`
+    email : `None | str`
         The client's email.
     
     email_verified : `bool`
@@ -153,14 +151,14 @@ class Client(
     group_channels : `dict` of (`int`, ``Channel``) items
         The group channels of the client. They can be accessed by their id as the key.
     
-    guild_profiles : `dict` of (`int`, ``GuildProfile``) items
+    guild_profiles : ``dict<int, GuildProfile>``
         A dictionary, which contains the client's guild profiles. If a client is member of a guild, then it should
         have a respective guild profile accordingly.
     
     guilds : `set` of ``Guild``
         The guilds, where the client is in.
     
-    http : ``HttpClient``
+    http : ``HTTPClient``
         The http session of the client.
     
     id : `int`
@@ -178,8 +176,14 @@ class Client(
     name : str
         The client's username.
     
+    name_plate : ``None | NamePlate``
+        The client's name plate.
+    
     premium_type : ``PremiumType``
         The Nitro subscription type of the client.
+    
+    primary_guild_badge : ``None | GuildBadge``
+        The client's primary guild's badge.
     
     private_channels : `dict` of (`int`, ``Channel``) items
         Stores the private channels of the client. The channels' other recipient' ids are the keys, meanwhile the
@@ -210,10 +214,10 @@ class Client(
     status : `Status`
         The client's display status.
     
-    statuses : `None`, `dict` of (`str`, `str`) items
-        The client's statuses for each platform.
+    status_by_platform : ``None | StatusByPlatform``
+        The client's status for each platform.
     
-    thread_profiles : `None`, `dict` (``Channel``, ``ThreadProfile``) items
+    thread_profiles : ``None | dict<int, ThreadProfile>``
         A Dictionary which contains the thread profiles for the user in thread channel - thread profile relation.
         Defaults to `None`.
     
@@ -226,8 +230,8 @@ class Client(
         the voice clients.
     
     
-    Class Attributes
-    ----------------
+    Type Attributes
+    ---------------
     loop : ``EventThread``
         The event loop of the client. Every client uses the same one.
     _next_auto_id : `int`
@@ -235,11 +239,11 @@ class Client(
     
     See Also
     --------
-    - ``UserBase`` : The superclass of ``Client`` and of other user types.
+    - ``UserBase`` : The parent type of ``Client`` and of other user types.
     - ``User`` : The default type of Discord users.
     - ``Webhook`` : Discord webhook entity.
     - ``WebhookRepr`` : Discord webhook's user representation.
-    - ``Oauth2User`` : A user class with extended oauth2 attributes.
+    - ``Oauth2User`` : A user type with extended oauth2 attributes.
     
     Notes
     -----
@@ -269,7 +273,6 @@ class Client(
         banner = ...,
         banner_color = ...,
         bot = ...,
-        clan = ...,
         client_id = ...,
         discriminator = ...,
         display_name = ...,
@@ -283,7 +286,9 @@ class Client(
         locale = ...,
         mfa_enabled = ...,
         name = ...,
+        name_plate = ...,
         premium_type = ...,
+        primary_guild_badge = ...,
         secret = ...,
         shard_count = ...,
         should_request_users = ...,
@@ -301,23 +306,23 @@ class Client(
         activity : ``Activity``, Optional (Keyword only)
             The client's preferred activity.
         
-        additional_owners : `None`, `int`, ``ClientUserBase``, `iterable` of (`int`, ``ClientUserBase``) \
+        additional_owners : ``None | int | ClientUserBase | iterable<int> | iterable<ClientUserBase>`` \
                 , Optional (Keyword only)
             Additional users to return `True` for by ``.is_owner`.
         
         api : `None | DiscordApiClient`, Optional (Keyword only)
             The api client to use.
         
-        application_id : `None`, `int`, `str`, Optional (Keyword only)
+        application_id : `None | int | str`, Optional (Keyword only)
             The client's application id. If passed as `str`, will be converted to `int`.
          
-        avatar : `None`, ``Icon``, `str`, Optional (Keyword only)
+        avatar : ``None | str | Icon``, Optional (Keyword only)
             The client's avatar.
         
-        avatar_decoration : `None`, ``AvatarDecoration``, Optional (Keyword only)
+        avatar_decoration : ``None | AvatarDecoration``, Optional (Keyword only)
             The client's avatar decoration.
         
-        banner : `None`, ``Icon``, `str`, Optional (Keyword only)
+        banner : ``None | str | Icon``, Optional (Keyword only)
             The client's banner.
         
         banner_color : `None`, ``Color``, `int`, Optional (Keyword only)
@@ -326,10 +331,7 @@ class Client(
         bot : `bool`, Optional (Keyword only)
             Whether the client is a bot.
         
-        clan : `None`, ``UserClan``, Optional (Keyword only)
-            The client's primary clan.
-        
-        client_id : `None`, `int`, `str`, Optional (Keyword only)
+        client_id : `None | int | str`, Optional (Keyword only)
             The client's `.id`. If passed as `str` will be converted to `int`. Defaults to `None`.
             
             When more `Client` is started up, it is recommended to define their id initially. The wrapper can detect the
@@ -339,7 +341,7 @@ class Client(
         discriminator : `str`, `int`, Optional (Keyword only)
             The client's discriminator.
         
-        display_name : `None`, `str`, Optional (Keyword only)
+        display_name : `None | str`, Optional (Keyword only)
             The client's non-unique display name.
         
         email : `None, `str`, Optional (Keyword only)
@@ -348,7 +350,7 @@ class Client(
         email_verified : `bool`, Optional (Keyword only)
             Whether the email of the client is verified.
         
-        extensions : `None`, `str`, `iterable` of `str`, Optional (Keyword only)
+        extensions : `None | str | iterable<str>`, Optional (Keyword only)
             The extension's name to setup on the client.
         
         flags : `int`, ``UserFlag``, Optional (Keyword only)
@@ -357,7 +359,7 @@ class Client(
         http : `None | HTTPClient`, Optional (Keyword only)
             The http client to use.
         
-        http_debug_options: `None`, `str`, `iterable` of `str`, Optional (Keyword only)
+        http_debug_options: `None | str | iterable<str>`, Optional (Keyword only)
             Http client debug options for the client.
         
         intents : `int`, ``IntentFlag``, Optional (Keyword only)
@@ -373,8 +375,14 @@ class Client(
         name : `str`, Optional (Keyword only)
             The user's name.
         
-        premium_type : ``PremiumType``, `int`, Optional (Keyword only)
+        name_plate : ``None | NamePlate``, Optional (Keyword only)
+            The client's name plate.
+        
+        premium_type : ``None | int | PremiumType``, Optional (Keyword only)
             The Nitro subscription type of the client.
+        
+        primary_guild_badge : ``None | GuildBadge``, Optional (Keyword only)
+            The client's primary guild's badge.
         
         secret: `str`, Optional (Keyword only)
             Client secret used when interacting with oauth2 endpoints.
@@ -385,7 +393,7 @@ class Client(
         should_request_users : `int`, Optional (Keyword only)
             Whether the client should try to request the users of it's guilds.
         
-        status : `None`, `str`, ``Status``, Optional (Keyword only)
+        status : ``None | str | Status``, Optional (Keyword only)
             The client's preferred status.
         
         **keyword_parameters : keyword parameters
@@ -471,12 +479,6 @@ class Client(
         else:
             bot = validate_bot(bot)
         
-        # clan
-        if clan is ...:
-            clan = None
-        else:
-            clan = validate_clan(clan)
-        
         # client_id
         if client_id is ...:
             client_id = try_get_user_id_from_token(token)
@@ -555,11 +557,23 @@ class Client(
         else:
             name = validate_name(name)
         
+        # name_plate
+        if name_plate is ...:
+            name_plate = None
+        else:
+            name_plate = validate_name_plate(name_plate)
+        
         # premium_type
         if premium_type is ...:
             premium_type = PremiumType.none
         else:
             premium_type = validate_premium_type(premium_type)
+        
+        # primary_guild_badge
+        if primary_guild_badge is ...:
+            primary_guild_badge = None
+        else:
+            primary_guild_badge = validate_primary_guild_badge(primary_guild_badge)
         
         # secret
         if secret is ...:
@@ -634,7 +648,6 @@ class Client(
         self.banner = banner
         self.banner_color = banner_color
         self.bot = bot
-        self.clan = clan
         self.discriminator = discriminator
         self.display_name = display_name
         self.email = email
@@ -649,7 +662,9 @@ class Client(
         self.intents = intents
         self.locale = locale
         self.mfa_enabled = mfa_enabled
+        self.name_plate = name_plate
         self.premium_type = premium_type
+        self.primary_guild_badge = primary_guild_badge
         self.private_channels = {}
         self.ready_state = None
         self.relationships = {}
@@ -657,7 +672,7 @@ class Client(
         self.secret = secret
         self.shard_count = shard_count
         self.status = Status.offline
-        self.statuses = None
+        self.status_by_platform = None
         self.thread_profiles = None
         self.token = token
         self.voice_clients = {}
@@ -744,7 +759,7 @@ class Client(
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Data requested from Discord by the ``.client_login_static`` method.
         
         Raises
@@ -821,7 +836,7 @@ class Client(
         ```
         """
         if self.running:
-            raise RuntimeError(f'`{self.__class__.__name__}._delete` called from a running client: {self!r}')
+            raise RuntimeError(f'`{type(self).__name__}._delete` called from a running client: {self!r}')
         
         client_id = self.id
         if CLIENTS.get(client_id, None) is self:
@@ -878,7 +893,7 @@ class Client(
         self.guild_profiles.clear()
         self.thread_profiles = None
         self.status = Status.offline
-        self.statuses = None
+        self.status_by_platform = None
         self._activity = ACTIVITY_UNKNOWN
         self.activities = None
         self.ready_state = None
@@ -942,19 +957,23 @@ class Client(
         
         This endpoint is available only for bot accounts.
         """
-        if self.bot:
-            data = await self.api.application_get_own()
-            application = self.application
-            old_application_id = application.id
-            application = application.from_data_own(data)
-            self.application = application
-            new_application_id = application.id
+        if not self.bot:
+            return
+        
+        data = await self.api.application_get_own()
+        application = self.application
+        old_application_id = application.id
+        application = application.from_data_own(data)
+        self.application = application
+        new_application_id = application.id
+        
+        if old_application_id != new_application_id:
+            if APPLICATION_ID_TO_CLIENT.get(old_application_id, None) is self:
+                del APPLICATION_ID_TO_CLIENT[old_application_id]
             
-            if old_application_id != new_application_id:
-                if APPLICATION_ID_TO_CLIENT.get(old_application_id, None) is self:
-                    del APPLICATION_ID_TO_CLIENT[old_application_id]
-                
-                APPLICATION_ID_TO_CLIENT[new_application_id] = self
+            APPLICATION_ID_TO_CLIENT[new_application_id] = self
+        
+        await self.emoji_get_all_application()
     
     
     async def client_gateway(self):
@@ -967,7 +986,7 @@ class Client(
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         
         Raises
         ------
@@ -1009,6 +1028,9 @@ class Client(
                 
                 break
             
+            # Note:
+            # `max_concurrency` for small bots is 1000.
+            # For large bots it is: `max(2000, (guild_count / 1000) * 5)`
             try:
                 session_start_limit_data = data['session_start_limit']
             except KeyError:
@@ -1022,7 +1044,7 @@ class Client(
                     pass
                 else:
                     if remaining < 100:
-                        warnings.warn(
+                        warn(
                             f'`Remaining session start limit reached low amount: {remaining!r}.',
                             RuntimeWarning,
                         )
@@ -1064,8 +1086,8 @@ class Client(
         
         Returns
         -------
-        gateway_url : `str`
-            The url to what the gateways' websocket will be connected.
+        gateway_url : `str` 
+            The url to what the gateways' web socket will be connected.
         """
         if self._gateway_time > (LOOP_TIME() - 60.0):
             return self._gateway_url
@@ -1201,7 +1223,7 @@ class Client(
             
             before = [
                 'Exception occurred at calling ',
-                self.__class__.__name__,
+                type(self).__name__,
                 '.connect\n',
             ]
             
@@ -1360,29 +1382,16 @@ class Client(
                 if not self.guild_profiles:
                     return
                 
-                to_remove = []
-                for guild_id in self.guild_profiles.keys():
+                for guild_id in [*self.guild_profiles.keys()]:
                     try:
                         guild = GUILDS[guild_id]
                     except KeyError:
                         continue
                     
                     guild._delete(self)
-                    if not guild.partial:
-                        continue
-                    
-                    to_remove.append(guild_id)
-                
-                if to_remove:
-                    for guild_id in to_remove:
-                        try:
-                            del self.guild_profiles[guild_id]
-                        except KeyError:
-                            pass
                 
                 # need to delete the references for cleanup
                 guild = None
-                to_remove = None
                 
                 ready_state = self.ready_state
                 if (ready_state is not None):
@@ -1414,7 +1423,7 @@ class Client(
     
     async def disconnect(self):
         """
-        Disconnects the client and closes it's websocket(s). Till the client goes offline, it might take even over
+        Disconnects the client and closes it's web socket(s). Till the client goes offline, it might take even over
         than `1` minute. Because bot accounts can not logout, so they need to wait for timeout.
         
         This method is a coroutine.
@@ -1468,7 +1477,7 @@ class Client(
         ----------
         name : `str`
             The guild's name to search.
-        default : `None`, `object` = `None`, Optional
+        default : `None | object` = `None`, Optional
             The default value, what will be returned if the guild was not found.
         
         Returns

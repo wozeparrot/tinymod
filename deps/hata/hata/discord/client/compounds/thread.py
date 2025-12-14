@@ -56,7 +56,7 @@ class ClientCompoundThreadEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to get it's threads of.
             
             If the guild is given as `0`, will return an empty list.
@@ -117,7 +117,7 @@ class ClientCompoundThreadEndpoints(Compound):
             
             > If given as a channel instance, will create a private thread, else a public one.
         
-        channel_template : `None`, ``Channel`` = `None`, Optional
+        channel_template : ``None | Channel`` = `None`, Optional
             Channel to use as a template.
         
         **keyword_parameters : Keyword parameters
@@ -246,7 +246,7 @@ class ClientCompoundThreadEndpoints(Compound):
         channel_forum : ``Channel``, `int`
             The forum channel's identifier where the thread will be started.
         
-        channel_template : `None`, ``Channel`` = `None`, Optional
+        channel_template : ``None | Channel`` = `None`, Optional
             (Thread) channel entity to use as a template.
         
         *positional_parameters : Positional parameters
@@ -268,7 +268,7 @@ class ClientCompoundThreadEndpoints(Compound):
         applied_tags : `None`, `(list | tuple)<int | ForumTag>`, `int`, `ForumTag`, Optional (Keyword only)
             Alternative for `applied_tag_ids`.
         
-        attachments : `None`, `object`, Optional (Keyword only)
+        attachments : `None | object`, Optional (Keyword only)
             Attachments to send.
         
         auto_archive_after : `int`, Optional (Keyword only)
@@ -286,10 +286,10 @@ class ClientCompoundThreadEndpoints(Compound):
         embeds : `None`, `list<Embed>`, Optional
             The new embedded content of the message.
         
-        file : `None`, `object`, Optional (Keyword only)
+        file : `None | object`, Optional (Keyword only)
             Alternative for `attachments`.
         
-        files : `None`, `object`, Optional (Keyword only)
+        files : `None | object`, Optional (Keyword only)
             Alternative for `attachments`.
         
         flags : `int`, ``ChannelFlag``, Optional (Keyword only)
@@ -330,9 +330,9 @@ class ClientCompoundThreadEndpoints(Compound):
         
         Returns
         -------
-        thread_channel : `None`, ``Channel``
+        thread_channel : ``None | Channel``
             The created thread channel. `None` if there was nothing to send.
-        message : `None`, ``Message``
+        message : ``None | Message``
             Returns `None` if there is nothing to send.
         
         Raises
@@ -569,7 +569,7 @@ class ClientCompoundThreadEndpoints(Compound):
         
         Returns
         -------
-        users : `list` of ``ClientUserBase``
+        users : ``list<ClientUserBase>``
             The created users.
         
         Raises

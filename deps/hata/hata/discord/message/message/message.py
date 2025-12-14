@@ -6,7 +6,7 @@ from ...bases import DiscordEntity, id_sort_key
 from ...core import CHANNELS, GUILDS, MESSAGES
 from ...embed import EXTRA_EMBED_TYPES, Embed
 from ...emoji import ReactionMapping
-from ...http import urls as module_urls
+from ...http.urls import build_message_jump_url
 from ...poll import Poll
 from ...precreate_helpers import process_precreate_parameters_and_raise_extra
 from ...role import create_partial_role_from_id
@@ -24,19 +24,19 @@ from .fields import (
     parse_id, parse_interaction, parse_mentioned_channels_cross_guild, parse_mentioned_everyone,
     parse_mentioned_role_ids, parse_mentioned_users, parse_message_id, parse_nonce, parse_pinned, parse_poll,
     parse_poll_and_change, parse_reactions, parse_referenced_message, parse_resolved, parse_role_subscription,
-    parse_snapshots, parse_stickers, parse_thread, parse_tts, parse_type, put_activity_into, put_application_id_into,
-    put_application_into, put_attachments_into, put_author_into, put_call_into, put_channel_id_into,
-    put_components_into, put_content_into, put_edited_at_into, put_embeds_into, put_flags_into, put_guild_id_into,
-    put_id_into, put_interaction_into, put_mentioned_channels_cross_guild_into, put_mentioned_everyone_into,
-    put_mentioned_role_ids_into, put_mentioned_users_into, put_message_id_into, put_nonce_into, put_pinned_into,
-    put_poll_into, put_reactions_into, put_referenced_message_into, put_resolved_into, put_role_subscription_into,
-    put_snapshots_into, put_stickers_into, put_thread_into, put_tts_into, put_type_into, validate_activity,
-    validate_application, validate_application_id, validate_attachments, validate_author, validate_call,
-    validate_channel_id, validate_components, validate_content, validate_edited_at, validate_embeds, validate_flags,
-    validate_guild_id, validate_id, validate_interaction, validate_mentioned_channels_cross_guild,
-    validate_mentioned_everyone, validate_mentioned_role_ids, validate_mentioned_users, validate_nonce, validate_pinned,
-    validate_poll, validate_reactions, validate_referenced_message, validate_resolved, validate_role_subscription,
-    validate_snapshots, validate_stickers, validate_thread, validate_tts, validate_type
+    parse_shared_client_theme, parse_snapshots, parse_soundboard_sounds, parse_stickers, parse_thread, parse_tts,
+    parse_type, put_activity, put_application, put_application_id, put_attachments, put_author, put_call,
+    put_channel_id, put_components, put_content, put_edited_at, put_embeds, put_flags, put_guild_id, put_id,
+    put_interaction, put_mentioned_channels_cross_guild, put_mentioned_everyone, put_mentioned_role_ids,
+    put_mentioned_users, put_message_id, put_nonce, put_pinned, put_poll, put_reactions, put_referenced_message_into,
+    put_resolved, put_role_subscription, put_shared_client_theme, put_snapshots, put_soundboard_sounds, put_stickers,
+    put_thread, put_tts, put_type, validate_activity, validate_application, validate_application_id,
+    validate_attachments, validate_author, validate_call, validate_channel_id, validate_components, validate_content,
+    validate_edited_at, validate_embeds, validate_flags, validate_guild_id, validate_id, validate_interaction,
+    validate_mentioned_channels_cross_guild, validate_mentioned_everyone, validate_mentioned_role_ids,
+    validate_mentioned_users, validate_nonce, validate_pinned, validate_poll, validate_reactions,
+    validate_referenced_message, validate_resolved, validate_role_subscription, validate_shared_client_theme,
+    validate_snapshots, validate_soundboard_sounds, validate_stickers, validate_thread, validate_tts, validate_type
 )
 from .flags import MessageFlag
 from .preinstanced import MESSAGE_DEFAULT_CONVERTER, MessageType
@@ -83,8 +83,10 @@ PRECREATE_FIELDS = {
     'referenced_message': ('referenced_message', validate_referenced_message),
     'resolved': ('resolved', validate_resolved),
     'role_subscription': ('role_subscription', validate_role_subscription),
+    'shared_client_theme': ('shared_client_theme', validate_shared_client_theme),
     'snapshots': ('snapshots', validate_snapshots),
     'pinned': ('pinned', validate_pinned),
+    'soundboard_sounds': ('soundboard_sounds', validate_soundboard_sounds),
     'stickers': ('stickers', validate_stickers),
     'thread': ('thread', validate_thread),
     'tts': ('tts', validate_tts),
@@ -98,7 +100,7 @@ class Message(DiscordEntity, immortal = True):
     
     Attributes
     ----------
-    _cache_mentioned_channels : `None`, `tuple` of ``Channel``
+    _cache_mentioned_channels : ``None | tuple<Channel>``
         Mentioned channels by the message. Parsed from ``.content``. Defaults to `None`.
         
         Cache field used by ``.mentioned_channels``.
@@ -127,13 +129,13 @@ class Message(DiscordEntity, immortal = True):
     channel_id : `int`
         The channel's identifier where the message is sent. Defaults to `0`
     
-    components : `None`, `tuple` of ``Component``
+    components : ``None | tuple<Component>``
         Components attached to the message. Defaults to `None`.
     
-    content : `None`, `str`
+    content : `None | str`
         The message's content. Defaults to `None`.
     
-    edited_at : `None`, `datetime`
+    edited_at : `None | DateTime`
         The time when the message was edited, or `None` if it was not.
         
         Pinning or (un)suppressing a message will not change it's edited value.
@@ -160,19 +162,19 @@ class Message(DiscordEntity, immortal = True):
     interaction : `None`, ``MessageInteraction``
         Present if the message is a response to an ``InteractionEvent``. Defaults to `None`.
     
-    mentioned_channels_cross_guild : `None`, `tuple` of ``Channel``
+    mentioned_channels_cross_guild : ``None | tuple<Channel>``
         Cross guild channel mentions of a crosspost message if applicable. Defaults to `None`.
     
     mentioned_everyone : `bool`
         Whether the message contains `@everyone`, `@here`. Defaults to `False`.
     
-    mentioned_role_ids : `None`, `tuple` of `int`
+    mentioned_role_ids : `None | tuple<int>`
         The mentioned roles' identifiers. Defaults to `None`.
     
     mentioned_users : `None`, `tuple` of ``ClientUserBase``
         The mentioned users by the message. Defaults to `None`.
     
-    nonce : `None`, `str`
+    nonce : `None | str`
         A nonce that is used for optimistic message sending. If a message is created with a nonce, then it should
         be shown up at the message's received payload as well. Defaults to `None`.
     
@@ -187,28 +189,34 @@ class Message(DiscordEntity, immortal = True):
         
         > If all reactions are removed from a message, `.reactions` will not default back to `None`.
     
-    referenced_message : `None`, ``Message``
+    referenced_message : ``None | Message``
         The referenced message. The message can be partial.
         
         Set when the message is a reply, a crosspost or when is a pin message.
         
         Defaults to `None`.
     
-    resolved : `None`, ``Resolved``
+    resolved : ``None | Resolved``
         Resolved entities of selected options.
         
         Defaults to `None`.
     
-    role_subscription : `None`, ``MessageRoleSubscription``
+    role_subscription : ``None | MessageRoleSubscription``
         Additional role subscription information attached to the message. Defaults to `None`.
     
-    snapshots : `None`, `tuple` of ``MessageSnapshot``
+    shared_client_theme : ``None | SharedClientTheme``
+        Configured client side theme shared with the message. Defaults to `None`.
+    
+    snapshots : ``None | tuple<MessageSnapshot>``
         Forwarded snapshots of other messages.
+    
+    soundboard_sounds : ``None | tuple<SoundboardSound>``
+        The soundboard sounds attached to the message. 
     
     stickers : `None`, `tuple` of ``Sticker``
         The stickers sent with the message. Defaults to `None`.
     
-    thread : `None`, ``Channel``
+    thread : ``None | Channel``
         The thread that was started from this message. Defaults to `None`.
     
     tts : `bool`
@@ -227,8 +235,8 @@ class Message(DiscordEntity, immortal = True):
         '_cache_mentioned_channels', '_state', 'activity', 'application', 'application_id', 'attachments', 'author',
         'call', 'channel_id', 'components', 'content', 'edited_at', 'embeds', 'flags', 'guild_id', 'interaction',
         'mentioned_channels_cross_guild', 'mentioned_everyone', 'mentioned_role_ids', 'mentioned_users', 'nonce',
-        'pinned', 'poll', 'reactions', 'referenced_message', 'resolved', 'role_subscription', 'snapshots', 'stickers',
-        'thread', 'tts', 'type'
+        'pinned', 'poll', 'reactions', 'referenced_message', 'resolved', 'role_subscription', 'shared_client_theme',
+        'snapshots', 'soundboard_sounds', 'stickers', 'thread', 'tts', 'type'
     )
     
     
@@ -259,7 +267,9 @@ class Message(DiscordEntity, immortal = True):
         referenced_message = ...,
         resolved = ...,
         role_subscription = ...,
+        shared_client_theme = ...,
         snapshots = ...,
+        soundboard_sounds = ...,
         stickers = ...,
         thread = ...,
         tts = ...,
@@ -275,7 +285,7 @@ class Message(DiscordEntity, immortal = True):
         application : `None`, ``MessageApplication``, Optional (Keyword only)
             Message's application information, sent with rich presence related embeds.
         
-        application_id : `None`, ``Application``, Optional (Keyword only)
+        application_id : ``None | int | Application``, Optional (Keyword only)
             The application or its identifier who sent the message.
         
         attachments : `None`, `iterable` of ``Attachment``, Optional (Keyword only)
@@ -287,13 +297,13 @@ class Message(DiscordEntity, immortal = True):
         call : `None`, ``MessageCall``, Optional (Keyword only)
             Call information of the message.
         
-        components : `None`, `iterable` of ``Component``, Optional (Keyword only)
+        components : ``None | iterable<Component>``, Optional (Keyword only)
             Components attached to the message.
         
-        content : `None`, `str`, Optional (Keyword only)
+        content : `None | str`, Optional (Keyword only)
             The message's content.
         
-        edited_at : `None`, `datetime`
+        edited_at : `None | DateTime`
             The time when the message was edited.
         
         embeds : `None`, `iterable` of ``Embed``, Optional (Keyword only)
@@ -320,7 +330,7 @@ class Message(DiscordEntity, immortal = True):
         message_type : ``MessageType``, `int`, Optional (Keyword only)
             The type of the message.
         
-        nonce : `None`, `str`, Optional (Keyword only)
+        nonce : `None | str`, Optional (Keyword only)
             A nonce that is used for optimistic message sending. If a message is created with a nonce, then it should
             be shown up at the message's received payload as well.
         
@@ -333,22 +343,28 @@ class Message(DiscordEntity, immortal = True):
         reactions : `None`, ``ReactionMapping`` (or compatible), Optional (Keyword only)
             A dictionary like object that contains the reactions on the message
         
-        referenced_message : `None`, ``Message``, Optional (Keyword only)
+        referenced_message : ``None | Message``, Optional (Keyword only)
             The referenced message.
         
-        resolved : `None`, ``Resolved``, Optional (Keyword only)
+        resolved : ``None | Resolved``, Optional (Keyword only)
             Resolved entities of selected options.
         
-        role_subscription : `None`, ``MessageRoleSubscription``, Optional (Keyword only)
+        role_subscription : ``None | MessageRoleSubscription``, Optional (Keyword only)
             Additional role subscription information attached to the message.
+        
+        shared_client_theme : ``None | SharedClientTheme``, Optional (Keyword only)
+            Configured client side theme shared with the message.
         
         snapshots : `None`, `iterable` of ``MessageSnapshot`, Optional (Keyword only)
             Forwarded snapshots of other messages.
         
+        soundboard_sounds : `None | iterable<SoundboardSound>`, Optional (Keyword only)
+            Soundboard sounds attached to the message.
+        
         stickers : `None`, `iterable` of ``Sticker``, Optional (Keyword only)
             The stickers sent with the message.
         
-        thread : `None`, ``Channel``, Optional (Keyword only)
+        thread : ``None | Channel``, Optional (Keyword only)
             The thread that was started from this message.
         
         tts : `bool`, Optional (Keyword only)
@@ -499,11 +515,23 @@ class Message(DiscordEntity, immortal = True):
         else:
             role_subscription = validate_role_subscription(role_subscription)
         
+        # shared_client_theme
+        if shared_client_theme is ...:
+            shared_client_theme = None
+        else:
+            shared_client_theme = validate_shared_client_theme(shared_client_theme)
+        
         # snapshots
         if snapshots is ...:
             snapshots = None
         else:
             snapshots = validate_snapshots(snapshots)
+        
+        # soundboard_sounds
+        if soundboard_sounds is ...:
+            soundboard_sounds = None
+        else:
+            soundboard_sounds = validate_soundboard_sounds(soundboard_sounds)
         
         # stickers
         if stickers is ...:
@@ -560,7 +588,9 @@ class Message(DiscordEntity, immortal = True):
         self.referenced_message = referenced_message
         self.resolved = resolved
         self.role_subscription = role_subscription
+        self.shared_client_theme = shared_client_theme
         self.snapshots = snapshots
+        self.soundboard_sounds = soundboard_sounds
         self.stickers = stickers
         self.thread = thread
         self.tts = tts
@@ -576,7 +606,7 @@ class Message(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Message data.
         
         Returns
@@ -590,12 +620,27 @@ class Message(DiscordEntity, immortal = True):
         except KeyError:
             pass
         else:
-            if (self._state & MESSAGE_STATE_MASK_PARTIAL_ALL) or self.flags.loading:
-                self._set_attributes(data, False)
-            
-            elif (not self.has_any_content_field()):
-                self._update_content_fields(data)
-                self.referenced_message = parse_referenced_message(data)
+            while True:
+                # if the message is partial or loading update the whole
+                if (self._state & MESSAGE_STATE_MASK_PARTIAL_ALL) or self.flags.loading:
+                    self._set_attributes(data, False)
+                    break
+                
+                # If no client can see the message update the whole.
+                # This can happen when we use user installed interactions and request back a message.
+                channel = self.channel
+                if not any(channel.cached_permissions_for(client).view_channel for client in channel.clients):
+                    self._set_attributes(data, False)
+                    break
+                
+                # If the message has no content fields we update them.
+                if not self.has_any_content_field():
+                    self._update_content_fields(data)
+                    self.referenced_message = parse_referenced_message(data)
+                    break
+                
+                # No other cases for now
+                break
             
             return self
         
@@ -614,7 +659,7 @@ class Message(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Message data.
         
         Returns
@@ -662,7 +707,7 @@ class Message(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Message reference data.
         
         Returns
@@ -735,7 +780,7 @@ class Message(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Message data.
         creation : `bool` = `True`, Optional
             Whether the entity was just created.
@@ -791,7 +836,9 @@ class Message(DiscordEntity, immortal = True):
         self.referenced_message = parse_referenced_message(data)
         self.resolved = parse_resolved(data, guild_id = guild_id)
         self.role_subscription = parse_role_subscription(data)
-        self.snapshots = parse_snapshots(data)
+        self.shared_client_theme = parse_shared_client_theme(data)
+        self.snapshots = parse_snapshots(data, guild_id)
+        self.soundboard_sounds = parse_soundboard_sounds(data)
         self.stickers = parse_stickers(data)
         self.thread = parse_thread(data, guild_id)
         self.tts = parse_tts(data)
@@ -817,7 +864,7 @@ class Message(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Message data.
         """
         if self.flags.loading:
@@ -886,8 +933,8 @@ class Message(DiscordEntity, immortal = True):
         >>>> # 'e' stands for edited.
         >>>> f'{message:e}'
         'never'
-        >>>> from datetime import datetime
-        >>>> message = Message(edited_at = datetime.utcnow())
+        >>>> from datetime import datetime as DateTime, timezone as TimeZone
+        >>>> message = Message(edited_at = DateTime.now(TimeZone.utc))
         >>>> message
         <Message id = 0, length = 0, <User name = '#0000'>>
         >>>> f'{message:e}'
@@ -909,7 +956,7 @@ class Message(DiscordEntity, immortal = True):
             return edited_at
         
         raise ValueError(
-            f'Unknown format code {code!r} for {self.__class__.__name__}; {self!r}. '
+            f'Unknown format code {code!r} for {type(self).__name__}; {self!r}. '
             f'Available format codes: {""!r}, {"c"!r}, {"e"!r}.'
         )
     
@@ -948,6 +995,9 @@ class Message(DiscordEntity, immortal = True):
         -------
         is_equal : `bool`
         """
+        if self is other:
+            return True
+        
         self_id = self.id
         other_id = other.id
         if self_id and other_id:
@@ -1049,8 +1099,16 @@ class Message(DiscordEntity, immortal = True):
         if self.role_subscription != other.role_subscription:
             return False
         
+        # shared_client_theme
+        if self.shared_client_theme != other.shared_client_theme:
+            return False
+        
         # snapshots
         if self.snapshots != other.snapshots:
+            return False
+        
+        # soundboard_sounds
+        if self.soundboard_sounds != other.soundboard_sounds:
             return False
         
         # stickers
@@ -1214,12 +1272,25 @@ class Message(DiscordEntity, immortal = True):
         if (role_subscription is not None):
             hash_value ^= hash(role_subscription)
         
+        # shared_client_theme
+        shared_client_theme = self.shared_client_theme
+        if (shared_client_theme is not None):
+            hash_value ^= hash(shared_client_theme)
+        
         # snapshots
         snapshots = self.snapshots
         if (snapshots is not None):
             hash_value ^= len(snapshots) << 35
             for snapshot in snapshots:
                 hash_value ^= hash(snapshot)
+        
+        # soundboard_sounds
+        soundboard_sounds = self.soundboard_sounds
+        if (soundboard_sounds is not None):
+            hash_value ^= len(soundboard_sounds) << 36
+            
+            for soundboard_sound in soundboard_sounds:
+                hash_value ^= hash(soundboard_sound)
         
         # stickers
         stickers = self.stickers
@@ -1254,12 +1325,12 @@ class Message(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Message data received from Discord.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dict is optional.
         
         Returned Data Structure
@@ -1272,21 +1343,21 @@ class Message(DiscordEntity, immortal = True):
         +-----------------------------------+-----------------------------------------------------------------------+
         | call                              | `None`, ``MessageCall``                                               |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | components                        | `None`, `tuple` of ``Component``                                      |
+        | components                        | ``None | tuple<Component>``                                           |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | content                           | `None`, `str`                                                         |
+        | content                           | `None | str`                                                          |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | edited_at                         | `None`, `datetime`                                                    |
+        | edited_at                         | `None | DateTime`                                                     |
         +-----------------------------------+-----------------------------------------------------------------------+
         | embeds                            | `None`, `tuple` of ``Embed``                                          |
         +-----------------------------------+-----------------------------------------------------------------------+
         | flags                             | ``MessageFlag``                                                       |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | mentioned_channels_cross_guild    | `None`, `tuple` of ``Channel``                                        |
+        | mentioned_channels_cross_guild    | ``None | tuple<Channel>``                                             |
         +-----------------------------------+-----------------------------------------------------------------------+
         | mentioned_everyone                | `bool`                                                                |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | mentioned_role_ids                | `None`, `tuple` of `int`                                              |
+        | mentioned_role_ids                | `None | tuple<int>`                                                   |
         +-----------------------------------+-----------------------------------------------------------------------+
         | mentioned_users                   | `None`, `tuple` of ``ClientUserBase``                                 |
         +-----------------------------------+-----------------------------------------------------------------------+
@@ -1294,7 +1365,7 @@ class Message(DiscordEntity, immortal = True):
         +-----------------------------------+-----------------------------------------------------------------------+
         | poll                              | ``PollChange``                                                        |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | resolved                          | `None`, ``Resolved``                                                  |
+        | resolved                          | ``None | Resolved``                                                   |
         +-----------------------------------+-----------------------------------------------------------------------+
         """
         self._clear_cache()
@@ -1380,7 +1451,7 @@ class Message(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Message data received from Discord.
         """
         self.edited_at = parse_edited_at(data)
@@ -1402,7 +1473,7 @@ class Message(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Message data received from Discord.
         """
         self._clear_cache()
@@ -1429,7 +1500,7 @@ class Message(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Message data received from Discord.
         
         Returns
@@ -1519,7 +1590,7 @@ class Message(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Message data received from Discord.
         """
         embeds = self.embeds
@@ -1702,46 +1773,48 @@ class Message(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
         
         if include_internals:
-            put_author_into(self.author, data, defaults, guild_id = self.guild_id)
-            put_channel_id_into(self.channel_id, data, defaults)
-            put_guild_id_into(self.guild_id, data, defaults)
-            put_id_into(self.id, data, defaults)
-            put_type_into(self.type, data, defaults)
+            put_author(self.author, data, defaults, guild_id = self.guild_id)
+            put_channel_id(self.channel_id, data, defaults)
+            put_guild_id(self.guild_id, data, defaults)
+            put_id(self.id, data, defaults)
+            put_type(self.type, data, defaults)
             
-            put_activity_into(self.activity, data, defaults)
-            put_application_into(self.application, data, defaults)
-            put_application_id_into(self.application_id, data, defaults)
-            put_call_into(self.call, data, defaults)
-            put_edited_at_into(self.edited_at, data, defaults)
-            put_interaction_into(self.interaction, data, defaults)
-            put_mentioned_channels_cross_guild_into(self.mentioned_channels_cross_guild, data, defaults)
-            put_mentioned_everyone_into(self.mentioned_everyone, data, defaults)
-            put_mentioned_role_ids_into(self.mentioned_role_ids, data, defaults)
-            put_mentioned_users_into(self.mentioned_users, data, defaults, guild_id = self.guild_id)
-            put_pinned_into(self.pinned, data, defaults)
-            put_reactions_into(self.reactions, data, defaults)
+            put_activity(self.activity, data, defaults)
+            put_application(self.application, data, defaults)
+            put_application_id(self.application_id, data, defaults)
+            put_call(self.call, data, defaults)
+            put_edited_at(self.edited_at, data, defaults)
+            put_interaction(self.interaction, data, defaults)
+            put_mentioned_channels_cross_guild(self.mentioned_channels_cross_guild, data, defaults)
+            put_mentioned_everyone(self.mentioned_everyone, data, defaults)
+            put_mentioned_role_ids(self.mentioned_role_ids, data, defaults)
+            put_mentioned_users(self.mentioned_users, data, defaults, guild_id = self.guild_id)
+            put_pinned(self.pinned, data, defaults)
+            put_reactions(self.reactions, data, defaults)
             put_referenced_message_into(
                 self.referenced_message, data, defaults, recursive = recursive, message_type = self.type
             )
-            put_resolved_into(self.resolved, data, defaults, guild_id = self.guild_id)
-            put_role_subscription_into(self.role_subscription, data, defaults)
-            put_snapshots_into(self.snapshots, data, defaults)
-            put_stickers_into(self.stickers, data, defaults)
-            put_thread_into(self.thread, data, defaults)
+            put_resolved(self.resolved, data, defaults, guild_id = self.guild_id)
+            put_role_subscription(self.role_subscription, data, defaults)
+            put_shared_client_theme(self.shared_client_theme, data, defaults)
+            put_snapshots(self.snapshots, data, defaults, guild_id = self.guild_id)
+            put_soundboard_sounds(self.soundboard_sounds, data, defaults)
+            put_stickers(self.stickers, data, defaults)
+            put_thread(self.thread, data, defaults)
         
-        put_attachments_into(self.attachments, data, defaults, include_internals = include_internals)
-        put_components_into(self.components, data, defaults)
-        put_content_into(self.content, data, defaults)
-        put_embeds_into(self.embeds, data, defaults, include_internals = include_internals)
-        put_flags_into(self.flags, data, defaults)
-        put_nonce_into(self.nonce, data, defaults)
-        put_poll_into(self.poll, data, defaults, include_internals = include_internals)
-        put_tts_into(self.tts, data, defaults)
+        put_attachments(self.attachments, data, defaults, include_internals = include_internals)
+        put_components(self.components, data, defaults, include_internals = include_internals)
+        put_content(self.content, data, defaults)
+        put_embeds(self.embeds, data, defaults, include_internals = include_internals)
+        put_flags(self.flags, data, defaults)
+        put_nonce(self.nonce, data, defaults)
+        put_poll(self.poll, data, defaults, include_internals = include_internals)
+        put_tts(self.tts, data, defaults)
         
         return data
     
@@ -1752,12 +1825,12 @@ class Message(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`)
+        data : `dict<str, object>`
         """
         data = {}
-        put_message_id_into(self.id, data, True)
-        put_channel_id_into(self.channel_id, data, True)
-        put_guild_id_into(self.guild_id, data, True)
+        put_message_id(self.id, data, True)
+        put_channel_id(self.channel_id, data, True)
+        put_guild_id(self.guild_id, data, True)
         return data
     
     
@@ -1808,7 +1881,9 @@ class Message(DiscordEntity, immortal = True):
         self.referenced_message = None
         self.resolved = None
         self.role_subscription = None
+        self.shared_client_theme = None
         self.snapshots = None
+        self.soundboard_sounds = None
         self.stickers = None
         self.thread = None
         self.tts = False
@@ -1842,7 +1917,7 @@ class Message(DiscordEntity, immortal = True):
         application : `None`, ``MessageApplication``, Optional (Keyword only)
             Message's application information, sent with rich presence related embeds.
         
-        application_id : `None`, ``Application``, Optional (Keyword only)
+        application_id : ``None | int | Application``, Optional (Keyword only)
             The application or its identifier who sent the message.
         
         attachments : `None`, `iterable` of ``Attachment``, Optional (Keyword only)
@@ -1860,13 +1935,13 @@ class Message(DiscordEntity, immortal = True):
         channel_id : `int`, ``Channel``, Optional (Keyword only)
             The channel's identifier where the message was created at.
         
-        components : `None`, `iterable` of ``Component``, Optional (Keyword only)
+        components : ``None | iterable<Component>``, Optional (Keyword only)
             Components attached to the message.
         
-        content : `None`, `str`, Optional (Keyword only)
+        content : `None | str`, Optional (Keyword only)
             The message's content.
         
-        edited_at : `None`, `datetime`
+        edited_at : `None | DateTime`
             The time when the message was edited.
         
         embeds : `None`, `iterable` of ``Embed``, Optional (Keyword only)
@@ -1902,7 +1977,7 @@ class Message(DiscordEntity, immortal = True):
         message_type : ``MessageType``, `int`, Optional (Keyword only)
             The type of the message.
         
-        nonce : `None`, `str`, Optional (Keyword only)
+        nonce : `None | str`, Optional (Keyword only)
             A nonce that is used for optimistic message sending. If a message is created with a nonce, then it should
             be shown up at the message's received payload as well.
         
@@ -1915,22 +1990,28 @@ class Message(DiscordEntity, immortal = True):
         reactions : `None`, ``ReactionMapping`` (or compatible), Optional (Keyword only)
             A dictionary like object that contains the reactions on the message
         
-        referenced_message : `None`, ``Message``, Optional (Keyword only)
+        referenced_message : ``None | Message``, Optional (Keyword only)
             The referenced message.
         
-        resolved : `None`, ``Resolved``, Optional (Keyword only)
+        resolved : ``None | Resolved``, Optional (Keyword only)
             Resolved entities of selected options.
         
-        role_subscription : `None`, ``MessageRoleSubscription``, Optional (Keyword only)
+        role_subscription : ``None | MessageRoleSubscription``, Optional (Keyword only)
             Additional role subscription information attached to the message.
+        
+        shared_client_theme : ``None | SharedClientTheme``, Optional (Keyword only)
+            Configured client theme shared in the message.
         
         snapshots : `None`, `iterable` of ``MessageSnapshot`, Optional (Keyword only)
             Forwarded snapshots of other messages.
         
+        soundboard_sounds : `None | iterable<SoundboardSound>`, Optional (Keyword only)
+            Soundboard sounds attached to the message.
+        
         stickers : `None`, `iterable` of ``Sticker``, Optional (Keyword only)
             The stickers sent with the message.
         
-        thread : `None`, ``Channel``, Optional (Keyword only)
+        thread : ``None | Channel``, Optional (Keyword only)
             The thread that was started from this message.
         
         tts : `bool`, Optional (Keyword only)
@@ -2073,10 +2154,20 @@ class Message(DiscordEntity, immortal = True):
             role_subscription = role_subscription.copy()
         new.role_subscription = role_subscription
         
+        shared_client_theme = self.shared_client_theme
+        if (shared_client_theme is not None):
+            shared_client_theme = shared_client_theme.copy()
+        new.shared_client_theme = shared_client_theme
+        
         snapshots = self.snapshots
         if (snapshots is not None):
             snapshots = (*(snapshot.copy() for snapshot in snapshots),)
         new.snapshots = snapshots
+        
+        soundboard_sounds = self.soundboard_sounds
+        if (soundboard_sounds is not None):
+            soundboard_sounds = (*soundboard_sounds,)
+        new.soundboard_sounds = soundboard_sounds
         
         stickers = self.stickers
         if (stickers is not None):
@@ -2117,7 +2208,9 @@ class Message(DiscordEntity, immortal = True):
         referenced_message = ...,
         resolved = ...,
         role_subscription = ...,
+        shared_client_theme = ...,
         snapshots = ...,
+        soundboard_sounds = ...,
         stickers = ...,
         thread = ...,
         tts = ...,
@@ -2133,7 +2226,7 @@ class Message(DiscordEntity, immortal = True):
         application : `None`, ``MessageApplication``, Optional (Keyword only)
             Message's application information, sent with rich presence related embeds.
         
-        application_id : `None`, ``Application``, Optional (Keyword only)
+        application_id : ``None | int | Application``, Optional (Keyword only)
             The application or its identifier who sent the message.
         
         attachments : `None`, `iterable` of ``Attachment``, Optional (Keyword only)
@@ -2145,13 +2238,13 @@ class Message(DiscordEntity, immortal = True):
         call : `None`, ``MessageCall``, Optional (Keyword only)
             Call information of the message.
         
-        components : `None`, `iterable` of ``Component``, Optional (Keyword only)
+        components : ``None | iterable<Component>``, Optional (Keyword only)
             Components attached to the message.
         
-        content : `None`, `str`, Optional (Keyword only)
+        content : `None | str`, Optional (Keyword only)
             The message's content.
         
-        edited_at : `None`, `datetime`
+        edited_at : `None | DateTime`
             The time when the message was edited.
         
         embeds : `None`, `iterable` of ``Embed``, Optional (Keyword only)
@@ -2178,7 +2271,7 @@ class Message(DiscordEntity, immortal = True):
         message_type : ``MessageType``, `int`, Optional (Keyword only)
             The type of the message.
         
-        nonce : `None`, `str`, Optional (Keyword only)
+        nonce : `None | str`, Optional (Keyword only)
             A nonce that is used for optimistic message sending. If a message is created with a nonce, then it should
             be shown up at the message's received payload as well.
         
@@ -2191,22 +2284,28 @@ class Message(DiscordEntity, immortal = True):
         reactions : `None`, ``ReactionMapping`` (or compatible), Optional (Keyword only)
             A dictionary like object that contains the reactions on the message
         
-        referenced_message : `None`, ``Message``, Optional (Keyword only)
+        referenced_message : ``None | Message``, Optional (Keyword only)
             The referenced message.
         
-        resolved : `None`, ``Resolved``, Optional (Keyword only)
+        resolved : ``None | Resolved``, Optional (Keyword only)
             Resolved entities of selected options.
         
-        role_subscription : `None`, ``MessageRoleSubscription``, Optional (Keyword only)
+        role_subscription : ``None | MessageRoleSubscription``, Optional (Keyword only)
             Additional role subscription information attached to the message.
+        
+        shared_client_theme : ``None | SharedClientTheme``, Optional (Keyword only)
+            Configured client theme shared in the message.
         
         snapshots : `None`, `iterable` of ``MessageSnapshot`, Optional (Keyword only)
             Forwarded snapshots of other messages.
         
+        soundboard_sounds : `None | iterable<SoundboardSound>`, Optional (Keyword only)
+            Soundboard sounds attached to the message.
+        
         stickers : `None`, `iterable` of ``Sticker``, Optional (Keyword only)
             The stickers sent with the message.
         
-        thread : `None`, ``Channel``, Optional (Keyword only)
+        thread : ``None | Channel``, Optional (Keyword only)
             The thread that was started from this message.
         
         tts : `bool`, Optional (Keyword only)
@@ -2389,6 +2488,14 @@ class Message(DiscordEntity, immortal = True):
         else:
             role_subscription = validate_role_subscription(role_subscription)
         
+        # shared_client_theme
+        if shared_client_theme is ...:
+            shared_client_theme = self.shared_client_theme
+            if (shared_client_theme is not None):
+                shared_client_theme = shared_client_theme.copy()
+        else:
+            shared_client_theme = validate_shared_client_theme(shared_client_theme)
+        
         # snapshots
         if snapshots is ...:
             snapshots = self.snapshots
@@ -2396,6 +2503,14 @@ class Message(DiscordEntity, immortal = True):
                 snapshots = (*(snapshot.copy() for snapshot in snapshots),)
         else:
             snapshots = validate_snapshots(snapshots)
+        
+        # soundboard_sounds
+        if soundboard_sounds is ...:
+            soundboard_sounds = self.soundboard_sounds
+            if (soundboard_sounds is not None):
+                soundboard_sounds = (*soundboard_sounds,)
+        else:
+            soundboard_sounds = validate_soundboard_sounds(soundboard_sounds)
         
         # stickers
         if stickers is ...:
@@ -2454,7 +2569,9 @@ class Message(DiscordEntity, immortal = True):
         new.referenced_message = referenced_message
         new.resolved = resolved
         new.role_subscription = role_subscription
+        new.shared_client_theme = shared_client_theme
         new.snapshots = snapshots
+        new.soundboard_sounds = soundboard_sounds
         new.stickers = stickers
         new.thread = thread
         new.tts = tts
@@ -2541,7 +2658,17 @@ class Message(DiscordEntity, immortal = True):
     
     # Properties
     
-    url = property(module_urls.message_jump_url)
+    @property
+    def url(self):
+        """
+        Returns a jump url to the message.
+        
+        Returns
+        -------
+        url : `str`
+        """
+        return build_message_jump_url(self.guild_id, self.channel_id, self.id)
+    
     
     @property
     def channel(self):
@@ -2562,7 +2689,7 @@ class Message(DiscordEntity, immortal = True):
         
         Returns
         -------
-        guild : `None`, ``Guild``
+        guild : ``None | Guild``
         """
         guild_id = self.guild_id
         if guild_id:
@@ -2577,7 +2704,7 @@ class Message(DiscordEntity, immortal = True):
         
         Returns
         -------
-        clean_content : `None`, `str`
+        clean_content : `None | str`
         
         Notes
         -----
@@ -2614,7 +2741,7 @@ class Message(DiscordEntity, immortal = True):
         
         Returns
         -------
-        contents : `list` of `str`
+        contents : `list<str>`
         """
         return [*self.iter_contents()]
     
@@ -2626,7 +2753,7 @@ class Message(DiscordEntity, immortal = True):
         
         Returns
         -------
-        clean_embeds : `list` of ``Embed``
+        clean_embeds : ``list<Embed>``
         
         Notes
         -----
@@ -2636,13 +2763,40 @@ class Message(DiscordEntity, immortal = True):
         
         embeds = self.embeds
         if (embeds is not None):
+            guild = self.guild
+            
             for embed in embeds:
                 if embed.type in EXTRA_EMBED_TYPES:
                     continue
                 
-                clean_embeds.append(embed.clean_copy(self))
+                clean_embeds.append(embed.clean_copy(guild))
         
         return clean_embeds
+    
+    
+    @property
+    def clean_components(self):
+        """
+        Returns the message's not link typed components with converted content without mentions.
+        
+        Returns
+        -------
+        clean_components : ``list<Component>``
+        
+        Notes
+        -----
+        Not changes the original components of the message.
+        """
+        clean_components = []
+        
+        components = self.components
+        if (components is not None):
+            guild = self.guild
+            
+            for component in components:
+                clean_components.append(component.clean_copy(guild))
+        
+        return clean_components
     
     
     def _get_mentioned_channels(self):
@@ -2653,7 +2807,7 @@ class Message(DiscordEntity, immortal = True):
         
         Returns
         -------
-        channel_mentions : `None`, `tuple` of ``Channel``
+        channel_mentions : ``None | tuple<Channel>``
             The parsed channel mentions.
         """
         mentioned_channels = None
@@ -2687,7 +2841,7 @@ class Message(DiscordEntity, immortal = True):
         
         Returns
         -------
-        mentioned_channels : `None`, `tuple` of ``Channel``
+        mentioned_channels : ``None | tuple<Channel>``
         """
         state = self._state
         if state & MESSAGE_STATE_MASK_CACHE_MENTIONED_CHANNELS:
@@ -2707,7 +2861,7 @@ class Message(DiscordEntity, immortal = True):
         
         Returns
         -------
-        role_mentions : `None`, `tuple` of ``Role``
+        role_mentions : ``None | tuple<Role>``
         """
         mentioned_role_ids = self.mentioned_role_ids
         if (mentioned_role_ids is not None):
@@ -2786,11 +2940,25 @@ class Message(DiscordEntity, immortal = True):
 
         Returns
         -------
-        snapshot : `None`, ``MessageSnapshot``
+        snapshot : ``None | MessageSnapshot``
         """
         snapshots = self.snapshots
         if snapshots is not None:
             return snapshots[0]
+    
+    @property
+    def soundboard_sound(self):
+        """
+        Returns the message's first soundboard sound.
+        
+        Returns
+        -------
+        soundboard_sound : ``None | SoundboardSound``
+        """
+        soundboard_sounds = self.soundboard_sounds
+        if (soundboard_sounds is not None):
+            return soundboard_sounds[0]
+    
     
     @property
     def sticker(self):
@@ -2857,6 +3025,9 @@ class Message(DiscordEntity, immortal = True):
         poll = self.poll
         if (poll is not None):
             yield from poll.iter_contents()
+        
+        for component in self.iter_components():
+            yield from component.iter_contents()
     
     
     def iter_embeds(self):
@@ -2963,6 +3134,21 @@ class Message(DiscordEntity, immortal = True):
         snapshots = self.snapshots
         if snapshots is not None:
             yield from snapshots
+    
+    
+    def iter_soundboard_sounds(self):
+        """
+        Iterates over the soundboard sounds of the message.
+        
+        This method is an iterable generator.
+        
+        Yields
+        ------
+        soundboard_sounds : ``SoundboardSound``
+        """
+        soundboard_sounds = self.soundboard_sounds
+        if (soundboard_sounds is not None):
+            yield from soundboard_sounds
     
     
     def iter_stickers(self):
@@ -3246,6 +3432,17 @@ class Message(DiscordEntity, immortal = True):
         return self.role_subscription is not None
     
     
+    def has_shared_client_theme(self):
+        """
+        Returns whether the message has ``.shared_client_theme`` set as its non-default value.
+        
+        Returns
+        -------
+        hash_shared_client_theme : `bool`
+        """
+        return self.shared_client_theme is not None
+    
+    
     def has_snapshots(self):
         """
         Returns whether the message has ``.snapshots`` set as its non default value.
@@ -3255,6 +3452,17 @@ class Message(DiscordEntity, immortal = True):
         has_snapshots : `bool`
         """
         return self.snapshots is not None
+    
+    
+    def has_soundboard_sounds(self):
+        """
+        Returns whether the message has ``.soundboard_sounds`` set as its non-default value.
+        
+        Returns
+        -------
+        has_soundboard_sounds : `bool`
+        """
+        return (self.soundboard_sounds is not None)
     
     
     def has_stickers(self):

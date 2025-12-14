@@ -1,13 +1,10 @@
 __all__ = ('ChannelMetadataGuildBase',)
 
-from re import I as re_ignore_case, compile as re_compile, escape as re_escape
-
 from scarletio import copy_docs, export, include
 
-from ...core import GUILDS
 from ...permission.permission import PERMISSION_MASK_VIEW_CHANNEL
 
-from .fields import parse_name, parse_parent_id, put_name_into, put_parent_id_into, validate_name, validate_parent_id
+from .fields import parse_name, parse_parent_id, put_name, put_parent_id, validate_name, validate_parent_id
 
 from .base import ChannelMetadataBase
 
@@ -22,7 +19,7 @@ class ChannelMetadataGuildBase(ChannelMetadataBase):
     
     Attributes
     ----------
-    _cache_permission : `None`, `dict` of (`int`, ``Permission``) items
+    _cache_permission : ``None | dict<int, Permission>``
         A `user_id` to ``Permission`` relation mapping for caching permissions. Defaults to `None`.
     name : `str`
         The channel's name.
@@ -50,7 +47,7 @@ class ChannelMetadataGuildBase(ChannelMetadataBase):
         ----------
         name : `str`, Optional (Keyword only)
             The channel's name.
-        parent_id : `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
         
         Raises
@@ -133,10 +130,10 @@ class ChannelMetadataGuildBase(ChannelMetadataBase):
         data = ChannelMetadataBase.to_data(self, defaults = defaults, include_internals = include_internals)
         
         # name
-        put_name_into(self.name, data, defaults)
+        put_name(self.name, data, defaults)
         
         # parent_id
-        put_parent_id_into(self.parent_id, data, defaults)
+        put_parent_id(self.parent_id, data, defaults)
         
         return data
     
@@ -222,7 +219,7 @@ class ChannelMetadataGuildBase(ChannelMetadataBase):
         ----------
         name : `str`, Optional (Keyword only)
             The channel's name.
-        parent_id : `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
         
         Returns
@@ -278,13 +275,22 @@ class ChannelMetadataGuildBase(ChannelMetadataBase):
                     yield user
     
     
-    @copy_docs(ChannelMetadataBase._get_clients)
-    def _get_clients(self, channel_entity):
+    @copy_docs(ChannelMetadataBase._iter_clients)
+    def _iter_clients(self, channel_entity):
+        guild = channel_entity.guild
+        if (guild is not None):
+            for client in guild.clients:
+                if self._get_cached_permissions_for(channel_entity, client) & PERMISSION_MASK_VIEW_CHANNEL:
+                    yield client
+    
+    
+    @copy_docs(ChannelMetadataBase._get_partial)
+    def _get_partial(self, channel_entity):
         guild = channel_entity.guild
         if guild is None:
-            return []
+            return True
         
-        return guild.clients
+        return False if guild.clients else True
     
     
     @copy_docs(ChannelMetadataBase._get_cached_permissions_for)

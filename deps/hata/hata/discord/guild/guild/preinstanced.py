@@ -2,14 +2,17 @@ __all__ = (
     'ExplicitContentFilterLevel', 'GuildFeature', 'HubType', 'MfaLevel', 'MessageNotificationLevel', 'NsfwLevel',
     'VerificationLevel'
 )
-import warnings
 
-from scarletio import class_property, export
+from warnings import warn
+
+from scarletio import class_property, copy_docs, export
 
 from ...bases import Preinstance as P, PreinstancedBase
 
+from .flags import GuildFeatureFlag
 
-class VerificationLevel(PreinstancedBase):
+
+class VerificationLevel(PreinstancedBase, value_type = int):
     """
     Represents Discord's verification level.
     
@@ -17,22 +20,16 @@ class VerificationLevel(PreinstancedBase):
     ----------
     name : `str`
         The default name of the verification level.
+    
     value : `int`
         The discord side identifier value of the verification level.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``VerificationLevel``) items
-        Stores the predefined ``VerificationLevel``-s. These can be accessed with their `value` as key.
-    VALUE_TYPE : `type` = `int`
-        The verification levels' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the verification levels.
-    
-    Every predefined verification level can be accessed as class attribute as well:
+    Type Attributes
+    ---------------
+    Every predefined verification level can be accessed as type attribute as well:
     
     +-----------------------+-----------+-------+
-    | Class attribute name  | name      | value |
+    | Type attribute name   | name      | value |
     +=======================+===========+=======+
     | none                  | none      | 0     |
     +-----------------------+-----------+-------+
@@ -45,9 +42,6 @@ class VerificationLevel(PreinstancedBase):
     | extreme               | extreme   | 4     |
     +-----------------------+-----------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
     
     # predefined
@@ -59,32 +53,24 @@ class VerificationLevel(PreinstancedBase):
 
 
 
-class ExplicitContentFilterLevel(PreinstancedBase):
+class ExplicitContentFilterLevel(PreinstancedBase, value_type = int):
     """
     Represents Discord's explicit_content filter level.
     
     Attributes
     ----------
-    value : `int`
-        The Discord side identifier value of the explicit_content filter level.
     name : `str`
         The default name of the explicit content filter level.
     
+    value : `int`
+        The Discord side identifier value of the explicit content filter level.
+    
     Class Attributes
     ----------------
-    INSTANCES : `dict` of (`int`, ``ExplicitContentFilterLevel``) items
-        Stores the predefined explicit_content filter levels. This container is accessed when translating a Discord side
-        identifier of a explicit_content filter level. The identifier value is used as a key to get it's wrapper side
-        representation.
-    VALUE_TYPE : `type` = `int`
-        The verification filter levels' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the explicit content filter levels.
-    
-    Every predefined explicit content filter level is also stored as a class attribute:
+    Every predefined explicit content filter level is also stored as a type attribute:
     
     +-----------------------+-----------+-------+
-    | Class attribute name  | name      | value |
+    | Type attribute name   | name      | value |
     +=======================+===========+=======+
     | disabled              | disabled  | 0     |
     +-----------------------+-----------+-------+
@@ -93,9 +79,6 @@ class ExplicitContentFilterLevel(PreinstancedBase):
     | everyone              | everyone  | 2     |
     +-----------------------+-----------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
     
     # predefined
@@ -105,339 +88,1093 @@ class ExplicitContentFilterLevel(PreinstancedBase):
 
 
 @export
-class GuildFeature(PreinstancedBase):
+class GuildFeature(PreinstancedBase, value_type = str):
     """
-    Represents a ``Guild``'s feature.
+    Repents an attached features of guilds.
     
     Attributes
     ----------
+    flags : ``GuildFeatureFlag``
+        Flags representing properties about the flag.
+        
     name : `str`
         The guild feature's name.
+    
     value : `str`
         The Discord side identifier value of the guild feature.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`str`, ``GuildFeature``) items
-        Stores the predefined ``GuildFeature``-s.
-    VALUE_TYPE : `type` = `str`
-        The guild features' values' type.
-    DEFAULT_NAME : `str` = `''`
-        The default name of the guild features. Guild features have the same value as name, so at their case it is not
-        applicable.
+    Type Attributes
+    ---------------
+    Every predefined guild feature can be accessed as type attribute as well:
     
-    Every predefined guild feature can be accessed as class attribute as well:
-    
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | Class attribute names                 | name                                  | value                                             |
-    +=======================================+=======================================+===================================================+
-    | application_command_permissions_v2    | application command permissions v2    | APPLICATION_COMMAND_PERMISSIONS_V2                |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | animated_banner                       | animated banner                       | ANIMATED_BANNER                                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | animated_icon                         | animated icon                         | ANIMATED_ICON                                     |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | announcement_channels                 | announcement channels                 | NEWS                                              |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | auto_moderation_enabled               | auto moderation enabled               | AUTO_MODERATION                                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | auto_moderation_trigger_user_profile  | auto moderation trigger user profile  | AUTOMOD_TRIGGER_USER_PROFILE                      |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | banner                                | banner                                | BANNER                                            |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | burst_reactions                       | burst reactions                       | BURST_REACTIONS                                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | channel_banners                       | channel banners                       | CHANNEL_BANNER                                    |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | channel_highlights                    | channel highlights                    | CHANNEL_HIGHLIGHTS                                |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | channel_highlights_disabled           | channel highlights disabled           | CHANNEL_HIGHLIGHTS_DISABLED                       |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | channel_icon_emojis_generated         | channel icon emojis generated         | CHANNEL_ICON_EMOJIS_GENERATED                     |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | clyde_disabled                        | clyde disabled                        | CLYDE_DISABLED                                    |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | clyde_enabled                         | clyde enabled                         | CLYDE_ENABLED                                     |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | commerce                              | commerce                              | COMMERCE                                          |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | community_experiment_large_gated      | community experiment large gated      | COMMUNITY_EXP_LARGE_GATED                         |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | community_experiment_medium           | community experiment medium           | COMMUNITY_EXP_MEDIUM                              |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | creator_accepted_new_terms            | creator accepted new terms            | CREATOR_ACCEPTED_NEW_TERMS                        |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | creator_store_page                    | creator store page                    | CREATOR_STORE_PAGE                                |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | creator_monetizable                   | creator monetizable                   | CREATOR_MONETIZABLE                               |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | creator_monetizable_disabled          | creator monetizable disabled          | CREATOR_MONETIZABLE_DISABLED                      |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | creator_monetizable_owner_onboarding  | creator monetizable owner onboarding  | CREATOR_MONETIZABLE_PENDING_NEW_OWNER_ONBOARDING  |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | creator_monetizable_premium_service   | creator monetizable premium service   | CREATOR_MONETIZABLE_WHITEGLOVE                    |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | creator_monetizable_restricted        | creator monetizable restricted        | CREATOR_MONETIZABLE_RESTRICTED                    |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | creator_monetizable_temporarily       | creator monetizable temporarily       | CREATOR_MONETIZABLE_PROVISIONAL                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | community                             | community                             | COMMUNITY                                         |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | developer_support_guild               | developer support guild               | DEVELOPER_SUPPORT_SERVER                          |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | discoverable                          | discoverable                          | DISCOVERABLE                                      |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | discoverable_disabled                 | discoverable disabled                 | DISCOVERABLE_DISABLED                             |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | discoverable_enabled_before           | discoverable enabled before           | ENABLED_DISCOVERABLE_BEFORE                       |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | embedded_activities_experiment        | embedded activities experiment        | EXPOSED_TO_ACTIVITIES_WTP_EXPERIMENT              |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | embedded_activities_had_early_access  | embedded activities had early access  | HAD_EARLY_ACTIVITIES_ACCESS                       |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | featurable                            | featurable                            | FEATURABLE                                        |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | guests_enabled                        | guests enabled                        | GUESTS_ENABLED                                    |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | guide_screen_enabled                  | guide screen enabled                  | GUILD_SERVER_GUIDE                                |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | has_directory_entry                   | has directory entry                   | HAS_DIRECTORY_ENTRY                               |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | home_deprecation                      | home deprecation                      | GUILD_HOME_DEPRECATION_OVERRIDE                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | home_override                         | home override                         | GUILD_HOME_OVERRIDE                               |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | home_test                             | home test                             | GUILD_HOME_TEST                                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | hub                                   | hub                                   | HUB                                               |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | internal_employee_only                | internal employee only                | INTERNAL_EMPLOYEE_ONLY                            |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | invite_splash                         | invite splash                         | INVITE_SPLASH                                     |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | invites_disabled                      | invites disabled                      | INVITES_DISABLED                                  |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | linked_to_hub                         | linked to hub                         | LINKED_TO_HUB                                     |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | marketplaces_connection_roles         | marketplaces connection roles         | MARKETPLACES_CONNECTION_ROLES                     |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | member_list_disabled                  | member list disabled                  | MEMBER_LIST_DISABLED                              |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | monetization_enabled                  | monetization enabled                  | MONETIZATION_ENABLED                              |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | more_emoji                            | more emoji                            | MORE_EMOJI                                        |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | more_sticker                          | more sticker                          | MORE_STICKERS                                     |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | new_thread_permissions                | new thread permissions                | NEW_THREAD_PERMISSIONS                            |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | onboarding_enabled                    | onboarding enabled                    | GUILD_ONBOARDING                                  |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | onboarding_ever_enabled               | onboarding ever enabled               | GUILD_ONBOARDING_EVER_ENABLED                     |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | onboarding_has_prompts                | onboarding has prompts                | GUILD_ONBOARDING_HAS_PROMPTS                      |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | partnered                             | partnered                             | PARTNERED                                         |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | preview_enabled                       | preview enabled                       | PREVIEW_ENABLED                                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | private_threads                       | private threads                       | PRIVATE_THREADS                                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | public                                | public                                | PUBLIC                                            |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | public_disabled                       | public disabled                       | PUBLIC_DISABLED                                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | raid_alerts_disabled                  | raid alerts disabled                  | RAID_ALERTS_DISABLED                              |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | raid_alerts_enabled                   | raid alerts enabled                   | RAID_ALERTS_ENABLED                               |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | relay_enabled                         | relay enabled                         | RELAY_ENABLED                                     |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | role_icons                            | role icons                            | ROLE_ICONS                                        |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | role_subscriptions_enabled            | role subscriptions enabled            | ROLE_SUBSCRIPTIONS_ENABLED                        |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | role_subscription_purchasable         | role subscription purchasable         | ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE         |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | soundboard_enabled                    | soundboard enabled                    | SOUNDBOARD                                        |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | shard                                 | shard                                 | SHARD                                             |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | summaries_disabled_by_user            | summaries disabled by user            | SUMMARIES_DISABLED_BY_USER                        |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | summaries_enabled                     | summaries enabled                     | SUMMARIES_ENABLED                                 |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | summaries_enabled_by_user             | summaries enabled by user             | SUMMARIES_ENABLED_BY_USER                         |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | summaries_enabled_global_access       | summaries enabled global access       | SUMMARIES_ENABLED_GA                              |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | text_in_stage_enabled                 | text in stage enabled                 | TEXT_IN_STAGE_ENABLED                             |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | text_in_voice_enabled                 | text in voice enabled                 | TEXT_IN_VOICE_ENABLED                             |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | thread_archive_seven_day              | thread archive seven day              | SEVEN_DAY_THREAD_ARCHIVE                          |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | thread_archive_three_day              | thread archive three day              | THREE_DAY_THREAD_ARCHIVE                          |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | threads_enabled                       | threads enabled                       | THREADS_ENABLED                                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | threads_enabled_testing               | threads enabled testing               | THREADS_ENABLED_TESTING                           |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | thread_limit_increased                | thread limit increased                | INCREASED_THREAD_LIMIT                            |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | ticket_events_enabled                 | ticket events enabled                 | TICKETED_EVENTS_ENABLED                           |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | users_screen_enabled                  | users screen enabled                  | MEMBER_PROFILES                                   |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | vanity_invite                         | vanity invite                         | VANITY_URL                                        |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | verification_screen_enabled           | verification screen enabled           | MEMBER_VERIFICATION_GATE_ENABLED                  |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | verified                              | verified                              | VERIFIED                                          |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | vip_voice_regions                     | vip voice regions                     | VIP_REGIONS                                       |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | web_page                              | web page                              | GUILD_WEB_PAGE_VANITY_URL                         |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
-    | welcome_screen_enabled                | welcome screen enabled                | WELCOME_SCREEN_ENABLED                            |
-    +---------------------------------------+---------------------------------------+---------------------------------------------------+
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | Type attribute name                           | name                                          | value                                                     |
+    +===============================================+===============================================+===========================================================+
+    | activity_list_disabled                        | activity list disabled                        | ACTIVITY_FEED_DISABLED_BY_USER                            |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | activity_list_enabled                         | activity list enabled                         | ACTIVITY_FEED_ENABLED_BY_USER                             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | application_command_permissions_v2            | application command permissions v2            | APPLICATION_COMMAND_PERMISSIONS_V2                        |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | announcement_channels                         | announcement channels                         | NEWS                                                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | attachment_size_limit_100_MB                  | attachment size limit 100 MB                  | MAX_FILE_SIZE_100_MB                                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | attachment_size_limit_50_MB                   | attachment size limit 50 MB                   | MAX_FILE_SIZE_50_MB                                       |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | audio_bitrate_128_kbps                        | audio bitrate 128 kbps                        | AUDIO_BITRATE_128_KBPS                                    |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | audio_bitrate_256_kbps                        | audio bitrate 256 kbps                        | AUDIO_BITRATE_256_KBPS                                    |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | audio_bitrate_384_kbps                        | audio bitrate 384 kbps                        | AUDIO_BITRATE_384_KBPS                                    |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | auto_moderation_enabled                       | auto moderation enabled                       | AUTO_MODERATION                                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | auto_moderation_trigger_user_profile          | auto moderation trigger user profile          | AUTOMOD_TRIGGER_USER_PROFILE                              |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | badge                                         | badge                                         | GUILD_TAGS                                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | badge_pack_flex                               | badge pack flex                               | GUILD_TAGS_BADGE_PACK_FLEX                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | badge_pack_pets                               | badge pack pets                               | GUILD_TAGS_BADGE_PACK_PETS                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | banner                                        | banner                                        | BANNER                                                    |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | banner_animated                               | banner animated                               | ANIMATED_BANNER                                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | burst_reactions                               | burst reactions                               | BURST_REACTIONS                                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | channel_banners                               | channel banners                               | CHANNEL_BANNER                                            |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | channel_highlights                            | channel highlights                            | CHANNEL_HIGHLIGHTS                                        |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | channel_highlights_disabled                   | channel highlights disabled                   | CHANNEL_HIGHLIGHTS_DISABLED                               |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | channel_icon_emojis_generated                 | channel icon emojis generated                 | CHANNEL_ICON_EMOJIS_GENERATED                             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | clan                                          | clan                                          | CLAN                                                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | clyde_disabled                                | clyde disabled                                | CLYDE_DISABLED                                            |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | clyde_enabled                                 | clyde enabled                                 | CLYDE_ENABLED                                             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | commerce                                      | commerce                                      | COMMERCE                                                  |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | community_experiment_large_gated              | community experiment large gated              | COMMUNITY_EXP_LARGE_GATED                                 |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | community_experiment_large_ungated            | community experiment large ungated            | COMMUNITY_EXP_LARGE_UNGATED                               |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | community_experiment_medium                   | community experiment medium                   | COMMUNITY_EXP_MEDIUM                                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | creator_accepted_new_terms                    | creator accepted new terms                    | CREATOR_ACCEPTED_NEW_TERMS                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | creator_store_page                            | creator store page                            | CREATOR_STORE_PAGE                                        |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | creator_monetizable                           | creator monetizable                           | CREATOR_MONETIZABLE                                       |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | creator_monetizable_disabled                  | creator monetizable disabled                  | CREATOR_MONETIZABLE_DISABLED                              |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | creator_monetizable_owner_onboarding          | creator monetizable owner onboarding          | CREATOR_MONETIZABLE_PENDING_NEW_OWNER_ONBOARDING          |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | creator_monetizable_premium_service           | creator monetizable premium service           | CREATOR_MONETIZABLE_WHITEGLOVE                            |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | creator_monetizable_restricted                | creator monetizable restricted                | CREATOR_MONETIZABLE_RESTRICTED                            |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | creator_monetizable_temporarily               | creator monetizable temporarily               | CREATOR_MONETIZABLE_PROVISIONAL                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | community                                     | community                                     | COMMUNITY                                                 |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | developer_support_guild                       | developer support guild                       | DEVELOPER_SUPPORT_SERVER                                  |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | discoverable                                  | discoverable                                  | DISCOVERABLE                                              |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | discoverable_disabled                         | discoverable disabled                         | DISCOVERABLE_DISABLED                                     |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | discoverable_enabled_before                   | discoverable enabled before                   | ENABLED_DISCOVERABLE_BEFORE                               |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | discoverable_externally                       | discoverable externally                       | CONSIDERED_EXTERNALLY_DISCOVERABLE                        |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | embedded_activities_experiment                | embedded activities experiment                | EXPOSED_TO_ACTIVITIES_WTP_EXPERIMENT                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | embedded_activities_had_early_access          | embedded activities had early access          | HAD_EARLY_ACTIVITIES_ACCESS                               |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | featurable                                    | featurable                                    | FEATURABLE                                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | forwarding_disabled                           | forwarding disabled                           | FORWARDING_DISABLED                                       |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | game_servers                                  | game servers                                  | GAME_SERVERS                                              |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | guests_enabled                                | guests enabled                                | GUESTS_ENABLED                                            |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | guide_screen_enabled                          | guide screen enabled                          | GUILD_SERVER_GUIDE                                        |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | has_directory_entry                           | has directory entry                           | HAS_DIRECTORY_ENTRY                                       |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | home_deprecation                              | home deprecation                              | GUILD_HOME_DEPRECATION_OVERRIDE                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | home_override                                 | home override                                 | GUILD_HOME_OVERRIDE                                       |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | home_test                                     | home test                                     | GUILD_HOME_TEST                                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | hub                                           | hub                                           | HUB                                                       |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | icon_animated                                 | icon animated                                 | ANIMATED_ICON                                             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | internal_employee_only                        | internal employee only                        | INTERNAL_EMPLOYEE_ONLY                                    |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | invite_splash                                 | invite splash                                 | INVITE_SPLASH                                             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | invite_vanity_url                             | invite vanity url                             | VANITY_URL                                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | invites_disabled                              | invites disabled                              | INVITES_DISABLED                                          |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | levelless_boosting                            | levelless boosting                            | TIERLESS_BOOSTING                                         |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | levelless_boosting_system_messages            | levelless boosting system messages            | TIERLESS_BOOSTING_SYSTEM_MESSAGE                          |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | linked_to_hub                                 | linked to hub                                 | LINKED_TO_HUB                                             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | marketplaces_connection_roles                 | marketplaces connection roles                 | MARKETPLACES_CONNECTION_ROLES                             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | member_list_disabled                          | member list disabled                          | MEMBER_LIST_DISABLED                                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | moderation_experience_non_community_enabled   | moderation experience non community enabled   | ENABLED_MODERATION_EXPERIENCE_FOR_NON_COMMUNITY           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | moderation_pilot_reports                      | moderation pilot reports                      | REPORT_TO_MOD_PILOT                                       |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | moderation_survey_reports                     | moderation survey reports                     | REPORT_TO_MOD_SURVEY                                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | monetization_enabled                          | monetization enabled                          | MONETIZATION_ENABLED                                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | more_emoji                                    | more emoji                                    | MORE_EMOJI                                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | more_soundboard_sound                         | more soundboard sound                         | MORE_SOUNDBOARD                                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | more_sticker                                  | more sticker                                  | MORE_STICKERS                                             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | onboarding_enabled                            | onboarding enabled                            | GUILD_ONBOARDING                                          |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | onboarding_ever_enabled                       | onboarding ever enabled                       | GUILD_ONBOARDING_EVER_ENABLED                             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | onboarding_has_prompts                        | onboarding has prompts                        | GUILD_ONBOARDING_HAS_PROMPTS                              |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | partnered                                     | partnered                                     | PARTNERED                                                 |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | pin_permissions_migrated                      | pin permissions migrated                      | PIN_PERMISSION_MIGRATION_COMPLETE                         |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | preview_enabled                               | preview enabled                               | PREVIEW_ENABLED                                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | products_archived_file                        | products archived file                        | GUILD_PRODUCTS_ALLOW_ARCHIVED_FILE                        |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | products_purchasable                          | products purchasable                          | PRODUCTS_AVAILABLE_FOR_PURCHASE                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | public                                        | public                                        | PUBLIC                                                    |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | public_disabled                               | public disabled                               | PUBLIC_DISABLED                                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | raid_alerts_disabled                          | raid alerts disabled                          | RAID_ALERTS_DISABLED                                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | raid_alerts_enabled                           | raid alerts enabled                           | RAID_ALERTS_ENABLED                                       |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | raid_alerts_non_community                     | raid alerts non community                     | NON_COMMUNITY_RAID_ALERTS                                 |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | relay_enabled                                 | relay enabled                                 | RELAY_ENABLED                                             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | role_colors_enhanced                          | role colors enhanced                          | ENHANCED_ROLE_COLORS                                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | role_icons                                    | role icons                                    | ROLE_ICONS                                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | role_subscriptions_enabled                    | role subscriptions enabled                    | ROLE_SUBSCRIPTIONS_ENABLED                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | role_subscriptions_purchasable                | role subscriptions purchasable                | ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE                 |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | slowmode_bypass_permissions_migrated          | slowmode bypass permissions migrated          | BYPASS_SLOWMODE_PERMISSION_MIGRATION_COMPLETE             |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | soundboard_enabled                            | soundboard enabled                            | SOUNDBOARD                                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | shard                                         | shard                                         | SHARD                                                     |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | stage_channel_150_viewers                     | stage channel 150 viewers                     | STAGE_CHANNEL_VIEWERS_150                                 |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | stage_channel_300_viewers                     | stage channel 300 viewers                     | STAGE_CHANNEL_VIEWERS_300                                 |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | stage_channel_50_viewers                      | stage channel 50 viewers                      | STAGE_CHANNEL_VIEWERS_50                                  |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | social_layer_storage_page                     | social layer store page                       | SOCIAL_LAYER_STOREFRONT                                   |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | summaries_disabled_by_user                    | summaries disabled by user                    | SUMMARIES_DISABLED_BY_USER                                |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | summaries_enabled                             | summaries enabled                             | SUMMARIES_ENABLED                                         |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | summaries_enabled_by_user                     | summaries enabled by user                     | SUMMARIES_ENABLED_BY_USER                                 |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | summaries_enabled_global_access               | summaries enabled global access               | SUMMARIES_ENABLED_GA                                      |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | summaries_experiment_disableable              | summaries experiment disableable              | SUMMARIES_OPT_OUT_EXPERIENCE                              |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | text_in_stage_enabled                         | text in stage enabled                         | TEXT_IN_STAGE_ENABLED                                     |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | text_in_voice_enabled                         | text in voice enabled                         | TEXT_IN_VOICE_ENABLED                                     |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | thread_archive_seven_day                      | thread archive seven day                      | SEVEN_DAY_THREAD_ARCHIVE                                  |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | thread_archive_three_day                      | thread archive three day                      | THREE_DAY_THREAD_ARCHIVE                                  |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | thread_limit_increased                        | thread limit increased                        | INCREASED_THREAD_LIMIT                                    |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | thread_permissions_migrated                   | thread permissions migrated                   | NEW_THREAD_PERMISSIONS                                    |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | threads_enabled                               | threads enabled                               | THREADS_ENABLED                                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | threads_enabled_test                          | threads enabled test                          | THREADS_ENABLED_TESTING                                   |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | threads_private_enabled                       | threads private enabled                       | PRIVATE_THREADS                                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | ticket_events_enabled                         | ticket events enabled                         | TICKETED_EVENTS_ENABLED                                   |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | users_screen_enabled                          | users screen enabled                          | MEMBER_PROFILES                                           |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | verification_age_utils                        | verification age utils                        | AGE_VERIFICATION_LARGE_GUILD                              |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | verification_manual_approval                  | verification manual approval                  | MEMBER_VERIFICATION_MANUAL_APPROVAL                       |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | verification_screen_enabled                   | verification screen enabled                   | MEMBER_VERIFICATION_GATE_ENABLED                          |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | verification_test                             | verification test                             | MEMBER_VERIFICATION_ROLLOUT_TEST                          |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | verified                                      | verified                                      | VERIFIED                                                  |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | video_bitrate_enhanced                        | video bitrate enhanced                        | VIDEO_BITRATE_ENHANCED                                    |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | video_quality_1080_px_60_fps                  | video quality 1080 px 60 fps                  | VIDEO_QUALITY_1080_60FPS                                  |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | video_quality_720_px_60_fps                   | video quality 720 px 60 fps                   | VIDEO_QUALITY_720_60FPS                                   |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | vip_voice_regions                             | vip voice regions                             | VIP_REGIONS                                               |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | web_page                                      | web page                                      | GUILD_WEB_PAGE_VANITY_URL                                 |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
+    | welcome_screen_enabled                        | welcome screen enabled                        | WELCOME_SCREEN_ENABLED                                    |
+    +-----------------------------------------------+-----------------------------------------------+-----------------------------------------------------------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = str
-    DEFAULT_NAME = ''
+    __slots__ = ('flags',)
     
-    __slots__ = ()
     
-    @classmethod
-    def _from_value(cls, value):
-        """
-        Creates a new guild feature with the given value.
+    @copy_docs(PreinstancedBase.__new__)
+    def __new__(cls, value, name = None, flags = GuildFeatureFlag()):
+        if name is None:
+            name = value.casefold().replace('_', ' ')
         
-        Parameters
-        ----------
-        value : `str`
-            The guild feature's identifier value.
-        
-        Returns
-        -------
-        self : ``GuildFeature``
-            The created guild feature.
-        """
-        self = object.__new__(cls)
-        self.value = value
-        self.name = value.lower().replace('_', ' ')
-        self.INSTANCES[value] = self
-        return self
+        instance = PreinstancedBase.__new__(cls, value, name)
+        instance.flags = flags
+        return instance
     
     
     # predefined
-    application_command_permissions_v2 = P('APPLICATION_COMMAND_PERMISSIONS_V2', 'application command permissions v2')
-    animated_banner = P('ANIMATED_BANNER', 'animated banner')
-    animated_icon = P('ANIMATED_ICON', 'animated icon')
-    announcement_channels = P('NEWS', 'announcement channels')
-    auto_moderation_enabled = P('AUTO_MODERATION', 'auto moderation enabled')
-    auto_moderation_trigger_user_profile = P('AUTOMOD_TRIGGER_USER_PROFILE', 'auto moderation trigger user profile')
-    banner = P('BANNER', 'banner')
-    burst_reactions = P('BURST_REACTIONS', 'burst reactions')
-    channel_banners = P('CHANNEL_BANNER', 'channel banners')
-    channel_highlights = P('CHANNEL_HIGHLIGHTS', 'channel highlights')
-    channel_highlights_disabled = P('CHANNEL_HIGHLIGHTS_DISABLED', 'channel highlights disabled')
-    channel_icon_emojis_generated = P('CHANNEL_ICON_EMOJIS_GENERATED', 'channel icon emojis generated')
-    clyde_disabled = P('CLYDE_DISABLED', 'clyde disabled')
-    clyde_enabled = P('CLYDE_ENABLED', 'clyde enabled')
-    commerce = P('COMMERCE', 'commerce')
-    community_experiment_large_gated = P('COMMUNITY_EXP_LARGE_GATED', 'community experiment large gated')
-    community_experiment_medium = P('COMMUNITY_EXP_MEDIUM', 'community experiment medium')
-    creator_accepted_new_terms = P('CREATOR_ACCEPTED_NEW_TERMS', 'creator accepted new terms')
-    creator_store_page = P('CREATOR_STORE_PAGE', 'creator store page')
-    creator_monetizable = P('CREATOR_MONETIZABLE', 'creator monetizable')
-    creator_monetizable_disabled = P('CREATOR_MONETIZABLE_DISABLED', 'creator monetizable disabled')
-    creator_monetizable_owner_onboarding = P(
-        'CREATOR_MONETIZABLE_PENDING_NEW_OWNER_ONBOARDING', 'creator monetizable owner onboarding'
+    activity_list_disabled = P(
+        'ACTIVITY_FEED_DISABLED_BY_USER',
+        'activity list disabled',
+        GuildFeatureFlag(),
     )
-    creator_monetizable_premium_service = P('CREATOR_MONETIZABLE_WHITEGLOVE', 'creator monetizable premium service')
-    creator_monetizable_restricted = P('CREATOR_MONETIZABLE_RESTRICTED', 'creator monetizable restricted')
-    creator_monetizable_temporarily = P('CREATOR_MONETIZABLE_PROVISIONAL', 'creator monetizable temporarily')
-    community = P('COMMUNITY', 'community')
-    developer_support_guild = P('DEVELOPER_SUPPORT_SERVER', 'developer support guild')
-    discoverable = P('DISCOVERABLE', 'discoverable')
-    discoverable_disabled = P('DISCOVERABLE_DISABLED', 'discoverable disabled')
-    embedded_activities_experiment = P('EXPOSED_TO_ACTIVITIES_WTP_EXPERIMENT', 'embedded activities experiment')
-    embedded_activities_had_early_access = P('HAD_EARLY_ACTIVITIES_ACCESS', 'embedded activities had early access')
-    discoverable_enabled_before = P('ENABLED_DISCOVERABLE_BEFORE', 'discoverable enabled before')
-    featurable = P('FEATURABLE', 'featurable')
-    guests_enabled = P('GUESTS_ENABLED', 'guests enabled')
-    guide_screen_enabled = P('GUILD_SERVER_GUIDE', 'guide screen enabled')
-    has_directory_entry = P('HAS_DIRECTORY_ENTRY', 'has directory entry')
-    home_deprecation = P('GUILD_HOME_DEPRECATION_OVERRIDE', 'home deprecation')
-    home_override = P('GUILD_HOME_OVERRIDE', 'home override')
-    home_test = P('GUILD_HOME_TEST', 'home test')
-    hub = P('HUB', 'hub')
-    internal_employee_only = P('INTERNAL_EMPLOYEE_ONLY', 'internal employee only')
-    invite_splash = P('INVITE_SPLASH', 'invite splash')
-    invites_disabled = P('INVITES_DISABLED', 'invites disabled')
-    linked_to_hub = P('LINKED_TO_HUB', 'linked to hub')
-    marketplaces_connection_roles = P('MARKETPLACES_CONNECTION_ROLES', 'marketplaces connection roles')
-    member_list_disabled = P('MEMBER_LIST_DISABLED', 'member list disabled')
-    monetization_enabled = P('MONETIZATION_ENABLED', 'monetization enabled')
-    more_emoji = P('MORE_EMOJI', 'more emoji')
-    more_sticker = P('MORE_STICKERS', 'more sticker')
-    new_thread_permissions = P('NEW_THREAD_PERMISSIONS', 'new thread permissions')
-    onboarding_enabled = P('GUILD_ONBOARDING', 'onboarding enabled')
-    onboarding_ever_enabled  = P('GUILD_ONBOARDING_EVER_ENABLED', 'onboarding ever enabled')
-    onboarding_has_prompts  = P('GUILD_ONBOARDING_HAS_PROMPTS', 'onboarding has prompts')
-    partnered = P('PARTNERED', 'partnered')
-    preview_enabled = P('PREVIEW_ENABLED', 'preview enabled')
-    private_threads = P('PRIVATE_THREADS', 'private threads')
-    public = P('PUBLIC', 'public')
-    public_disabled = P('PUBLIC_DISABLED', 'public disabled')
-    raid_alerts_disabled = P('RAID_ALERTS_DISABLED', 'raid alerts disabled')
-    raid_alerts_enabled = P('RAID_ALERTS_ENABLED', 'raid alerts enabled')
-    relay_enabled = P('RELAY_ENABLED', 'relay enabled')
-    role_icons = P('ROLE_ICONS', 'role icons')
-    role_subscriptions_enabled = P('ROLE_SUBSCRIPTIONS_ENABLED', 'role subscriptions enabled')
-    role_subscription_purchasable = P('ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE', 'role subscription purchasable')
-    soundboard_enabled = P('SOUNDBOARD', 'soundboard enabled')
-    shard = P('SHARD', 'shard')
-    summaries_disabled_by_user = P('SUMMARIES_DISABLED_BY_USER', 'summaries disabled by user')
-    summaries_enabled = P('SUMMARIES_ENABLED', 'summaries enabled')
-    summaries_enabled_by_user = P('SUMMARIES_ENABLED_BY_USER', 'summaries enabled by user')
-    summaries_enabled_global_access = P('SUMMARIES_ENABLED_GA', 'summaries enabled global access')
-    text_in_stage_enabled = P('TEXT_IN_STAGE_ENABLED', 'text in stage enabled')
-    text_in_voice_enabled = P('TEXT_IN_VOICE_ENABLED', 'text in voice enabled')
-    thread_archive_seven_day = P('SEVEN_DAY_THREAD_ARCHIVE', 'thread archive seven day')
-    thread_archive_three_day = P('THREE_DAY_THREAD_ARCHIVE', 'thread archive three day')
-    threads_enabled = P('THREADS_ENABLED', 'threads enabled')
-    threads_enabled_testing = P('THREADS_ENABLED_TESTING', 'threads enabled testing')
-    thread_limit_increased = P('INCREASED_THREAD_LIMIT', 'thread limit increased')
-    ticket_events_enabled = P('TICKETED_EVENTS_ENABLED', 'ticket events enabled')
-    users_screen_enabled = P('MEMBER_PROFILES', 'users screen enabled')
-    vanity_invite = P('VANITY_URL', 'vanity invite')
-    verification_screen_enabled = P('MEMBER_VERIFICATION_GATE_ENABLED', 'verification screen enabled')
-    verified = P('VERIFIED', 'verified')
-    vip_voice_regions = P('VIP_REGIONS', 'vip voice regions')
-    web_page = P('GUILD_WEB_PAGE_VANITY_URL', 'web page')
-    welcome_screen_enabled = P('WELCOME_SCREEN_ENABLED', 'welcome screen enabled')
-
-
+    activity_list_enabled = P(
+        'ACTIVITY_FEED_ENABLED_BY_USER',
+        'activity list enabled',
+        GuildFeatureFlag(),
+    )
+    application_command_permissions_v2 = P(
+        'APPLICATION_COMMAND_PERMISSIONS_V2',
+        'application command permissions v2',
+        GuildFeatureFlag(),
+    )
+    announcement_channels = P(
+        'NEWS',
+        'announcement channels',
+        GuildFeatureFlag(),
+    )
+    attachment_size_limit_100_MB = P(
+        'MAX_FILE_SIZE_100_MB',
+        'attachment size limit 100 MB',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    attachment_size_limit_50_MB = P(
+        'MAX_FILE_SIZE_50_MB',
+        'attachment size limit 50 MB',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    audio_bitrate_128_kbps = P(
+        'AUDIO_BITRATE_128_KBPS',
+        'audio bitrate 128 kbps',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    audio_bitrate_256_kbps = P(
+        'AUDIO_BITRATE_256_KBPS',
+        'audio bitrate 256 kbps',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    audio_bitrate_384_kbps = P(
+        'AUDIO_BITRATE_384_KBPS',
+        'audio bitrate 384 kbps',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    auto_moderation_enabled = P(
+        'AUTO_MODERATION',
+        'auto moderation enabled',
+        GuildFeatureFlag(),
+    )
+    auto_moderation_trigger_user_profile = P(
+        'AUTOMOD_TRIGGER_USER_PROFILE',
+        'auto moderation trigger user profile',
+        GuildFeatureFlag(),
+    )
+    badge = P(
+        'GUILD_TAGS',
+        'badge',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    badge_pack_flex = P(
+        'GUILD_TAGS_BADGE_PACK_FLEX',
+        'badge pack flex',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    badge_pack_pets = P(
+        'GUILD_TAGS_BADGE_PACK_PETS',
+        'badge pack pets',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    banner = P(
+        'BANNER',
+        'banner',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    banner_animated = P(
+        'ANIMATED_BANNER',
+        'banner animated',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    burst_reactions = P(
+        'BURST_REACTIONS',
+        'burst reactions',
+        GuildFeatureFlag(),
+    )
+    channel_banners = P(
+        'CHANNEL_BANNER',
+        'channel banners',
+        GuildFeatureFlag(),
+    )
+    channel_highlights = P(
+        'CHANNEL_HIGHLIGHTS',
+        'channel highlights',
+        GuildFeatureFlag(),
+    )
+    channel_highlights_disabled = P(
+        'CHANNEL_HIGHLIGHTS_DISABLED',
+        'channel highlights disabled',
+        GuildFeatureFlag(),
+    )
+    channel_icon_emojis_generated = P(
+        'CHANNEL_ICON_EMOJIS_GENERATED',
+        'channel icon emojis generated',
+        GuildFeatureFlag(),
+    )
+    clan = P(
+        'CLAN',
+        'clan',
+        GuildFeatureFlag(),
+    )
+    clyde_disabled = P(
+        'CLYDE_DISABLED',
+        'clyde disabled',
+        GuildFeatureFlag(),
+    )
+    clyde_enabled = P(
+        'CLYDE_ENABLED',
+        'clyde enabled',
+        GuildFeatureFlag(),
+    )
+    commerce = P(
+        'COMMERCE',
+        'commerce',
+        GuildFeatureFlag(),
+    )
+    community_experiment_large_gated = P(
+        'COMMUNITY_EXP_LARGE_GATED',
+        'community experiment large gated',
+        GuildFeatureFlag(),
+    )
+    community_experiment_large_ungated = P(
+        'COMMUNITY_EXP_LARGE_UNGATED',
+        'community experiment large ungated',
+        GuildFeatureFlag(),
+    )
+    community_experiment_medium = P(
+        'COMMUNITY_EXP_MEDIUM',
+        'community experiment medium',
+        GuildFeatureFlag(),
+    )
+    creator_accepted_new_terms = P(
+        'CREATOR_ACCEPTED_NEW_TERMS',
+        'creator accepted new terms',
+        GuildFeatureFlag(),
+    )
+    creator_store_page = P(
+        'CREATOR_STORE_PAGE',
+        'creator store page',
+        GuildFeatureFlag(),
+    )
+    creator_monetizable = P(
+        'CREATOR_MONETIZABLE',
+        'creator monetizable',
+        GuildFeatureFlag(),
+    )
+    creator_monetizable_disabled = P(
+        'CREATOR_MONETIZABLE_DISABLED',
+        'creator monetizable disabled',
+        GuildFeatureFlag(),
+    )
+    creator_monetizable_owner_onboarding = P(
+        'CREATOR_MONETIZABLE_PENDING_NEW_OWNER_ONBOARDING',
+        'creator monetizable owner onboarding',
+        GuildFeatureFlag(),
+    )
+    creator_monetizable_premium_service = P(
+        'CREATOR_MONETIZABLE_WHITEGLOVE',
+        'creator monetizable premium service',
+        GuildFeatureFlag(),
+    )
+    creator_monetizable_restricted = P(
+        'CREATOR_MONETIZABLE_RESTRICTED',
+        'creator monetizable restricted',
+        GuildFeatureFlag(),
+    )
+    creator_monetizable_temporarily = P(
+        'CREATOR_MONETIZABLE_PROVISIONAL',
+        'creator monetizable temporarily',
+        GuildFeatureFlag(),
+    )
+    community = P(
+        'COMMUNITY',
+        'community',
+        GuildFeatureFlag(),
+    )
+    developer_support_guild = P(
+        'DEVELOPER_SUPPORT_SERVER',
+        'developer support guild',
+        GuildFeatureFlag(),
+    )
+    discoverable = P(
+        'DISCOVERABLE',
+        'discoverable',
+        GuildFeatureFlag(),
+    )
+    discoverable_disabled = P(
+        'DISCOVERABLE_DISABLED',
+        'discoverable disabled',
+        GuildFeatureFlag(),
+    )
+    discoverable_enabled_before = P(
+        'ENABLED_DISCOVERABLE_BEFORE',
+        'discoverable enabled before',
+        GuildFeatureFlag(),
+    )
+    discoverable_externally = P(
+        'CONSIDERED_EXTERNALLY_DISCOVERABLE',
+        'discoverable externally',
+        GuildFeatureFlag(),
+    )
+    embedded_activities_experiment = P(
+        'EXPOSED_TO_ACTIVITIES_WTP_EXPERIMENT',
+        'embedded activities experiment',
+        GuildFeatureFlag(),
+    )
+    embedded_activities_had_early_access = P(
+        'HAD_EARLY_ACTIVITIES_ACCESS',
+        'embedded activities had early access',
+        GuildFeatureFlag(),
+    )
+    featurable = P(
+        'FEATURABLE',
+        'featurable',
+        GuildFeatureFlag(),
+    )
+    forwarding_disabled = P(
+        'FORWARDING_DISABLED',
+        'forwarding disabled',
+        GuildFeatureFlag(),
+    )
+    game_servers = P(
+        'GAME_SERVERS',
+        'game servers',
+        GuildFeatureFlag(),
+    )
+    guests_enabled = P(
+        'GUESTS_ENABLED',
+        'guests enabled',
+        GuildFeatureFlag(),
+    )
+    guide_screen_enabled = P(
+        'GUILD_SERVER_GUIDE',
+        'guide screen enabled',
+        GuildFeatureFlag(),
+    )
+    has_directory_entry = P(
+        'HAS_DIRECTORY_ENTRY',
+        'has directory entry',
+        GuildFeatureFlag(),
+    )
+    home_deprecation = P(
+        'GUILD_HOME_DEPRECATION_OVERRIDE',
+        'home deprecation',
+        GuildFeatureFlag(),
+    )
+    home_override = P(
+        'GUILD_HOME_OVERRIDE',
+        'home override',
+        GuildFeatureFlag(),
+    )
+    home_test = P(
+        'GUILD_HOME_TEST',
+        'home test',
+        GuildFeatureFlag(),
+    )
+    hub = P(
+        'HUB',
+        'hub',
+        GuildFeatureFlag(),
+    )
+    icon_animated = P(
+        'ANIMATED_ICON',
+        'icon animated',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    internal_employee_only = P(
+        'INTERNAL_EMPLOYEE_ONLY',
+        'internal employee only',
+        GuildFeatureFlag(),
+    )
+    invite_splash = P(
+        'INVITE_SPLASH',
+        'invite splash',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    invite_vanity_url = P(
+        'VANITY_URL',
+        'invite vanity url',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    invites_disabled = P(
+        'INVITES_DISABLED',
+        'invites disabled',
+        GuildFeatureFlag(),
+    )
+    levelless_boosting = P(
+        'TIERLESS_BOOSTING',
+        'levelless boosting',
+        GuildFeatureFlag(),
+    )
+    levelless_boosting_system_messages = P(
+        'TIERLESS_BOOSTING_SYSTEM_MESSAGE',
+        'levelless boosting system messages',
+        GuildFeatureFlag(),
+    )
+    linked_to_hub = P(
+        'LINKED_TO_HUB',
+        'linked to hub',
+        GuildFeatureFlag(),
+    )
+    marketplaces_connection_roles = P(
+        'MARKETPLACES_CONNECTION_ROLES',
+        'marketplaces connection roles',
+        GuildFeatureFlag(),
+    )
+    member_list_disabled = P(
+        'MEMBER_LIST_DISABLED',
+        'member list disabled',
+        GuildFeatureFlag(),
+    )
+    moderation_experience_non_community_enabled = P(
+        'ENABLED_MODERATION_EXPERIENCE_FOR_NON_COMMUNITY',
+        'moderation experience non community enabled',
+        GuildFeatureFlag(),
+    )
+    moderation_pilot_reports = P(
+        'REPORT_TO_MOD_PILOT',
+        'moderation pilot reports',
+        GuildFeatureFlag(),
+    )
+    moderation_survey_reports = P(
+        'REPORT_TO_MOD_SURVEY',
+        'moderation survey reports',
+        GuildFeatureFlag(),
+    )
+    monetization_enabled = P(
+        'MONETIZATION_ENABLED',
+        'monetization enabled',
+        GuildFeatureFlag(),
+    )
+    more_emoji = P(
+        'MORE_EMOJI',
+        'more emoji',
+        GuildFeatureFlag(),
+    )
+    more_soundboard_sound = P(
+        'MORE_SOUNDBOARD',
+        'more soundboard sound',
+        GuildFeatureFlag(),
+    )
+    more_sticker = P(
+        'MORE_STICKERS',
+        'more sticker',
+        GuildFeatureFlag(),
+    )
+    onboarding_enabled = P(
+        'GUILD_ONBOARDING',
+        'onboarding enabled',
+        GuildFeatureFlag(),
+    )
+    onboarding_ever_enabled  = P(
+        'GUILD_ONBOARDING_EVER_ENABLED',
+        'onboarding ever enabled',
+        GuildFeatureFlag(),
+    )
+    onboarding_has_prompts  = P(
+        'GUILD_ONBOARDING_HAS_PROMPTS',
+        'onboarding has prompts',
+        GuildFeatureFlag(),
+    )
+    partnered = P(
+        'PARTNERED',
+        'partnered',
+        GuildFeatureFlag(),
+    )
+    pin_permissions_migrated = P(
+        'PIN_PERMISSION_MIGRATION_COMPLETE',
+        'pin permissions migrated',
+        GuildFeatureFlag(),
+    )
+    preview_enabled = P(
+        'PREVIEW_ENABLED',
+        'preview enabled',
+        GuildFeatureFlag(),
+    )
+    products_archived_file = P(
+        'GUILD_PRODUCTS_ALLOW_ARCHIVED_FILE',
+        'products archived file',
+        GuildFeatureFlag(),
+    )
+    products_purchasable = P(
+        'PRODUCTS_AVAILABLE_FOR_PURCHASE',
+        'products purchasable',
+        GuildFeatureFlag(),
+    )
+    public = P(
+        'PUBLIC',
+        'public',
+        GuildFeatureFlag(),
+    )
+    public_disabled = P(
+        'PUBLIC_DISABLED',
+        'public disabled',
+        GuildFeatureFlag(),
+    )
+    raid_alerts_disabled = P(
+        'RAID_ALERTS_DISABLED',
+        'raid alerts disabled',
+        GuildFeatureFlag(),
+    )
+    raid_alerts_enabled = P(
+        'RAID_ALERTS_ENABLED',
+        'raid alerts enabled',
+        GuildFeatureFlag(),
+    )
+    raid_alerts_non_community = P(
+        'NON_COMMUNITY_RAID_ALERTS',
+        'raid alerts non community',
+        GuildFeatureFlag(),
+    )
+    relay_enabled = P(
+        'RELAY_ENABLED',
+        'relay enabled',
+        GuildFeatureFlag(),
+    )
+    role_colors_enhanced = P(
+        'ENHANCED_ROLE_COLORS',
+        'role colors enhanced',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    role_icons = P(
+        'ROLE_ICONS',
+        'role icons',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    role_subscriptions_enabled = P(
+        'ROLE_SUBSCRIPTIONS_ENABLED',
+        'role subscriptions enabled',
+        GuildFeatureFlag(),
+    )
+    role_subscriptions_purchasable = P(
+        'ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE',
+        'role subscriptions purchasable',
+        GuildFeatureFlag(),
+    )
+    slowmode_bypass_permissions_migrated = P(
+        'BYPASS_SLOWMODE_PERMISSION_MIGRATION_COMPLETE',
+        'slowmode bypass permissions migrated',
+        GuildFeatureFlag(),
+    )
+    soundboard_enabled = P(
+        'SOUNDBOARD',
+        'soundboard enabled',
+        GuildFeatureFlag(),
+    )
+    shard = P(
+        'SHARD',
+        'shard',
+        GuildFeatureFlag(),
+    )
+    social_layer_storage_page = P(
+        'SOCIAL_LAYER_STOREFRONT',
+        'social layer store page',
+        GuildFeatureFlag(),
+    )
+    stage_channel_150_viewers = P(
+        'STAGE_CHANNEL_VIEWERS_150',
+        'stage channel 150 viewers',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    stage_channel_300_viewers = P(
+        'STAGE_CHANNEL_VIEWERS_300',
+        'stage channel 300 viewers',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    stage_channel_50_viewers = P(
+        'STAGE_CHANNEL_VIEWERS_50',
+        'stage channel 50 viewers',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    summaries_disabled_by_user = P(
+        'SUMMARIES_DISABLED_BY_USER',
+        'summaries disabled by user',
+        GuildFeatureFlag(),
+    )
+    summaries_enabled = P(
+        'SUMMARIES_ENABLED',
+        'summaries enabled',
+        GuildFeatureFlag(),
+    )
+    summaries_enabled_by_user = P(
+        'SUMMARIES_ENABLED_BY_USER',
+        'summaries enabled by user',
+        GuildFeatureFlag(),
+    )
+    summaries_enabled_global_access = P(
+        'SUMMARIES_ENABLED_GA',
+        'summaries enabled global access',
+        GuildFeatureFlag(),
+    )
+    summaries_experiment_disableable = P(
+        'SUMMARIES_OPT_OUT_EXPERIENCE',
+        'summaries experiment disableable',
+        GuildFeatureFlag(),
+    )
+    text_in_stage_enabled = P(
+        'TEXT_IN_STAGE_ENABLED',
+        'text in stage enabled',
+        GuildFeatureFlag(),
+    )
+    text_in_voice_enabled = P(
+        'TEXT_IN_VOICE_ENABLED',
+        'text in voice enabled',
+        GuildFeatureFlag(),
+    )
+    thread_archive_seven_day = P(
+        'SEVEN_DAY_THREAD_ARCHIVE',
+        'thread archive seven day',
+        GuildFeatureFlag(),
+    )
+    thread_archive_three_day = P(
+        'THREE_DAY_THREAD_ARCHIVE',
+        'thread archive three day',
+        GuildFeatureFlag(),
+    )
+    thread_limit_increased = P(
+        'INCREASED_THREAD_LIMIT',
+        'thread limit increased',
+        GuildFeatureFlag(),
+    )
+    thread_permissions_migrated = P(
+        'NEW_THREAD_PERMISSIONS',
+        'thread permissions migrated',
+        GuildFeatureFlag(),
+    )
+    threads_enabled = P(
+        'THREADS_ENABLED',
+        'threads enabled',
+        GuildFeatureFlag(),
+    )
+    threads_enabled_test = P(
+        'THREADS_ENABLED_TESTING',
+        'threads enabled test',
+        GuildFeatureFlag(),
+    )
+    threads_private_enabled = P(
+        'PRIVATE_THREADS',
+        'threads private enabled',
+        GuildFeatureFlag(),
+    )
+    ticket_events_enabled = P(
+        'TICKETED_EVENTS_ENABLED',
+        'ticket events enabled',
+        GuildFeatureFlag(),
+    )
+    users_screen_enabled = P(
+        'MEMBER_PROFILES',
+        'users screen enabled',
+        GuildFeatureFlag(),
+    )
+    verification_age_utils = P(
+        'AGE_VERIFICATION_LARGE_GUILD',
+        'verification age utils',
+        GuildFeatureFlag(),
+    )
+    verification_manual_approval = P(
+        'MEMBER_VERIFICATION_MANUAL_APPROVAL',
+        'verification manual approval',
+        GuildFeatureFlag(),
+    )
+    verification_screen_enabled = P(
+        'MEMBER_VERIFICATION_GATE_ENABLED',
+        'verification screen enabled',
+        GuildFeatureFlag(),
+    )
+    verification_test = P(
+        'MEMBER_VERIFICATION_ROLLOUT_TEST',
+        'verification test',
+        GuildFeatureFlag(),
+    )
+    verified = P(
+        'VERIFIED',
+        'verified',
+        GuildFeatureFlag(),
+    )
+    video_bitrate_enhanced = P(
+        'VIDEO_BITRATE_ENHANCED',
+        'video bitrate enhanced',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    video_quality_1080_px_60_fps = P(
+        'VIDEO_QUALITY_1080_60FPS',
+        'video quality 1080 px 60 fps',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    video_quality_720_px_60_fps = P(
+        'VIDEO_QUALITY_720_60FPS',
+        'video quality 720 px 60 fps',
+        GuildFeatureFlag().update_by_keys(
+            boost = True,
+        ),
+    )
+    vip_voice_regions = P(
+        'VIP_REGIONS',
+        'vip voice regions',
+        GuildFeatureFlag(),
+    )
+    web_page = P(
+        'GUILD_WEB_PAGE_VANITY_URL',
+        'web page',
+        GuildFeatureFlag(),
+    )
+    welcome_screen_enabled = P(
+        'WELCOME_SCREEN_ENABLED',
+        'welcome screen enabled',
+        GuildFeatureFlag(),
+    )
+    
+    
     @class_property
-    def onboarding(cls):
+    def role_subscription_purchasable(cls):
         """
-        `.onboarding` is deprecated and will be removed in 2024 January. Please use `.onboarding_enabled` instead.
+        Deprecated and will be removed in 2026 jan. Use `.role_subscriptions_purchasable` instead.
         """
-        warnings.warn(
+        warn(
             (
-                f'`{cls.__name__}.onboarding` is deprecated and will be removed in 2024 January. '
-                f'Please use `.onboarding_enabled` instead.'
+                f'`{cls.__name__}.role_subscription_purchasable` is deprecated and will be removed in 2026 Jan. '
+                f'Use `.role_subscriptions_purchasable` instead.'
             ),
             FutureWarning,
             stacklevel = 3,
         )
-        
-        return cls.onboarding_enabled
+        return cls.role_subscriptions_purchasable
+    
+    
+    @class_property
+    def animated_icon(cls):
+        """
+        Deprecated and will be removed in 2026 jun. Use `.icon_animated` instead.
+        """
+        warn(
+            (
+                f'`{cls.__name__}.animated_icon` is deprecated and will be removed in 2026 jun. '
+                f'Use `.icon_animated` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 3,
+        )
+        return cls.icon_animated
+    
+    
+    @class_property
+    def animated_banner(cls):
+        """
+        Deprecated and will be removed in 2026 jun. Use `.banner_animated` instead.
+        """
+        warn(
+            (
+                f'`{cls.__name__}.animated_banner` is deprecated and will be removed in 2026 jun. '
+                f'Use `.banner_animated` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 3,
+        )
+        return cls.banner_animated
+    
+    
+    @class_property
+    def threads_enabled_testing(cls):
+        """
+        Deprecated and will be removed in 2026 jun. Use `.threads_enabled_test` instead.
+        """
+        warn(
+            (
+                f'`{cls.__name__}.threads_enabled_testing` is deprecated and will be removed in 2026 jun. '
+                f'Use `.threads_enabled_test` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 3,
+        )
+        return cls.threads_enabled_test
+    
+    
+    @class_property
+    def new_thread_permissions(cls):
+        """
+        Deprecated and will be removed in 2026 jun. Use `.thread_permissions_migrated` instead.
+        """
+        warn(
+            (
+                f'`{cls.__name__}.new_thread_permissions` is deprecated and will be removed in 2026 jun. '
+                f'Use `.thread_permissions_migrated` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 3,
+        )
+        return cls.thread_permissions_migrated
+    
+    
+    @class_property
+    def vanity_invite(cls):
+        """
+        Deprecated and will be removed in 2026 jun. Use `.invite_vanity_url` instead.
+        """
+        warn(
+            (
+                f'`{cls.__name__}.vanity_invite` is deprecated and will be removed in 2026 jun. '
+                f'Use `.invite_vanity_url` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 3,
+        )
+        return cls.invite_vanity_url
+    
+    
+    @class_property
+    def private_threads(cls):
+        """
+        Deprecated and will be removed in 2026 jun. Use `.threads_private_enabled` instead.
+        """
+        warn(
+            (
+                f'`{cls.__name__}.private_threads` is deprecated and will be removed in 2026 jun. '
+                f'Use `.threads_private_enabled` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 3,
+        )
+        return cls.threads_private_enabled
+    
+    
+    @class_property
+    def attachment_size_limit_100_mb(cls):
+        """
+        Deprecated and will be removed in 2026 jun. Use `.attachment_size_limit_100_MB` instead.
+        """
+        warn(
+            (
+                f'`{cls.__name__}.attachment_size_limit_100_mb` is deprecated and will be removed in 2026 jun. '
+                f'Use `.attachment_size_limit_100_MB` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 3,
+        )
+        return cls.attachment_size_limit_100_MB
+    
+    
+    @class_property
+    def attachment_size_limit_50_mb(cls):
+        """
+        Deprecated and will be removed in 2026 jun. Use `.attachment_size_limit_50_MB` instead.
+        """
+        warn(
+            (
+                f'`{cls.__name__}.attachment_size_limit_50_mb` is deprecated and will be removed in 2026 jun. '
+                f'Use `.attachment_size_limit_50_MB` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 3,
+        )
+        return cls.attachment_size_limit_50_MB
 
 
-class NsfwLevel(PreinstancedBase):
+class NsfwLevel(PreinstancedBase, value_type = int):
     """
     Represents a guild's nsfw level.
     
@@ -445,22 +1182,16 @@ class NsfwLevel(PreinstancedBase):
     ----------
     name : `str`
         The name of the nsfw filter level.
+    
     value : `int`
         The identifier value the nsfw filter level
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``NsfwLevel``) items
-        Stores the predefined ``NsfwLevel``-s. These can be accessed with their `value` as key.
-    VALUE_TYPE : `type` = `int`
-        The nsfw level' values' type.
-    DEFAULT_NAME : `str` = `'UNDEFINED'`
-        The default name of the nsfw levels.
-    
-    Every predefined nsfw level can be accessed as class attribute as well:
+    Type Attributes
+    ---------------
+    Every predefined nsfw level can be accessed as type attribute as well:
     
     +-----------------------+-------------------+-------+-------+
-    | Class attribute name  | Name              | Value | nsfw  |
+    | Type attribute name   | Name              | Value | nsfw  |
     +=======================+===================+=======+=======+
     | none                  | none              | 0     | False |
     +-----------------------+-------------------+-------+-------+
@@ -471,60 +1202,32 @@ class NsfwLevel(PreinstancedBase):
     | age_restricted        | age_restricted    | 3     | True  |
     +-----------------------+-------------------+-------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    DEFAULT_NAME = 'UNDEFINED'
-    
     __slots__ = ('nsfw', )
     
-    def __init__(self, value, name, nsfw):
+    def __new__(cls, value, name = None, nsfw = True):
         """
         Creates a new nsfw level instance.
         
         Parameters
         ----------
-        value : ``.VALUE_TYPE``
+        value : `int`
             The value of the nsfw level.
-        name : `str`
+        
+        name : `None | str` = `None`, Optional
             The nsfw level name.
-        nsfw : `bool`
+        
+        nsfw : `bool` = `False`, Optional
             Whether the nsfw level refers to being actually nsfw.
         """
-        self.value = value
-        self.name = name
+        self = PreinstancedBase.__new__(cls, value, name)
         self.nsfw = nsfw
-        
-        self.INSTANCES[value] = self
-    
-    
-    @classmethod
-    def _from_value(cls, value):
-        """
-        Creates a new nsfw level from the given value
-        
-        Parameters
-        ----------
-        value : `int`
-            The nsfw level's identifier value.
-        
-        Returns
-        -------
-        self : ``NsfwLevel``
-            The created nsfw level.
-        """
-        self = object.__new__(cls)
-        
-        self.value = value
-        self.name = ''
-        self.nsfw = True
-        self.INSTANCES[value] = self
-        
         return self
     
     
-    def __repr__(self):
-        """Returns the nsfw level's representation."""
-        return f'{self.__class__.__name__}(value = {self.value!r}, name = {self.name!r}, nsfw = {self.nsfw!r})'
+    @copy_docs(PreinstancedBase._put_repr_parts_into)
+    def _put_repr_parts_into(self, repr_parts):
+        repr_parts.append(', nsfw = ')
+        repr_parts.append(repr(self.nsfw))
     
     
     none = P(0, 'none', False)
@@ -533,55 +1236,45 @@ class NsfwLevel(PreinstancedBase):
     age_restricted = P(3, 'age_restricted', True)
 
 
-class MessageNotificationLevel(PreinstancedBase):
+class MessageNotificationLevel(PreinstancedBase, value_type = int):
     """
     Represents the message notification level of a ``Guild``.
     Only used to represents its default message notification level.
     
     Attributes
     ----------
-    value : `int`
-        The Discord side identifier value of the message notification level.
     name : `str`
         The default name of the message notification level.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``MessageNotificationLevel``) items
-        Stores the predefined message notification levels. This container is accessed when translating message
-        notification level's value to it's representation.
-    VALUE_TYPE : `type` = `int`
-        The notification levels' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the notification levels.
+    value : `int`
+        The Discord side identifier value of the message notification level.
     
-    Each predefined message notification level can also be accessed as a class attribute:
+    Type Attributes
+    ---------------
+    Each predefined message notification level can also be accessed as a type attribute:
     
     +-----------------------+---------------+-------+
-    | Class attribute name  | name          | value |
+    | Type attribute name   | name          | value |
     +=======================+===============+=======+
-    | all_messages          | all_messages  | 0     |
+    | all_messages          | all messages  | 0     |
     +-----------------------+---------------+-------+
-    | only_mentions         | only_mentions | 1     |
+    | only_mentions         | only mentions | 1     |
     +-----------------------+---------------+-------+
-    | no_message            | no_messages   | 2     |
+    | no_message            | no messages   | 2     |
     +-----------------------+---------------+-------+
     | none                  | none          | 3     |
     +-----------------------+---------------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
     
     # predefined
-    all_messages = P(0, 'all_messages')
-    only_mentions = P(1, 'only_mentions')
-    no_messages = P(2, 'no_messages')
+    all_messages = P(0, 'all messages')
+    only_mentions = P(1, 'only mentions')
+    no_messages = P(2, 'no messages')
     none = P(3, 'none')
 
 
-class MfaLevel(PreinstancedBase):
+class MfaLevel(PreinstancedBase, value_type = int):
     """
     Represents Discord's Multi-Factor Authentication's levels.
     
@@ -589,32 +1282,22 @@ class MfaLevel(PreinstancedBase):
     ----------
     name : `str`
         The default name of the mfa level.
+    
     value : `int`
         The Discord side identifier value of the Mfa level.
     
-    Class Attributes
+    Type Attributes
     ----------------
-    INSTANCES : `dict` of (`int`, ``MfaLevel``) items
-        Stores the predefined mfa level. This container is accessed when converting an Mfa level's value to
-        it's wrapper side representation.
-    VALUE_TYPE : `type` = `int`
-        The mfa levels' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the mfa levels.
-    
-    Each predefined mfa can also be accessed as class attribute:
+    Each predefined mfa can also be accessed as type attribute:
     
     +-----------------------+-----------+-------+
-    | Class attribute name  | name      | value |
+    | Type attribute name   | name      | value |
     +=======================+===========+=======+
     | none                  | none      | 0     |
     +-----------------------+-----------+-------+
     | elevated              | elevated  | 1     |
     +-----------------------+-----------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
     
     # Predefined
@@ -622,7 +1305,7 @@ class MfaLevel(PreinstancedBase):
     elevated = P(1, 'elevated')
 
 
-class VerificationFieldPlatform(PreinstancedBase):
+class VerificationFieldPlatform(PreinstancedBase, value_type = str):
     """
     Represents the verification field platform of a verification screen.
     
@@ -630,67 +1313,29 @@ class VerificationFieldPlatform(PreinstancedBase):
     ----------
     name : `str`
         The name of the verification field platform.
+    
     value : `str`
         The Discord side identifier value of the verification field platform.
     
-
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`str`, ``VerificationFieldPlatform``) items
-        Stores the predefined ``VerificationFieldPlatform``-s.
-    VALUE_TYPE : `type` = `str`
-        The verification field platforms' values' type.
-    DEFAULT_NAME : `str` = `''`
-        The default name of the verification field platforms. Verification field platforms have their name generated from
-        their value, so at their case it is not applicable.
-    
-    Every predefined verification field platform can be accessed as class attribute as well:
+    Type Attributes
+    ---------------
+    Every predefined verification field platform can be accessed as type attribute as well:
     
     +-----------------------+-----------+-----------+
-    | Class attribute names | Name      | Value     |
+    | Type attribute name   | Name      | Value     |
     +=======================+===========+===========+
     | email                 | email     | email     |
     +-----------------------+-----------+-----------+
     | phone                 | phone     | phone     |
     +-----------------------+-----------+-----------+
     """
-    
-    INSTANCES = {}
-    VALUE_TYPE = str
-    DEFAULT_NAME = ''
-    
     __slots__ = ()
-    
-    @classmethod
-    def _from_value(cls, value):
-        """
-        Creates a new verification field platform from the given value.
-        
-        Parameters
-        ----------
-        value : `str`
-            The verification field platform's identifier value.
-        
-        Returns
-        -------
-        self : ``VerificationFieldPlatform``
-            The verification field platform.
-        """
-        self = object.__new__(cls)
-        self.value = value
-        self.name = value
-        self.INSTANCES[value] = self
-        return self
-    
-    def __repr__(self):
-        """Returns the representation of the verification field platform."""
-        return f'{self.__class__.__name__}(value = {self.value!r})'
     
     email = P('email', 'email')
     phone = P('phone', 'phone')
 
 
-class HubType(PreinstancedBase):
+class HubType(PreinstancedBase, value_type = int):
     """
     Represents Discord's guild's hub type.
     
@@ -698,23 +1343,16 @@ class HubType(PreinstancedBase):
     ----------
     name : `str`
         The default name of the hub type
+    
     value : `int`
         The Discord side identifier value of the hub type
     
-    Class Attributes
+    Type Attributes
     ----------------
-    INSTANCES : `dict` of (`int`, ``HubType``) items
-        Stores the predefined Hub types. This container is accessed when converting an Hub types' value to
-        it's wrapper side representation.
-    VALUE_TYPE : `type` = `int`
-        The hub types' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the hub types
-    
-    Each predefined hub type can also be accessed as class attribute:
+    Each predefined hub type can also be accessed as type attribute:
     
     +-----------------------+---------------+-------+
-    | Class attribute name  | name          | value |
+    | Type attribute name   | name          | value |
     +=======================+===============+=======+
     | none                  | none          | 0     |
     +-----------------------+---------------+-------+
@@ -723,9 +1361,6 @@ class HubType(PreinstancedBase):
     | college               | college       | 2     |
     +-----------------------+---------------+-------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ()
     
     # Predefined

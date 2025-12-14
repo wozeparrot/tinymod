@@ -3,7 +3,7 @@ __all__ = ('DeviceType', 'ShortcutKeyType', 'VoiceConnectionState', 'VoiceSettin
 from ...discord.bases import Preinstance as P, PreinstancedBase
 
 
-class DeviceType(PreinstancedBase):
+class DeviceType(PreinstancedBase, value_type = str):
     """
     Represents a device's type.
     
@@ -24,10 +24,10 @@ class DeviceType(PreinstancedBase):
     DEFAULT_NAME : `str` = `'UNDEFINED'`
         The default name of the device types.
     
-    Every predefined device type can be accessed as class attribute as well:
+    Every predefined device type can be accessed as type attribute as well:
     
     +-----------------------+-------------------+-------------------+
-    | Class attribute name  | Name              | Value             |
+    | Type attribute name   | Name              | Value             |
     +=======================+===================+===================+
     | audio_input           | audio_input       | `'audioinput'`    |
     +-----------------------+-------------------+-------------------+
@@ -47,7 +47,7 @@ class DeviceType(PreinstancedBase):
     video_input = P('videoinput', 'video_input')
 
 
-class ShortcutKeyType(PreinstancedBase):
+class ShortcutKeyType(PreinstancedBase, value_type = int):
     """
     Represents an key' type.
     
@@ -68,10 +68,10 @@ class ShortcutKeyType(PreinstancedBase):
     DEFAULT_NAME : `str` = `'UNDEFINED'`
         The default name of the key types.
     
-    Every predefined key type can be accessed as class attribute as well:
+    Every predefined key type can be accessed as type attribute as well:
     
     +-----------------------+-----------------------+-------+
-    | Class attribute name  | Name                  | Value |
+    | Type attribute name   | Name                  | Value |
     +=======================+=======================+=======+
     | keyboard_key          | keyboard_key          | `0`   |
     +-----------------------+-----------------------+-------+
@@ -95,7 +95,7 @@ class ShortcutKeyType(PreinstancedBase):
 
 
 
-class VoiceSettingsModeType(PreinstancedBase):
+class VoiceSettingsModeType(PreinstancedBase, value_type = str):
     """
     Represents a voice setting mode's type.
     
@@ -116,10 +116,10 @@ class VoiceSettingsModeType(PreinstancedBase):
     DEFAULT_NAME : `str` = `'UNDEFINED'`
         The default name of the voice setting mode types.
     
-    Every predefined voice setting mode type can be accessed as class attribute as well:
+    Every predefined voice setting mode type can be accessed as type attribute as well:
     
     +-----------------------+-------------------+-----------------------+
-    | Class attribute name  | Name              | Value                 |
+    | Type attribute name   | Name              | Value                 |
     +=======================+===================+=======================+
     | push_to_talk          | push_to_talk      | `'PUSH_TO_TALK'`      |
     +-----------------------+-------------------+-----------------------+
@@ -136,7 +136,7 @@ class VoiceSettingsModeType(PreinstancedBase):
     audio_output = P('VOICE_ACTIVITY', 'audio_output')
 
 
-class VoiceConnectionState(PreinstancedBase):
+class VoiceConnectionState(PreinstancedBase, value_type = str):
     """
     Represents a voice connection's state.
     
@@ -157,10 +157,10 @@ class VoiceConnectionState(PreinstancedBase):
     DEFAULT_NAME : `str` = `'UNDEFINED'`
         The default name of the voice connection states.
     
-    Every predefined voice connection state can be accessed as class attribute as well:
+    Every predefined voice connection state can be accessed as type attribute as well:
     
     +-----------------------+-----------------------+---------------------------+
-    | Class attribute name  | Name                  | Value                     |
+    | Type attribute name   | Name                  | Value                     |
     +=======================+=======================+===========================+
     | disconnected          | disconnected          | `'DISCONNECTED'`          |
     +-----------------------+-----------------------+---------------------------+

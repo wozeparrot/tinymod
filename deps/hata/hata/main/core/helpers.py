@@ -1,7 +1,7 @@
 __all__ = ()
 
 import sys
-from os import geteuid as get_effective_user_id, sep as PATH_SEPARATOR
+from os import sep as PATH_SEPARATOR
 from os.path import (
     basename as get_file_name, commonpath as _get_common_path, isabs as is_absolute_path, split as split_path
 )
@@ -12,6 +12,13 @@ from scarletio import any_to_any, get_short_executable
 from ... import __package__ as PACKAGE_NAME
 
 from .constants import PACKAGE_MAIN_FILE, UPPER_DIRECTORY, WORKING_DIRECTORY
+
+
+# Conditional imports
+if sys.platform == 'linux':
+    from os import geteuid as get_effective_user_id
+else:
+    get_effective_user_id = None
 
 
 def get_main_call(with_parameters = False):
@@ -159,32 +166,37 @@ def render_main_call_into(into, with_parameters = False):
     -------
     into : `list` of `str`
     """
-    if get_effective_user_id() == 0:
+    if (get_effective_user_id is not None) and (get_effective_user_id() == 0):
         into.append('sudo ')
     
     system_parameters = sys.argv
-    if len(system_parameters) < 1:
-        into = _render_default_main_call_into(into)
     
-    else:
+    while True:
+        if len(system_parameters) < 1:
+            into = _render_default_main_call_into(into)
+            with_parameters = False
+            break
+        
         executed_file = system_parameters[0]
         if executed_file == PACKAGE_MAIN_FILE:
             into = _render_default_main_call_into(into)
-            if with_parameters:
-                into = _render_parameters_into(into, system_parameters[1:])
+            break
+            
+        if (UPPER_DIRECTORY != WORKING_DIRECTORY):
+            executed_file_name = get_file_name(executed_file)
+            if'.' not in executed_file_name:
+                into.append(executed_file_name)
+                break
         
-        elif (UPPER_DIRECTORY != WORKING_DIRECTORY) and (get_file_name(executed_file) == PACKAGE_NAME):
-            into.append(PACKAGE_NAME)
+        into.append(get_short_executable())
+        into.append(' ')
+        executed_file, library_mode = normalize_executed_file(executed_file)
+        if library_mode:
+            into.append('-m ')
+        into.append(executed_file)
+        break
         
-        else:
-            into.append(get_short_executable())
-            into.append(' ')
-            executed_file, library_mode = normalize_executed_file(executed_file)
-            if library_mode:
-                into.append('-m ')
-            into.append(executed_file)
-        
-        if with_parameters:
-            into = _render_parameters_into(into, system_parameters[1:])
+    if with_parameters:
+        into = _render_parameters_into(into, system_parameters[1:])
     
     return into

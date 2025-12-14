@@ -2,8 +2,7 @@
 
 [Top.gg](https://top.gg) is a Discord Bot and Server discovery site, for spicing up your Discord experience.
 
-Discord bot listings, like [top.gg](https://top.gg) help your bot grow, but before putting your bot on one, I recommend
-reading [this article](https://github.com/KusaDaDev/Organic-Growth) as a guidance.
+Discord bot listings, like [top.gg](https://top.gg) help your bot grow.
 
 # Setup
 
@@ -27,7 +26,7 @@ from hata import Client
 from hata.ext.top_gg import setup_ext_top_gg
 
 Sakuya = Client(TOKEN)
-top_gg_client = setup_ext_top_gg(Sakuya, top_gg_token=TOP_GG_TOKEN)
+top_gg_client = setup_ext_top_gg(Sakuya, top_gg_token = TOP_GG_TOKEN)
 ```
 
 ## Parameters
@@ -113,7 +112,7 @@ bot_info = await Sakuya.top_gg.get_bot_info()
 Returns bot information based on the given query.
 
 ```py3
-bots = await Sakuya.top_gg.get_bots(limit=50, offset=0, sort_by=None, search=None)
+bots = await Sakuya.top_gg.get_bots(limit = 50, offset = 0, sort_by = None, search = None)
 ```
 
 `sort_by` fields and `search` field's keys might be the following:

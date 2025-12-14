@@ -2,7 +2,11 @@ __all__ = ('ACTIVITY_UNKNOWN', 'Activity')
 
 from scarletio import RichAttributeErrorBaseType, copy_docs
 
-from ...http import urls as module_urls
+from ...http.urls import (
+    build_activity_asset_image_invite_cover_url, build_activity_asset_image_invite_cover_url_as,
+    build_activity_asset_image_large_url, build_activity_asset_image_large_url_as,
+    build_activity_asset_image_small_url, build_activity_asset_image_small_url_as
+)
 
 from ..activity_metadata import ActivityMetadataBase
 
@@ -10,7 +14,7 @@ from .constants import (
     ACTIVITY_COLOR_GAME, ACTIVITY_COLOR_NONE, ACTIVITY_COLOR_SPOTIFY, ACTIVITY_COLOR_STREAM, ACTIVITY_CUSTOM_IDS,
     ACTIVITY_CUSTOM_ID_DEFAULT
 )
-from .fields import parse_type, put_type_into, validate_type
+from .fields import parse_type, put_type, validate_type
 from .preinstanced import ActivityType
 
 
@@ -22,6 +26,7 @@ class Activity(RichAttributeErrorBaseType):
     ----------
     metadata : ``ActivityMetadataBase``
         Metadata of the activity containing extra fields about itself.
+    
     type : ``ActivityType``
         The activity's type.
     """
@@ -33,10 +38,12 @@ class Activity(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        name : `None`, `str` =  `None`, Optional
+        name : `None | str` =  `None`, Optional
             The name of the activity.
+        
         activity_type : `int`, ``ActivityType``, Optional (Keyword only)
             The type value of the activity.
+        
         **keyword_parameters : Keyword parameters
             Additional parameters to pass to the activity-type specific constructor.
         
@@ -44,29 +51,53 @@ class Activity(RichAttributeErrorBaseType):
         ----------------
         activity_id : `int`, Optional (Keyword only)
             The id of the activity.
+        
         application_id : `int`, Optional (Keyword only)
             The id of the activity's application.
-        assets : `None`, ``ActivityAssets``, Optional (Keyword only)
+        
+        assets : `None | ActivityAssets`, Optional (Keyword only)
              The activity's assets.
-        created_at : `None`, `datetime`, Optional (Keyword only)
+        
+        buttons : `None | str | iterable<str>`, Optional (Keyword only)
+            The labels of the buttons on the activity.
+        
+        created_at : `None | DateTime`, Optional (Keyword only)
             When the activity was created.
-        details : `None`, `str`, Optional (Keyword only)
+        
+        details : `None | str`, Optional (Keyword only)
             What the player is currently doing.
-        flags : ``ActivityFlag``, `int`, Optional (Keyword only)
+        
+        details_url : `None | str`, Optional (Keyword only)
+            Url to open when a user click on the player is currently doing.
+        
+        flags : `ActivityFlag | int`, Optional (Keyword only)
             The flags of the activity.
-        party : `None`, ``ActivityParty``, Optional (Keyword only)
+        
+        hang_type : `HangType | str`, Optional (Keyword only)
+            The hang state of the activity.
+        
+        party : `None | ActivityParty`, Optional (Keyword only)
             The activity's party.
-        secrets : `None`, ``ActivitySecrets``, Optional (Keyword only)
+        
+        secrets : `None | ActivitySecrets`, Optional (Keyword only)
             The activity's secrets.
-        session_id : `None`, `str`, Optional (Keyword only)
+        
+        session_id : `None | str`, Optional (Keyword only)
             Spotify activity's session's id.
-        state : `None`, `str`, Optional (Keyword only)
+        
+        state : `None | str`, Optional (Keyword only)
             The player's current party status.
-        sync_id : `None`, `str`, Optional (Keyword only)
+        
+        state : `None | str`, Optional (Keyword only)
+            The player's current party status.
+        
+        sync_id : `None | str`, Optional (Keyword only)
             The ID of the currently playing track of a spotify activity.
-        timestamps : ``ActivityTimestamps``, Optional (Keyword only)
+        
+        timestamps : `None | ActivityTimestamps`, Optional (Keyword only)
             The activity's timestamps.
-        url : `None`, `str`, Optional (Keyword only)
+        
+        url : `None | str`, Optional (Keyword only)
             The url of the activity. Only twitch and youtube urls are supported.
         
         Raises
@@ -79,7 +110,7 @@ class Activity(RichAttributeErrorBaseType):
         """
         # activity_type
         if activity_type is ...:
-            activity_type = ActivityType.game
+            activity_type = ActivityType.playing
         else:
             activity_type = validate_type(activity_type)
         
@@ -129,7 +160,7 @@ class Activity(RichAttributeErrorBaseType):
     
     def __repr__(self):
         """Returns the activity's representation."""
-        repr_parts = ['<', self.__class__.__name__]
+        repr_parts = ['<', type(self).__name__]
         
         # type
         activity_type = self.type
@@ -155,12 +186,12 @@ class Activity(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `None`, `dict` of (`str`, `object`) items
+        data : `None`, `dict<str, object>`
             Activity data received from Discord.
         
         Returns
         -------
-        activity : ``Activity``
+        activity : `instance<cls>`
         """
         if data is None:
             return ACTIVITY_UNKNOWN
@@ -182,17 +213,19 @@ class Activity(RichAttributeErrorBaseType):
         ----------
         defaults : `bool` = `False`, Optional (Keyword only)
             Whether fields with the default values should be included as well.
+        
         include_internals : `bool` = `False`, Optional (Keyword only)
             Whether internal fields, like id-s should be present as well.
+        
         user : `bool` = `False`, Optional (Keyword only)
             Whether not only bot compatible fields should be included.
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = self.metadata.to_data(defaults = defaults, include_internals = include_internals, user = user)
-        put_type_into(self.type, data, defaults)
+        put_type(self.type, data, defaults)
         data['type'] = self.type.value
         
         if include_internals:
@@ -209,7 +242,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Data received from Discord.
         """
         activity_type = parse_type(data)
@@ -231,12 +264,12 @@ class Activity(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Data received from Discord.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dict is optional.
         
         Returned Data Structure
@@ -245,35 +278,43 @@ class Activity(RichAttributeErrorBaseType):
         +-------------------+-----------------------------------+
         | Keys              | Values                            |
         +===================+===================================+
-        | assets            | `None`, ``ActivityAssets``        |
+        | assets            | ``None | ActivityAssets``         |
         +-------------------+-----------------------------------+
-        | created_at        | `None`, `datetime`                |
+        | buttons           | `None | tuple<str>`               |
         +-------------------+-----------------------------------+
-        | details           | `None`, `str`                     |
+        | created_at        | `None | DateTime`                 |
         +-------------------+-----------------------------------+
-        | emoji             | `None`, ``Emoji``                 |
+        | details           | `None | str`                      |
+        +-------------------+-----------------------------------+
+        | details_url       | `None | str`                      |
+        +-------------------+-----------------------------------+
+        | emoji             | ``None | Emoji``                  |
         +-------------------+-----------------------------------+
         | flags             | ``ActivityFlag``                  |
+        +-------------------+-----------------------------------+
+        | hang_type         | ``HangType``                      |
         +-------------------+-----------------------------------+
         | name              | `str`                             |
         +-------------------+-----------------------------------+
         | metadata          | ``ActivityMetadataBase``          |
         +-------------------+-----------------------------------+
-        | party             | `None`, ``ActivityParty``         |
+        | party             | ``None | ActivityParty``          |
         +-------------------+-----------------------------------+
-        | secrets           | `None`, ``ActivitySecrets``       |
+        | secrets           | ``None | ActivitySecrets``        |
         +-------------------+-----------------------------------+
-        | session_id        | `None`, `str`                     |
+        | session_id        | `None | str`                      |
         +-------------------+-----------------------------------+
-        | state             | `None`, `str`                     |
+        | state             | `None | str`                      |
         +-------------------+-----------------------------------+
-        | sync_id           | `None`, `str`                     |
+        | state_url         | `None | str`                      |
         +-------------------+-----------------------------------+
-        | timestamps        | `None`, `ActivityTimestamps``     |
+        | sync_id           | `None | str`                      |
+        +-------------------+-----------------------------------+
+        | timestamps        | ``None | ActivityTimestamps``     |
         +-------------------+-----------------------------------+
         | type              | ``ActivityType``                  |
         +-------------------+-----------------------------------+
-        | url               | `None`, `str`                     |
+        | url               | `None | str`                      |
         +-------------------+-----------------------------------+
         """
         activity_type = parse_type(data)
@@ -321,6 +362,7 @@ class Activity(RichAttributeErrorBaseType):
         ----------
         activity_type : `int`, ``ActivityType``, Optional (Keyword only)
             The type value of the activity.
+        
         **keyword_parameters : Keyword parameters
             Additional parameters to pass to the activity-type specific constructor.
         
@@ -328,31 +370,56 @@ class Activity(RichAttributeErrorBaseType):
         ----------------
         activity_id : `int`, Optional (Keyword only)
             The id of the activity.
+        
         application_id : `int`, Optional (Keyword only)
             The id of the activity's application.
-        assets : `None`, ``ActivityAssets``, Optional (Keyword only)
+        
+        assets : `None | ActivityAssets`, Optional (Keyword only)
              The activity's assets.
-        created_at : `None`, `datetime`, Optional (Keyword only)
+        
+        buttons : `None | str | iterable<str>`, Optional (Keyword only)
+            The labels of the buttons on the activity.
+        
+        created_at : `None | DateTime`, Optional (Keyword only)
             When the activity was created.
-        details : `None`, `str`, Optional (Keyword only)
+        
+        details : `None | str`, Optional (Keyword only)
             What the player is currently doing.
-        flags : ``ActivityFlag``, `int`, Optional (Keyword only)
+        
+        details_url : `None | str`, Optional (Keyword only)
+            Url to open when a user click on the player is currently doing.
+        
+        flags : `ActivityFlag | int`, Optional (Keyword only)
             The flags of the activity.
-        name : `None`, `str`, Optional (Keyword only)
+        
+        hang_type : `HangType | str`, Optional (Keyword only)
+            The hang state of the activity.
+        
+        name : `None | str`, Optional (Keyword only)
             The name of the activity.
-        party : `None`, ``ActivityParty``, Optional (Keyword only)
+        
+        party : `None | ActivityParty`, Optional (Keyword only)
             The activity's party.
-        secrets : `None`, ``ActivitySecrets``, Optional (Keyword only)
+        
+        secrets : `None | ActivitySecrets`, Optional (Keyword only)
             The activity's secrets.
-        session_id : `None`, `str`, Optional (Keyword only)
+        
+        session_id : `None | str`, Optional (Keyword only)
             Spotify activity's session's id.
-        state : `None`, `str`, Optional (Keyword only)
+        
+        state : `None | str`, Optional (Keyword only)
             The player's current party status.
-        sync_id : `None`, `str`, Optional (Keyword only)
+        
+        state : `None | str`, Optional (Keyword only)
+            The player's current party status.
+        
+        sync_id : `None | str`, Optional (Keyword only)
             The ID of the currently playing track of a spotify activity.
-        timestamps : ``ActivityTimestamps``, Optional (Keyword only)
+        
+        timestamps : `None | ActivityTimestamps`, Optional (Keyword only)
             The activity's timestamps.
-        url : `None`, `str`, Optional (Keyword only)
+        
+        url : `None | str`, Optional (Keyword only)
             The url of the activity. Only twitch and youtube urls are supported.
         
         Returns
@@ -391,6 +458,7 @@ class Activity(RichAttributeErrorBaseType):
         new.type = activity_type
         return new
     
+    
     # Field proxies
     
     @property
@@ -403,7 +471,13 @@ class Activity(RichAttributeErrorBaseType):
     @copy_docs(ActivityMetadataBase.assets)
     def assets(self):
         return self.metadata.assets
-        
+    
+    
+    @property
+    @copy_docs(ActivityMetadataBase.buttons)
+    def buttons(self):
+        return self.metadata.buttons
+    
     
     @property
     @copy_docs(ActivityMetadataBase.created_at)
@@ -418,6 +492,12 @@ class Activity(RichAttributeErrorBaseType):
     
     
     @property
+    @copy_docs(ActivityMetadataBase.details_url)
+    def details_url(self):
+        return self.metadata.details_url
+    
+    
+    @property
     @copy_docs(ActivityMetadataBase.emoji)
     def emoji(self):
         return self.metadata.emoji
@@ -427,6 +507,12 @@ class Activity(RichAttributeErrorBaseType):
     @copy_docs(ActivityMetadataBase.flags)
     def flags(self):
         return self.metadata.flags
+    
+    
+    @property
+    @copy_docs(ActivityMetadataBase.hang_type)
+    def hang_type(self):
+        return self.metadata.hang_type
     
     
     @property
@@ -466,6 +552,12 @@ class Activity(RichAttributeErrorBaseType):
     
     
     @property
+    @copy_docs(ActivityMetadataBase.state_url)
+    def state_url(self):
+        return self.metadata.state_url
+    
+    
+    @property
     @copy_docs(ActivityMetadataBase.sync_id)
     def sync_id(self):
         return self.metadata.sync_id
@@ -494,7 +586,7 @@ class Activity(RichAttributeErrorBaseType):
         color : ``Color``
         """
         activity_type = self.type
-        if (activity_type is ActivityType.game):
+        if (activity_type is ActivityType.playing):
             color = ACTIVITY_COLOR_GAME
             
         elif (activity_type is ActivityType.custom):
@@ -509,12 +601,9 @@ class Activity(RichAttributeErrorBaseType):
         elif (activity_type is ActivityType.spotify):
             color = ACTIVITY_COLOR_SPOTIFY
         
-        elif (activity_type is ActivityType.unknown):
-            color = ACTIVITY_COLOR_NONE
-        
         else:
             # Place holder for new activity types.
-            # Right now covers: watching & competing
+            # Right now covers: watching & competing & hanging
             color = ACTIVITY_COLOR_GAME
         
         return color
@@ -549,7 +638,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        name : `None`, `str`
+        name : `None | str`
         """
         if self.type is not ActivityType.stream:
             return None
@@ -577,7 +666,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        preview_image_url : `None`, `str`
+        preview_image_url : `None | str`
         """
         twitch_name = self.twitch_name
         if (twitch_name is not None):
@@ -593,7 +682,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        video_id : `None`, `str`
+        video_id : `None | str`
         """
         if self.type is not ActivityType.stream:
             return None
@@ -621,7 +710,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        preview_image_url : `None`, `str`
+        preview_image_url : `None | str`
         """
         youtube_video_id = self.youtube_video_id
         if (youtube_video_id is not None):
@@ -637,7 +726,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        duration : `None`, `timedelta`
+        duration : `None`, `TimeDelta`
         """
         if self.type is not ActivityType.spotify:
             return None
@@ -663,7 +752,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        name : `None`, `str`
+        name : `None | str`
         """
         if self.type is not ActivityType.spotify:
             return None
@@ -691,7 +780,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        album_cover_url : `None`, `str`
+        album_cover_url : `None | str`
         """
         spotify_cover_id = self.spotify_cover_id
         if (spotify_cover_id is not None):
@@ -707,7 +796,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        track_id : `None`, `str`
+        track_id : `None | str`
         """
         if self.type is not ActivityType.spotify:
             return None
@@ -724,17 +813,169 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        url : `None`, `str`
+        url : `None | str`
         """
         spotify_track_id = self.spotify_track_id
         if (spotify_track_id is not None):
             return f'https://open.spotify.com/track/{spotify_track_id}'
     
     
-    image_large_url = property(module_urls.activity_asset_image_large_url)
-    image_large_url_as = module_urls.activity_asset_image_large_url_as
-    image_small_url = property(module_urls.activity_asset_image_small_url)
-    image_small_url_as = module_urls.activity_asset_image_small_url_as
+    @property
+    def image_invite_cover_url(self):
+        """
+        Returns the activity's invite cover asset image's url.
+        If the activity has no invite cover asset image, then returns `None`.
+        
+        Returns
+        -------
+        image_invite_cover_url : `None | str`
+        """
+        application_id = self.application_id
+        
+        assets = self.assets
+        if assets is None:
+            image_invite_cover = None
+        else:
+            image_invite_cover = assets.image_invite_cover
+        
+        return build_activity_asset_image_invite_cover_url(application_id, image_invite_cover)
+    
+    
+    def image_invite_cover_url_as(self, ext = None, size = None):
+        """
+        Returns the activity's invite cover asset image's url.
+        If the activity has no invite cover asset image, then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        
+        Raises
+        ------
+        ValueError
+            If `ext`, `size` was not passed as any of the expected values.
+        """
+        application_id = self.application_id
+        
+        assets = self.assets
+        if assets is None:
+            image_invite_cover = None
+        else:
+            image_invite_cover = assets.image_invite_cover
+        
+        return build_activity_asset_image_invite_cover_url_as(application_id, image_invite_cover, ext, size)
+    
+    
+    @property
+    def image_large_url(self):
+        """
+        Returns the activity's large asset image's url. If the activity has no large asset image, then returns `None`.
+        
+        Returns
+        -------
+        image_large_url : `None | str`
+        """
+        application_id = self.application_id
+        
+        assets = self.assets
+        if assets is None:
+            image_large = None
+        else:
+            image_large = assets.image_large
+        
+        return build_activity_asset_image_large_url(application_id, image_large)
+    
+    
+    def image_large_url_as(self, ext = None, size = None):
+        """
+        Returns the activity's large asset image's url. If the activity has no large asset image, then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        
+        Raises
+        ------
+        ValueError
+            If `ext`, `size` was not passed as any of the expected values.
+        """
+        application_id = self.application_id
+        
+        assets = self.assets
+        if assets is None:
+            image_large = None
+        else:
+            image_large = assets.image_large
+        
+        return build_activity_asset_image_large_url_as(application_id, image_large, ext, size)
+    
+    
+    @property
+    def image_small_url(self):
+        """
+        Returns the activity's small asset image's url. If the activity has no small asset image, then returns `None`.
+        
+        Returns
+        -------
+        image_small_url : `None | str`
+        """
+        application_id = self.application_id
+        
+        assets = self.assets
+        if assets is None:
+            image_small = None
+        else:
+            image_small = assets.image_small
+        
+        return build_activity_asset_image_small_url(application_id, image_small)
+    
+    
+    def image_small_url_as(self, ext = None, size = None):
+        """
+        Returns the activity's small asset image's url. If the activity has no small asset image, then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        
+        Raises
+        ------
+        ValueError
+            If `ext`, `size` was not passed as any of the expected values.
+        """
+        application_id = self.application_id
+        
+        assets = self.assets
+        if assets is None:
+            image_small = None
+        else:
+            image_small = assets.image_small
+        
+        return build_activity_asset_image_small_url_as(application_id, image_small, ext, size)
     
     
     @property
@@ -744,7 +985,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        start : `None`, `datetime`
+        start : `None | DateTime`
         """
         timestamps = self.timestamps
         if (timestamps is not None):
@@ -758,7 +999,7 @@ class Activity(RichAttributeErrorBaseType):
         
         Returns
         -------
-        start : `None`, `datetime`
+        start : `None | DateTime`
         """
         timestamps = self.timestamps
         if (timestamps is not None):

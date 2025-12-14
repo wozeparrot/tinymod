@@ -1,16 +1,16 @@
 __all__ = ()
 
-from warnings import warn
-
 from scarletio import Compound
 
 from ...audit_logs import AuditLog, AuditLogEntryType, AuditLogIterator
 from ...bases import maybe_snowflake
 from ...channel import VoiceRegion
 from ...guild import (
-    Guild, GuildFeature, GuildPreview, GuildWidget, VerificationScreen, WelcomeScreen, create_partial_guild_from_data
+    Guild, GuildActivityOverview, GuildPreview, GuildWidget, VerificationScreen, WelcomeScreen,
+    create_partial_guild_from_data
 )
 from ...guild.guild.utils import GUILD_FIELD_CONVERTERS, create_new_guild_data
+from ...guild.guild_activity_overview.utils import GUILD_ACTIVITY_OVERVIEW_FIELD_CONVERTERS
 from ...guild.guild_incidents.utils import GUILD_INCIDENTS_FIELD_CONVERTERS
 from ...guild.guild_inventory_settings.utils import GUILD_INVENTORY_SETTINGS_FIELD_CONVERTERS
 from ...guild.verification_screen.utils import VERIFICATION_SCREEN_FIELD_CONVERTERS
@@ -20,7 +20,8 @@ from ...payload_building import build_edit_payload
 from ...role import Role
 from ...onboarding import OnboardingScreen
 from ...onboarding.onboarding_screen.utils import (
-    ONBOARDING_FIELD_CONVERTERS, flatten_emoji_data_in_onboarding_screen_prompt_options
+    ONBOARDING_FIELD_CONVERTERS, flatten_emoji_data_in_onboarding_screen_prompt_options,
+    populate_prompt_ids_in_onboarding_screen_prompt_options
 )
 from ...user import ClientUserBase, GuildProfile, PremiumType, User, UserFlag
 from ...utils import log_time_converter
@@ -74,7 +75,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The id of the guild, what's preview will be requested
         
         Returns
@@ -104,7 +105,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild from where the user will be removed.
         user : ``ClientUserBase``, `int`
             The user to delete from the guild.
@@ -137,7 +138,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild what's welcome screen will be requested.
         
         Returns
@@ -147,7 +148,7 @@ class ClientCompoundGuildEndpoints(Compound):
         Raises
         ------
         TypeError
-            - If `guild` is not ``Guild``, `int`.
+            - If `guild` is not ``int | Guild``.
         ConnectionError
             No internet connection.
         DiscordException
@@ -167,7 +168,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, what's welcome screen will be edited.
         
         welcome_screen_template : `None`, ``WelcomeScreen``` = `None`, Optional
@@ -194,7 +195,7 @@ class ClientCompoundGuildEndpoints(Compound):
         Raises
         ------
         TypeError
-            - If `guild` is not ``Guild``, `int`.
+            - If `guild` is not ``int | Guild``.
             - If a parameter's type is incorrect.
         ValueError
             - If a parameter's value is incorrect.
@@ -218,7 +219,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, what's verification screen will be requested.
 
         Returns
@@ -228,7 +229,7 @@ class ClientCompoundGuildEndpoints(Compound):
         Raises
         ------
         TypeError
-            - If `guild` was not ``Guild``, `int`.
+            - If `guild` was not ``int | Guild``.
         ConnectionError
             No internet connection.
         DiscordException
@@ -252,7 +253,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild what's verification screen will be edited.
         
         verification_screen_template : `None`, ``VerificationScreen``` = `None`, Optional
@@ -267,7 +268,7 @@ class ClientCompoundGuildEndpoints(Compound):
         description  : `None`, `str`, Optional (Keyword only)
             The guild's description shown in the verification screen.
         
-        edited_at : `None`, `datetime`, Optional (Keyword only)
+        edited_at : `None | DateTime`, Optional (Keyword only)
             When the last version of the screen was created.
         
         enabled : `bool`, Optional (Keyword only)
@@ -283,7 +284,7 @@ class ClientCompoundGuildEndpoints(Compound):
         Raises
         ------
         TypeError
-            - If `guild` was not ``Guild``, `int`.
+            - If `guild` was not ``int | Guild``.
             - If a parameter's type is incorrect.
         ValueError
             - If a parameter's value is incorrect.
@@ -310,7 +311,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild what's onboarding screen will be requested.
         
         Returns
@@ -320,7 +321,7 @@ class ClientCompoundGuildEndpoints(Compound):
         Raises
         ------
         TypeError
-            - If `guild` is not ``Guild``, `int`.
+            - If `guild` is not ``int | Guild``.
         ConnectionError
             No internet connection.
         DiscordException
@@ -340,7 +341,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to edit its onboarding screen.
         
         onboarding_screen_template : `None`, ``OnboardingScreen`` = `None`, Optional
@@ -373,7 +374,7 @@ class ClientCompoundGuildEndpoints(Compound):
         Raises
         ------
         TypeError
-            - If `guild` is not ``Guild``, `int`.
+            - If `guild` is not ``int | Guild``.
         ConnectionError
             No internet connection.
         DiscordException
@@ -384,6 +385,9 @@ class ClientCompoundGuildEndpoints(Compound):
         
         # https://github.com/discord/discord-api-docs/pull/6479
         data = flatten_emoji_data_in_onboarding_screen_prompt_options(data)
+        
+        # this one has no ticket yet lmeow
+        data = populate_prompt_ids_in_onboarding_screen_prompt_options(data, onboarding_screen_template)
         
         onboarding_screen_data = await self.api.onboarding_screen_edit(guild_id, data, reason)
         return OnboardingScreen.from_data(onboarding_screen_data)
@@ -399,7 +403,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to request.
         
         Returns
@@ -438,7 +442,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to sync.
 
         Returns
@@ -538,7 +542,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to delete.
         
         Raises
@@ -574,10 +578,10 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Other Parameters
         ----------------
-        afk_channel_id : `None`, `int`, Optional (Keyword only)
+        afk_channel_id : `None | int`, Optional (Keyword only)
             The id of the guild's afk channel. The id should be one of the channel's id from `channels`.
         
-        afk_timeout : `None`, `int` = `None`, Optional (Keyword only)
+        afk_timeout : `None | int` = `None`, Optional (Keyword only)
             The afk timeout for the users at the guild's afk channel.
         
         channels : `None`, `list` of (`dict<str, object>`, ``Channel``), Optional (Keyword only)
@@ -637,7 +641,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             Where the pruning will be executed.
         days : `int`
             The amount of days since at least the users need to inactive. Can be in range [1:30].
@@ -651,7 +655,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Returns
         -------
-        count : `None`, `int`
+        count : `None | int`
             The number of pruned users or `None` if `count` is set to `False`.
         
         Raises
@@ -736,7 +740,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`.
+        guild : ``int | Guild``.
             Where the counting of prunable users will be done.
         days : `int`
             The amount of days since at least the users need to inactive. Can be in range [1:30].
@@ -801,9 +805,6 @@ class ClientCompoundGuildEndpoints(Compound):
         guild,
         guild_template = None,
         *,
-        add_feature = ...,
-        remove_feature = ...,
-        preferred_locale = ...,
         reason = None,
         **keyword_parameters,
     ):
@@ -814,10 +815,10 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to edit.
         
-        guild_template : `None`, ``Guild`` = `None`, Optional
+        guild_template : ``None | Guild`` = `None`, Optional
             Guild entity to use as a template.
         
         reason : `None`, `str` = `None`, Optional (Keyword only)
@@ -834,7 +835,7 @@ class ClientCompoundGuildEndpoints(Compound):
         afk_timeout : `int`, Optional (Keyword only)
             The afk timeout at the `afk_channel`.
         
-        banner : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        banner : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The guild's banner.
         
         boost_progress_bar_enabled : `bool`, Optional (Keyword only)
@@ -846,7 +847,7 @@ class ClientCompoundGuildEndpoints(Compound):
         description : `None`, `str`
             Description of the guild. The guild must be a Community guild.
         
-        discovery_splash : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        discovery_splash : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The guild's discovery splash.
         
         features : `None`, `iterable` of `(`int`, `GuildFeature``), Optional (Keyword only)
@@ -855,10 +856,10 @@ class ClientCompoundGuildEndpoints(Compound):
         hub_type : ``HubType``, `int`, Optional (Keyword only)
             The guild's hub type.
         
-        icon : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        icon : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The guild's icon.
         
-        invite_splash : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        invite_splash : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The guild's invite splash.
         
         locale : ``Locale``, `int`, Optional (Keyword only)
@@ -919,117 +920,7 @@ class ClientCompoundGuildEndpoints(Compound):
         """
         guild, guild_id = get_guild_and_id(guild)
         
-        # Deprecations
-        if preferred_locale is not ...:
-            warn(
-                (
-                    f'`{type(self).__name__}.guild_edit`\'s `preferred_locale` parameter is deprecated and will be '
-                    f'removed in 2024 February. Please use `locale` instead.'
-                ),
-                FutureWarning,
-                stacklevel = 2,
-            )
-            keyword_parameters['locale'] = preferred_locale
-        
         data = build_edit_payload(guild, guild_template, GUILD_FIELD_CONVERTERS, keyword_parameters)
-        
-        # Deprecations
-        if (add_feature is not ...) or (remove_feature is not ...):
-            warn(
-                (
-                    f'`add_feature` and `remove_feature` parameters are deprecated of '
-                    f'`{self.__class__.__name__}.guild_edit` and they will be removed in 2023 December. '
-                    f'Please use the `features` parameter accordingly.'
-                ),
-                FutureWarning,
-                stacklevel = 2,
-            )
-            
-            # Collect actual
-            features = set()
-            if (guild is not None):
-                for feature in guild.iter_features():
-                    features.add(feature.value)
-            
-            # Collect added
-            # Use GOTO
-            while True:
-                if add_feature is ...:
-                    break
-                
-                if isinstance(add_feature, GuildFeature):
-                    feature = add_feature.value
-                elif isinstance(add_feature, str):
-                    feature = add_feature
-                else:
-                    iter_func = getattr(type(add_feature), '__iter__', None)
-                    if iter_func is None:
-                        raise TypeError(
-                            f'`add_feature` can be `str`, `{GuildFeature.__name__}`, `iterable` of '
-                            f'(`str`, `{GuildFeature.__name__}`), got {add_feature.__class__.__name__}; '
-                            f'{add_feature!r}.'
-                        )
-                    
-                    for index, feature in enumerate(iter_func(add_feature)):
-                        if isinstance(feature, GuildFeature):
-                            feature = feature.value
-                        elif isinstance(feature, str):
-                            pass
-                        else:
-                            raise TypeError(
-                                f'`add_feature` was given as `iterable` so it expected to have '
-                                f'`{GuildFeature.__name__}`, `str` elements, but element `{index!r}` is '
-                                f'{feature.__class__.__name__}; {feature!r}; add_feature = {add_feature!r}.'
-                            )
-                        
-                        features.add(feature)
-                        continue
-                    
-                    break # End GOTO
-                
-                features.add(feature)
-                break # End GOTO
-            
-            # Collect removed
-            
-            while True:
-                if remove_feature is ...:
-                    break
-                
-                if isinstance(remove_feature, GuildFeature):
-                    feature = remove_feature.value
-                elif isinstance(remove_feature, str):
-                    feature = remove_feature
-                else:
-                    iter_func = getattr(type(remove_feature), '__iter__', None)
-                    if iter_func is None:
-                        raise TypeError(
-                            f'`remove_feature` can be `str`, `{GuildFeature.__name__}`, `iterable` of '
-                            f'(`str`, `{GuildFeature.__name__}`), got {remove_feature.__class__.__name__}; '
-                            f'{remove_feature!r}.'
-                        )
-                    
-                    for index, feature in enumerate(iter_func(remove_feature)):
-                        if isinstance(feature, GuildFeature):
-                            feature = feature.value
-                        elif isinstance(feature, str):
-                            pass
-                        else:
-                            raise TypeError(
-                                f'`remove_feature` was given as `iterable` so it expected to have '
-                                f'`{GuildFeature.__name__}`, `str` elements, but element `{index!r}` is '
-                                f'{feature.__class__.__name__}; {feature!r}; remove_feature = {remove_feature!r}.'
-                            )
-                        
-                        features.discard(feature)
-                        continue
-                    
-                    break # End GOTO
-                
-                features.discard(feature)
-                break # End GOTO
-            
-            data['features'] = features
         
         if data:
             await self.api.guild_edit(guild_id, data, reason)
@@ -1043,7 +934,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild or the guild's id, what's widget will be requested.
         
         Returns
@@ -1054,7 +945,7 @@ class ClientCompoundGuildEndpoints(Compound):
         Raises
         ------
         TypeError
-            If `guild` was not passed neither as ``Guild``, `int`.
+            If `guild` was not passed neither as ``int | Guild``.
         ConnectionError
             No internet connection.
         DiscordException
@@ -1074,12 +965,12 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild what's users will be requested.
         
         Returns
         -------
-        users : `list` of ``ClientUserBase`` objects
+        users : ``list<ClientUserBase>``
         
         Raises
         ------
@@ -1162,7 +1053,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, what's regions will be requested.
         
         Returns
@@ -1230,7 +1121,6 @@ class ClientCompoundGuildEndpoints(Compound):
         before = None,
         after = None,
         user = None,
-        event = ...,
         entry_type = None,
     ):
         """
@@ -1242,15 +1132,15 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, what's audit logs will be requested.
         limit : `int` = `100`, Optional
             The amount of audit logs to request. Can be between 1 and 100. Defaults to 100.
-        before : `None`, `int`, ``DiscordEntity``, `datetime` = `None`, Optional (Keyword only)
+        before : ``None | int | DiscordEntity | DateTime`` = `None`, Optional (Keyword only)
             The timestamp before the audit log entries wer created.
-        after : `None`, `int`, ``DiscordEntity``, `datetime` = `None`, Optional (Keyword only)
+        after : ``None | int | DiscordEntity | DateTime`` = `None`, Optional (Keyword only)
             The timestamp after the audit log entries wer created.
-        user : `None`, ``ClientUserBase``, `int` = `None`, Optional (Keyword only)
+        user : ``None | int | ClientUserBase` = `None`, Optional (Keyword only)
             Whether the audit logs should be filtered only to those, which were created by the given user.
         entry_type : `None`, ``AuditLogEntryType``, `int` = `None`, Optional (Keyword only)
             Whether the audit logs should be filtered only on the given event.
@@ -1265,7 +1155,7 @@ class ClientCompoundGuildEndpoints(Compound):
         TypeError
             - If `guild` was not given neither as ``Guild``, nor as `int`.
             - If `after`, `before` was passed with an unexpected type.
-            - If `user` is neither `None`, ``ClientUserBase``, `int`.
+            - If `user` is not ``None | int | ClientUserBase`.
             - If `entry_type` is neither `None`, ``AuditLogEntryType``, `int`.
         ConnectionError
             No internet connection.
@@ -1275,19 +1165,6 @@ class ClientCompoundGuildEndpoints(Compound):
             - If `limit` was not given as `int`.
             - If `limit` is out of the expected range [1:100].
         """
-        if event is not ...:
-            warn(
-                (
-                    f'`{type(self).__name__}.audit_log_get_chunk`\'s `event` parameter is deprecated and will be '
-                    f'removed in 2024 March. Please use `entry_type` instead.'
-                ),
-                FutureWarning,
-                stacklevel = 2,
-            )
-            
-            entry_type = event
-        
-        
         guild, guild_id = get_guild_and_id(guild)
         
         if __debug__:
@@ -1336,10 +1213,10 @@ class ClientCompoundGuildEndpoints(Compound):
             data['action_type'] = entry_type_value
         
         data = await self.api.audit_log_get_chunk(guild_id, data)
-        return AuditLog(data, guild_id)
+        return AuditLog.from_data(data, guild_id)
     
     
-    async def audit_log_iterator(self, guild, *, user = None, entry_type = None, event = ...):
+    async def audit_log_iterator(self, guild, *, entry_type = None, user = None):
         """
         Returns an audit log iterator for the given guild.
         
@@ -1347,18 +1224,18 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, what's audit logs will be requested.
-        user : `None`, ``ClientUserBase``, `int` = `None`, Optional (Keyword only)
-            Whether the audit logs should be filtered only to those, which were created by the given user.
         entry_type : `None`, ``AuditLogEntryType``, `int` = `None`, Optional (Keyword only)
             Whether the audit logs should be filtered only on the given event.
+        user : ``None | int | ClientUserBase` = `None`, Optional (Keyword only)
+            Whether the audit logs should be filtered only to those, which were created by the given user.
         
         Returns
         -------
         audit_log_iterator : ``AuditLogIterator``
         """
-        return AuditLogIterator(self, guild, user = user, entry_type = entry_type, event = event)
+        return AuditLogIterator(self, guild, entry_type = entry_type, user_id = user)
     
     
     async def guild_incidents_edit(
@@ -1376,7 +1253,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to edit the incidents of.
         
         incidents_template : `None`, ``GuildIncidents`` = `None`, Optional
@@ -1393,13 +1270,13 @@ class ClientCompoundGuildEndpoints(Compound):
         direct_messages_disabled_duration : `int`, `TimeDelta`, `float`, Optional (Keyword only)
             The duration while the direct messages should be disabled in the guild in seconds or time delta.
         
-        direct_messages_disabled_until : `None`, `DateTime`, Optional (Keyword only)
+        direct_messages_disabled_until : `None | DateTime`, Optional (Keyword only)
             Until when are the direct messages disabled in the guild.
         
         direct_messages_disabled_duration : `int`, `TimeDelta`, `float`, Optional (Keyword only)
             The duration while the invites should be disabled in the guild in seconds or time delta.
         
-        invites_disabled_until : `None`, `DateTime`, Optional (Keyword only)
+        invites_disabled_until : `None | DateTime`, Optional (Keyword only)
            Until when are the invites disabled of the guild.
         
         Raises
@@ -1444,7 +1321,7 @@ class ClientCompoundGuildEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to edit the inventory settings of.
         
         inventory_settings_template : `None`, ``GuildInventorySettings`` = `None`, Optional
@@ -1486,3 +1363,114 @@ class ClientCompoundGuildEndpoints(Compound):
         )
         if data:
             await self.api.guild_inventory_settings_edit(guild_id, data, reason)
+    
+    
+    # DiscordException Forbidden (403), code = 20001: Bots cannot use this endpoint
+    async def guild_activity_overview_get(self, guild):
+        """
+        Requests the guild's activity overview.
+        
+        This function is a coroutine.
+        
+        Requests the guild's activity overview.
+        
+        Parameters
+        ----------
+        guild : ``Guild | int˙˙
+            The guild to get its activity overview.
+        
+        Returns
+        -------
+        activity_overview : ``GuildActivityOverview``
+        
+        Raises
+        ------
+        TypeError
+            - If a parameter's type is invalid.
+        ValueError
+            - If a parameter's value is incorrect.
+        ConnectionError
+            No internet connection.
+        DiscordException
+            If any exception was received from the Discord API.
+        """
+        guild_id = get_guild_id(guild)
+        data = await self.api.guild_activity_overview_get(guild_id)
+        return GuildActivityOverview.from_data(data)
+    
+    
+    # DiscordException Forbidden (403), code = 20001: Bots cannot use this endpoint
+    async def guild_activity_overview_edit(
+        self,
+        guild,
+        guild_activity_overview_template = None,
+        *,
+        reason = None,
+        **keyword_parameters,
+    ):
+        """
+        Edit the guild's activity overview.
+        
+        This function is a coroutine.
+        
+        Parameters
+        ----------
+        guild : ``Guild | int˙˙
+            The guild to get its activity overview.
+        
+        guild_activity_overview_template : ``None | GuildActivityOverview`` = `None`, Optional
+            Guild activity overview to use as a template.
+        
+        reason : `None`, `str` = `None`, Optional (Keyword only)
+            Shows up at the guild's audit logs.
+        
+        **keyword_parameters : Keyword parameters
+            Additional keyword parameters to edit the guild inventory settings with.
+        
+        Other Parameters
+        ----------------
+        activity_application_ids : ``None | iterable<Application> | iterable<int>``, Optional (Keyword only)
+            Application identifiers of activities to be shown.
+        
+        banner_color : `None | Color | int`, Optional (Keyword only)
+            Banner color.
+        
+        description : `None | str`, Optional (Keyword only)
+            Description of the represented guild.
+        
+        discovery_splash : ``None | str | bytes-like | Icon``, Optional (Keyword only)
+            The represented guild's discovery splash.
+        
+        icon : ``None | str | bytes-like | Icon``, Optional (Keyword only)
+            The represented guild's icon.
+        
+        name : `str`, Optional (Keyword only)
+            Name of the represented guild.
+        
+        privacy_level : ``None | int | PrivacyLevel``, Optional (Keyword only)
+            For who is the guild overview visible for and other related information.
+        
+        tags : ``None | iterable<GuildActivityOverviewTag>``, Optional (Keyword only)
+            Additional tags assigned to the guild.
+        
+        Raises
+        ------
+        TypeError
+            - If a parameter's type is invalid.
+        ValueError
+            - If a parameter's value is incorrect.
+        ConnectionError
+            No internet connection.
+        DiscordException
+            If any exception was received from the Discord API.
+        """
+        guild_id = get_guild_id(guild)
+        
+        data = build_edit_payload(
+            None,
+            guild_activity_overview_template,
+            GUILD_ACTIVITY_OVERVIEW_FIELD_CONVERTERS,
+            keyword_parameters,
+        )
+        if data:
+            await self.api.guild_activity_overview_edit(guild_id, data, reason)

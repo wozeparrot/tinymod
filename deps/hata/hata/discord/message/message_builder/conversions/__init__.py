@@ -17,6 +17,7 @@ from .nonce import *
 from .poll import *
 from .reply_fail_fallback import *
 from .reply_message_id import *
+from .shared_client_theme import *
 from .show_for_invoking_user_only import *
 from .silent import *
 from .sticker import *
@@ -25,6 +26,7 @@ from .stickers import *
 from .suppress_embeds import *
 from .thread_name import *
 from .tts import *
+from .voice_attachment import *
 
 
 __all__ = ()

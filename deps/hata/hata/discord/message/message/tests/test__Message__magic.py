@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
@@ -7,8 +7,9 @@ from ....component import Component, ComponentType
 from ....core import BUILTIN_EMOJIS
 from ....embed import EmbedAuthor, Embed, EmbedField, EmbedFooter, EmbedProvider
 from ....emoji import Reaction, ReactionMapping, ReactionMappingLine, ReactionType
-from ....interaction import Resolved
 from ....poll import Poll, PollAnswer, PollQuestion
+from ....resolved import Resolved
+from ....soundboard import SoundboardSound
 from ....sticker import Sticker
 from ....user import User
 
@@ -19,6 +20,7 @@ from ...message_call import MessageCall
 from ...message_interaction import MessageInteraction
 from ...message_role_subscription import MessageRoleSubscription
 from ...message_snapshot import MessageSnapshot
+from ...shared_client_theme import SharedClientTheme
 
 from ..flags import MessageFlag
 from ..message import Message
@@ -37,13 +39,13 @@ def test__Message__repr():
         Attachment.precreate(202305040023, name = 'Komeiji'),
     ]
     author = User.precreate(202305040024, name = 'Orin')
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
     ]
     content = 'Satori'
-    edited_at = DateTime(2016, 5, 14)
+    edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     embeds = [
         Embed('Yakumo'),
         Embed('Yukari'),
@@ -63,7 +65,7 @@ def test__Message__repr():
     message_type = MessageType.call
     nonce = 'Sakuya'
     pinned = True
-    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     reactions = ReactionMapping(
         lines = {
             Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
@@ -72,9 +74,14 @@ def test__Message__repr():
     referenced_message = Message.precreate(202305040032, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110030)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    shared_client_theme = SharedClientTheme(intensity = 6)
     snapshots = [
         MessageSnapshot(content = 'Kazami'),
         MessageSnapshot(content = 'Yuuka'),
+    ]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202501290014, name = 'whither'),
+        SoundboardSound.precreate(202501290015, name = 'Yuyuko'),
     ]
     stickers = [
         Sticker.precreate(202305040033, name = 'Kirisame'),
@@ -108,7 +115,9 @@ def test__Message__repr():
         'referenced_message': referenced_message,
         'resolved': resolved,
         'role_subscription': role_subscription,
+        'shared_client_theme': shared_client_theme,
         'snapshots': snapshots,
+        'soundboard_sounds': soundboard_sounds,
         'stickers': stickers,
         'thread': thread,
         'tts': tts,
@@ -146,13 +155,13 @@ def test__Message__hash():
         Attachment.precreate(202305040042, name = 'Komeiji'),
     ]
     author = User.precreate(202305040043, name = 'Orin')
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
     ]
     content = 'Satori'
-    edited_at = DateTime(2016, 5, 14)
+    edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     embeds = [
         Embed('Yakumo'),
         Embed('Yukari'),
@@ -172,7 +181,7 @@ def test__Message__hash():
     message_type = MessageType.call
     nonce = 'Sakuya'
     pinned = True
-    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     reactions = ReactionMapping(
         lines = {
             Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
@@ -181,9 +190,14 @@ def test__Message__hash():
     referenced_message = Message.precreate(202305040050, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110031)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    shared_client_theme = SharedClientTheme(intensity = 6)
     snapshots = [
         MessageSnapshot(content = 'Kazami'),
         MessageSnapshot(content = 'Yuuka'),
+    ]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202501290016, name = 'whither'),
+        SoundboardSound.precreate(202501290017, name = 'Yuyuko'),
     ]
     stickers = [
         Sticker.precreate(202305040051, name = 'Kirisame'),
@@ -217,7 +231,9 @@ def test__Message__hash():
         'referenced_message': referenced_message,
         'resolved': resolved,
         'role_subscription': role_subscription,
+        'shared_client_theme': shared_client_theme,
         'snapshots': snapshots,
+        'soundboard_sounds': soundboard_sounds,
         'stickers': stickers,
         'thread': thread,
         'tts': tts,
@@ -352,13 +368,13 @@ def _iter_options__eq__same_type():
         Attachment.precreate(202305040063, name = 'Komeiji'),
     ]
     author = User.precreate(202305040064, name = 'Orin')
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
     ]
     content = 'Satori'
-    edited_at = DateTime(2016, 5, 14)
+    edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     embeds = [
         Embed('Yakumo'),
         Embed('Yukari'),
@@ -378,7 +394,7 @@ def _iter_options__eq__same_type():
     message_type = MessageType.call
     nonce = 'Sakuya'
     pinned = True
-    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     reactions = ReactionMapping(
         lines = {
             Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
@@ -387,9 +403,14 @@ def _iter_options__eq__same_type():
     referenced_message = Message.precreate(202305040072, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110032)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    shared_client_theme = SharedClientTheme(intensity = 6)
     snapshots = [
         MessageSnapshot(content = 'Kazami'),
         MessageSnapshot(content = 'Yuuka'),
+    ]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202501290018, name = 'whither'),
+        SoundboardSound.precreate(202501290019, name = 'Yuyuko'),
     ]
     stickers = [
         Sticker.precreate(202305040073, name = 'Kirisame'),
@@ -423,7 +444,9 @@ def _iter_options__eq__same_type():
         'referenced_message': referenced_message,
         'resolved': resolved,
         'role_subscription': role_subscription,
+        'shared_client_theme': shared_client_theme,
         'snapshots': snapshots,
+        'soundboard_sounds': soundboard_sounds,
         'stickers': stickers,
         'thread': thread,
         'tts': tts,
@@ -487,7 +510,7 @@ def _iter_options__eq__same_type():
         keyword_parameters,
         {
             **keyword_parameters,
-            'call': MessageCall(ended_at = DateTime(2045, 5, 4)),
+            'call': MessageCall(ended_at = DateTime(2045, 5, 4, tzinfo = TimeZone.utc)),
         },
         False,
     )
@@ -517,7 +540,7 @@ def _iter_options__eq__same_type():
         keyword_parameters,
         {
             **keyword_parameters,
-            'edited_at': DateTime(2016, 6, 14),
+            'edited_at': DateTime(2016, 6, 14, tzinfo = TimeZone.utc),
         },
         False,
     )
@@ -625,7 +648,7 @@ def _iter_options__eq__same_type():
         keyword_parameters,
         {
             **keyword_parameters,
-            'poll': Poll(expires_at = DateTime(2016, 5, 15)),
+            'poll': Poll(expires_at = DateTime(2016, 5, 15, tzinfo = TimeZone.utc)),
         },
         False,
     )
@@ -674,10 +697,31 @@ def _iter_options__eq__same_type():
         keyword_parameters,
         {
             **keyword_parameters,
+            'shared_client_theme': SharedClientTheme(intensity = 4),
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
             'snapshots': [
                 MessageSnapshot(content = 'Mushroom'),
                 MessageSnapshot(content = 'Soup'),
             ]
+        },
+        False,
+    )
+    
+    yield (
+        keyword_parameters,
+        {
+            **keyword_parameters,
+            'soundboard_sounds': [
+                SoundboardSound.precreate(202501290020, name = 'that'),
+                SoundboardSound.precreate(202501290021, name = 'heart'),
+            ],
         },
         False,
     )
@@ -758,6 +802,8 @@ def test__Message__len__all_contents():
     poll_question_text = 'marisa'
     poll_answer_0_text = 'junko'
     poll_answer_1_text = 'clown'
+    component_0_content = 'mayumi'
+    component_1_content = 'keiki'
     
     embed_0 = Embed(title = embed_0_title, description = embed_0_description)
     embed_0.author = EmbedAuthor(embed_0_author_name)
@@ -775,13 +821,29 @@ def test__Message__len__all_contents():
         question = PollQuestion(text = poll_question_text),
     )
     
-    message = Message(content = message_content, embeds = [embed_0, embed_1], poll = poll)
+    component_0 = Component(
+        ComponentType.text_display,
+        content = component_0_content,
+    )
+    
+    component_1 = Component(
+        ComponentType.text_display,
+        content = component_1_content,
+    )
+    
+    message = Message(
+        components = [component_0, component_1],
+        content = message_content,
+        embeds = [embed_0, embed_1],
+        poll = poll,
+    )
     
     length = sum(
         len(value) for value in (
             embed_0_title, embed_0_author_name, embed_0_description, embed_0_field_0_name, embed_0_field_0_value,
             embed_0_field_1_name, embed_0_field_1_value, embed_0_footer_text, embed_0_provider_name,
-            message_content, embed_1_title, poll_question_text, poll_answer_0_text, poll_answer_1_text
+            message_content, embed_1_title, poll_question_text, poll_answer_0_text, poll_answer_1_text,
+            component_0_content, component_1_content
         )
     )
     

@@ -2,15 +2,15 @@ __all__ = ('SoundboardSound',)
 
 from ...bases import DiscordEntity
 from ...core import GUILDS, SOUNDBOARD_SOUNDS
-from ...http import urls as module_urls
+from ...http.urls import build_soundboard_sound_url
 from ...precreate_helpers import process_precreate_parameters_and_raise_extra
 from ...user import ZEROUSER, create_partial_user_from_id
 
 from .constants import DEFAULT_SOUNDBOARD_SOUND_LIMIT
 from .fields import (
     parse_available, parse_emoji, parse_guild_id, parse_id, parse_name, parse_user, parse_user_id, parse_volume,
-    put_available_into, put_emoji_into, put_guild_id_into, put_id_into, put_name_into, put_user_id_into, put_user_into,
-    put_volume_into, validate_available, validate_emoji, validate_guild_id, validate_id, validate_name,
+    put_available, put_emoji, put_guild_id, put_id, put_name, put_user_id, put_user,
+    put_volume, validate_available, validate_emoji, validate_guild_id, validate_id, validate_name,
     validate_user_id, validate_volume
 )
 
@@ -33,11 +33,11 @@ class SoundboardSound(DiscordEntity, immortal = True):
     
     Attributes
     ----------
-    _cache_user : `None`, ``ClientUserBase``
+    _cache_user : ``None | ClientUserBase``
         Cache field used by the ``.user`` property.
     available : `bool`
         Whether the sound is available.
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
         Emoji assigned to the sound.
     guild_id : `int`
         The guild's identifier to which the sound is added to. At the case of builtin sounds this is `0`.
@@ -58,7 +58,7 @@ class SoundboardSound(DiscordEntity, immortal = True):
         ----------
         available : `bool`, Optional (Keyword only)
             Whether the sound is available.
-        emoji : `None`, ``Emoji``, Optional (Keyword only)
+        emoji : ``None | Emoji``, Optional (Keyword only)
             Emoji assigned to the sound.
         name : `str`, Optional (Keyword only)
             The name of the sound.
@@ -126,6 +126,7 @@ class SoundboardSound(DiscordEntity, immortal = True):
         ----------
         data : `dict<str, object>`
             Sound data.
+        
         strong_cache : `bool` = `True`, Optional (Keyword only)
             Whether the instance should be put into its strong cache.
         
@@ -228,16 +229,16 @@ class SoundboardSound(DiscordEntity, immortal = True):
         """
         data = {}
         
-        put_emoji_into(self.emoji, data, defaults)
-        put_name_into(self.name, data, defaults)
-        put_volume_into(self.volume, data, defaults)
+        put_emoji(self.emoji, data, defaults)
+        put_name(self.name, data, defaults)
+        put_volume(self.volume, data, defaults)
         
         if include_internals:
-            put_available_into(self.available, data, defaults)
-            put_guild_id_into(self.guild_id, data, defaults)
-            put_id_into(self.id, data, defaults)
-            put_user_into(self.user, data, defaults)
-            put_user_id_into(self.user_id, data, defaults)
+            put_available(self.available, data, defaults)
+            put_guild_id(self.guild_id, data, defaults)
+            put_id(self.id, data, defaults)
+            put_user(self.user, data, defaults)
+            put_user_id(self.user_id, data, defaults)
         
         return data
     
@@ -286,7 +287,7 @@ class SoundboardSound(DiscordEntity, immortal = True):
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dict is optional.
         
         Returned Data Structure
@@ -297,7 +298,7 @@ class SoundboardSound(DiscordEntity, immortal = True):
         +===========+===================+
         | available | `bool`            |
         +-----------+-------------------+
-        | emoji     | `None`, ``Emoji`` |
+        | emoji     | ``None | Emoji``  |
         +-----------+-------------------+
         | name      | `str`             |
         +-----------+-------------------+
@@ -335,7 +336,7 @@ class SoundboardSound(DiscordEntity, immortal = True):
     
     def __repr__(self):
         """Returns the soundboard sound's representation."""
-        repr_parts = ['<', self.__class__.__name__]
+        repr_parts = ['<', type(self).__name__]
         
         repr_parts.append(' id = ')
         repr_parts.append(repr(self.id))
@@ -482,6 +483,7 @@ class SoundboardSound(DiscordEntity, immortal = True):
         ----------
         sound_id : `int`
             The soundboard sound's identifier.
+        
         **keyword_parameters : Keyword parameters
             Additional keyword parameters.
         
@@ -489,7 +491,7 @@ class SoundboardSound(DiscordEntity, immortal = True):
         ----------------
         available : `bool`, Optional (Keyword only)
             Whether the sound is available.
-        emoji : `None`, ``Emoji``, Optional (Keyword only)
+        emoji : ``None | Emoji``, Optional (Keyword only)
             Emoji assigned to the sound.
         guild : `int`, `None`, ``Guild``, Optional (Keyword only)
             Alternative of `guild_id`.
@@ -566,7 +568,7 @@ class SoundboardSound(DiscordEntity, immortal = True):
         ----------
         available : `bool`, Optional (Keyword only)
             Whether the sound is available.
-        emoji : `None`, ``Emoji``, Optional (Keyword only)
+        emoji : ``None | Emoji``, Optional (Keyword only)
             Emoji assigned to the sound.
         name : `str`, Optional (Keyword only)
             The name of the sound.
@@ -679,9 +681,6 @@ class SoundboardSound(DiscordEntity, immortal = True):
                         guild.soundboard_sounds = None
     
     
-    url = property(module_urls.soundboard_sound_url)
-    
-    
     @property
     def guild(self):
         """
@@ -689,7 +688,7 @@ class SoundboardSound(DiscordEntity, immortal = True):
         
         Returns
         -------
-        guild : `None`, ``Guild``
+        guild : ``None | Guild``
         """
         guild_id = self.guild_id
         if guild_id:
@@ -740,3 +739,27 @@ class SoundboardSound(DiscordEntity, immortal = True):
         """
         sound_id = self.id
         return sound_id != 0 and sound_id < DEFAULT_SOUNDBOARD_SOUND_LIMIT
+    
+    
+    @property
+    def mention(self):
+        """
+        Returns the mention of the soundboard sound.
+        
+        Returns
+        -------
+        mention : `str`
+        """
+        return f'<sound:{self.guild_id!s}:{self.id!s}>'
+    
+    
+    @property
+    def url(self):
+        """
+        Returns the soundboard sound's url.
+        
+        Returns
+        -------
+        url : `str`
+        """
+        return build_soundboard_sound_url(self.id)

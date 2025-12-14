@@ -2,9 +2,9 @@ import vampytest
 
 from ...bases import IconType, Icon
 from ...color import Color
-from ...guild import Guild
+from ...guild import Guild, GuildBadge
 from ...localization import Locale
-from ...user import AvatarDecoration, GuildProfile, PremiumType, UserClan, UserFlag
+from ...user import AvatarDecoration, NamePlate, GuildProfile, PremiumType, UserFlag
 
 from ..client import Client
 
@@ -20,25 +20,32 @@ def test__Client__to_data():
     avatar_decoration = AvatarDecoration(asset = Icon(IconType.static, 2), sku_id = 202310160016)
     banner = Icon(IconType.animated, 12)
     banner_color = Color(1236)
-    clan = UserClan(guild_id = 202405180060, tag = 'meow')
+    bot = True
     discriminator = 2222
     display_name = 'Far'
     flags = UserFlag(1)
     name = 'suika'
-    bot = True
+    name_plate = NamePlate(
+        asset_path = 'koishi/koishi/hat/',
+        sku_id = 202506030091,
+    )
+    primary_guild_badge = GuildBadge(guild_id = 202405180060, tag = 'meow')
     
     expected_output = {
         'avatar': avatar.as_base_16_hash,
-        'avatar_decoration_data': avatar_decoration.to_data(),
+        'avatar_decoration_data': avatar_decoration.to_data(defaults = True),
+        'banner': banner.as_base_16_hash,
         'accent_color': int(banner_color),
-        'clan': clan.to_data(defaults = True),
+        'bot': bot,
         'discriminator': str(discriminator).rjust(4, '0'),
         'global_name': display_name,
-        'username': name,
-        'banner': banner.as_base_16_hash,
-        'id': str(client_id),
         'public_flags': int(flags),
-        'bot': bot,
+        'id': str(client_id),
+        'username': name,
+        'collectibles': {
+            'nameplate': name_plate.to_data(defaults = True),
+        },
+        'primary_guild': primary_guild_badge.to_data(defaults = True),
     }
     
     client = Client(
@@ -47,13 +54,14 @@ def test__Client__to_data():
         avatar_decoration = avatar_decoration,
         banner = banner,
         banner_color = banner_color,
-        clan = clan,
         bot = bot,
         client_id = client_id,
         discriminator = discriminator,
         display_name = display_name,
         flags = flags,
         name = name,
+        name_plate = name_plate,
+        primary_guild_badge = primary_guild_badge,
     )
 
     try:
@@ -76,11 +84,15 @@ def test__Client__update_attributes():
     avatar_decoration = AvatarDecoration(asset = Icon(IconType.static, 2), sku_id = 202310160017)
     banner = Icon(IconType.animated, 12)
     banner_color = Color(1236)
-    clan = UserClan(guild_id = 202405180061, tag = 'meow')
     discriminator = 2222
     display_name = 'Far'
     flags = UserFlag(1)
     name = 'suika'
+    name_plate = NamePlate(
+        asset_path = 'koishi/koishi/hat/',
+        sku_id = 202506030092,
+    )
+    primary_guild_badge = GuildBadge(guild_id = 202405180061, tag = 'meow')
     email = 'rin@orindance.party'
     email_verified = True
     locale = Locale.greek
@@ -92,16 +104,19 @@ def test__Client__update_attributes():
         'avatar_decoration_data': avatar_decoration.to_data(),
         'banner': banner.as_base_16_hash,
         'accent_color': int(banner_color),
-        'clan': clan.to_data(),
         'discriminator': str(discriminator).rjust(4, '0'),
         'global_name': display_name,
-        'public_flags': int(flags),
-        'username': name,
         'email': email,
         'verified': email_verified,
+        'public_flags': int(flags),
         'locale': locale.value,
         'mfa_enabled': mfa_enabled,
+        'username': name,
+        'collectibles': {
+            'nameplate': name_plate.to_data(),
+        },
         'premium_type': premium_type.value,
+        'primary_guild': primary_guild_badge.to_data(),
     }
 
     client = Client(
@@ -115,16 +130,17 @@ def test__Client__update_attributes():
         vampytest.assert_eq(client.avatar_decoration, avatar_decoration)
         vampytest.assert_eq(client.banner, banner)
         vampytest.assert_eq(client.banner_color, banner_color)
-        vampytest.assert_eq(client.clan, clan)
         vampytest.assert_eq(client.discriminator, discriminator)
         vampytest.assert_eq(client.display_name, display_name)
-        vampytest.assert_eq(client.flags, flags)
-        vampytest.assert_eq(client.name, name)
         vampytest.assert_eq(client.email, email)
         vampytest.assert_eq(client.email_verified, email_verified)
+        vampytest.assert_eq(client.flags, flags)
         vampytest.assert_is(client.locale, locale)
         vampytest.assert_eq(client.mfa_enabled, mfa_enabled)
+        vampytest.assert_eq(client.name, name)
+        vampytest.assert_eq(client.name_plate, name_plate)
         vampytest.assert_is(client.premium_type, premium_type)
+        vampytest.assert_eq(client.primary_guild_badge, primary_guild_badge)
     
     # Cleanup
     finally:
@@ -140,11 +156,15 @@ def test__Client__difference_update_attributes():
     old_avatar_decoration = AvatarDecoration(asset = Icon(IconType.static, 2), sku_id = 202310160018)
     old_banner = Icon(IconType.animated, 12)
     old_banner_color = Color(1236)
-    old_clan = UserClan(guild_id = 202405180062, tag = 'meow')
     old_discriminator = 2222
     old_display_name = 'Far'
     old_flags = UserFlag(1)
     old_name = 'suika'
+    old_name_plate = NamePlate(
+        asset_path = 'koishi/koishi/hat/',
+        sku_id = 202506030093,
+    )
+    old_primary_guild_badge = GuildBadge(guild_id = 202405180062, tag = 'meow')
     old_email = 'rin@orindance.party'
     old_email_verified = True
     old_locale = Locale.greek
@@ -155,11 +175,15 @@ def test__Client__difference_update_attributes():
     new_avatar_decoration = AvatarDecoration(asset = Icon(IconType.static, 2), sku_id = 202310160019)
     new_banner = Icon(IconType.animated, 14)
     new_banner_color = Color(12)
-    new_clan = UserClan(guild_id = 202405180063, tag = 'miau')
     new_discriminator = 11
     new_display_name = 'East'
     new_flags = UserFlag(2)
     new_name = 'ibuki'
+    new_name_plate = NamePlate(
+        asset_path = 'koishi/koishi/eye/',
+        sku_id = 202506030094,
+    )
+    new_primary_guild_badge = GuildBadge(guild_id = 202405180063, tag = 'miau')
     new_email = 'okuu@orindance.party'
     new_email_verified = False
     new_locale = Locale.dutch
@@ -171,25 +195,26 @@ def test__Client__difference_update_attributes():
         'avatar_decoration_data': new_avatar_decoration.to_data(),
         'banner': new_banner.as_base_16_hash,
         'accent_color': int(new_banner_color),
-        'clan': new_clan.to_data(),
         'discriminator': str(new_discriminator).rjust(4, '0'),
         'global_name': new_display_name,
-        'public_flags': int(new_flags),
-        'username': new_name,
         'email': new_email,
         'verified': new_email_verified,
+        'public_flags': int(new_flags),
         'locale': new_locale.value,
         'mfa_enabled': new_mfa_enabled,
+        'username': new_name,
+        'collectibles': {
+            'nameplate': new_name_plate.to_data(),
+        },
         'premium_type': new_premium_type.value,
+        'primary_guild': new_primary_guild_badge.to_data(),
     }
     
     expected_output = {
         'avatar': old_avatar,
         'avatar_decoration': old_avatar_decoration,
-        'name': old_name,
         'banner': old_banner,
         'banner_color': old_banner_color,
-        'clan': old_clan,
         'discriminator': old_discriminator,
         'display_name': old_display_name,
         'email': old_email,
@@ -197,7 +222,10 @@ def test__Client__difference_update_attributes():
         'flags': old_flags,
         'locale': old_locale,
         'mfa_enabled': old_mfa_enabled,
+        'name': old_name,
+        'name_plate': old_name_plate,
         'premium_type': old_premium_type,
+        'primary_guild_badge': old_primary_guild_badge,
     }
     
     client = Client(
@@ -206,16 +234,17 @@ def test__Client__difference_update_attributes():
         avatar_decoration = old_avatar_decoration,
         banner = old_banner,
         banner_color = old_banner_color,
-        clan = old_clan,
         discriminator = old_discriminator,
         display_name = old_display_name,
-        flags = old_flags,
-        name = old_name,
         email = old_email,
         email_verified = old_email_verified,
+        flags = old_flags,
         locale = old_locale,
         mfa_enabled = old_mfa_enabled,
+        name = old_name,
+        name_plate = old_name_plate,
         premium_type = old_premium_type,
+        primary_guild_badge = old_primary_guild_badge,
     )
     
     try:
@@ -225,16 +254,17 @@ def test__Client__difference_update_attributes():
         vampytest.assert_eq(client.avatar_decoration, new_avatar_decoration)
         vampytest.assert_eq(client.banner, new_banner)
         vampytest.assert_eq(client.banner_color, new_banner_color)
-        vampytest.assert_eq(client.clan, new_clan)
         vampytest.assert_eq(client.discriminator, new_discriminator)
         vampytest.assert_eq(client.display_name, new_display_name)
-        vampytest.assert_eq(client.flags, new_flags)
-        vampytest.assert_eq(client.name, new_name)
         vampytest.assert_eq(client.email, new_email)
         vampytest.assert_eq(client.email_verified, new_email_verified)
+        vampytest.assert_eq(client.flags, new_flags)
         vampytest.assert_is(client.locale, new_locale)
         vampytest.assert_eq(client.mfa_enabled, new_mfa_enabled)
+        vampytest.assert_eq(client.name, new_name)
+        vampytest.assert_eq(client.name_plate, new_name_plate)
         vampytest.assert_is(client.premium_type, new_premium_type)
+        vampytest.assert_eq(client.primary_guild_badge, new_primary_guild_badge)
         
         vampytest.assert_eq(
             old_attributes,

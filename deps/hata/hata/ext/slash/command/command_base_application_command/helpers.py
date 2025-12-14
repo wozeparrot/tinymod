@@ -6,15 +6,12 @@ from .....discord.application_command.application_command.constants import (
     NAME_LENGTH_MAX as APPLICATION_COMMAND_NAME_LENGTH_MAX,
     NAME_LENGTH_MIN as APPLICATION_COMMAND_NAME_LENGTH_MIN
 )
-from .....discord.application_command.application_command.fields import validate_nsfw as _validate_nsfw
 from .....discord.application_command.application_command.preinstanced import (
     ApplicationCommandIntegrationContextType,
-    INTEGRATION_CONTEXT_TYPES_ALL as APPLICATION_COMMAND_INTEGRATION_CONTEXT_TYPES_ALL
 )
 from .....discord.permission import Permission
 from .....discord.preconverters import preconvert_bool, preconvert_flag, preconvert_snowflake
 
-from ...utils import UNLOADING_BEHAVIOUR_DELETE, UNLOADING_BEHAVIOUR_INHERIT, UNLOADING_BEHAVIOUR_KEEP
 
 
 def _reset_application_command_schema(entity):
@@ -44,54 +41,40 @@ def _validate_delete_on_unload(delete_on_unload):
     
     Parameters
     ----------
-    delete_on_unload : `None`, `bool`
-        The `delete_on_unload` value to validate.
+    delete_on_unload : `bool`
+        The value to validate.
     
     Returns
     -------
-    unloading_behaviour : `int`
-        The validated `delete_on_unload` value.
+    delete_on_unload : `bool`
     
     Raises
     ------
     TypeError
-        If `delete_on_unload` was not given as `None` nor as `bool`.
+        If `delete_on_unload` type is incorrect.
     """
-    if delete_on_unload is None:
-        unloading_behaviour = UNLOADING_BEHAVIOUR_INHERIT
-    else:
-        delete_on_unload = preconvert_bool(delete_on_unload, 'delete_on_unload')
-        if delete_on_unload:
-            unloading_behaviour = UNLOADING_BEHAVIOUR_DELETE
-        else:
-            unloading_behaviour = UNLOADING_BEHAVIOUR_KEEP
-    
-    return unloading_behaviour
+    return preconvert_bool(delete_on_unload, 'delete_on_unload')
 
 
-def _validate_allow_in_dm(allow_in_dm):
+def _validate_nsfw(nsfw):
     """
-    Validates the given `allow_in_dm` value.
+    Validates the given `nsfw` value.
     
     Parameters
     ----------
-    allow_in_dm : `None`, `bool`
-        The `allow_in_dm` value to validate.
+    nsfw : `bool`
+        The value to validate.
     
     Returns
     -------
-    allow_in_dm : `None`, `bool`
-        The validated `allow_in_dm` value.
+    nsfw : `bool`
     
     Raises
     ------
     TypeError
-        If `allow_in_dm` was not given as `None`, `bool`.
+        If `nsfw` type is incorrect.
     """
-    if (allow_in_dm is not None):
-        allow_in_dm = preconvert_bool(allow_in_dm, 'allow_in_dm')
-    
-    return allow_in_dm
+    return preconvert_bool(nsfw, 'nsfw')
 
 
 def _validate_is_global(is_global):
@@ -100,25 +83,19 @@ def _validate_is_global(is_global):
     
     Parameters
     ----------
-    is_global : `None`, `bool`
-        The `is_global` value to validate.
+    is_global : `bool`
+        The value to validate.
     
     Returns
     -------
     is_global : `bool`
-        The validated `is_global` value.
     
     Raises
     ------
     TypeError
-        If `is_global` was not given as `None` nor as `bool`.
+        If `is_global` type is incorrect.
     """
-    if is_global is None:
-        is_global = False
-    else:
-        is_global = preconvert_bool(is_global, 'is_global')
-    
-    return is_global
+    return preconvert_bool(is_global, 'is_global')
 
 
 def _validate_1_guild(guild):
@@ -127,20 +104,19 @@ def _validate_1_guild(guild):
     
     Parameters
     ----------
-    guild : ``Guild``, `int`
+    guild : `Guild | int`
         The guild value to validate.
     
     Returns
     -------
     guild_id : `int`
-        Validated guild value converted to `int`.
     
     Raises
     ------
     TypeError
-        If `guild` was not given neither as ``Guild`` nor `int`.
+        If `guild`'s type is incorrect.
     ValueError
-        If `guild` is an integer out of uint64 value range.
+        If `guild`'s value is incorrect.
     """
     if isinstance(guild, Guild):
         guild_id = guild.id
@@ -148,7 +124,7 @@ def _validate_1_guild(guild):
         guild_id = preconvert_snowflake(guild, 'guild')
     else:
         raise TypeError(
-            f'`guild`can be `{Guild.__class__.__name__}`, `int`, got {guild.__class__.__name__}; {guild!r}.'
+            f'`guild` can be `{type(Guild).__name__}`, `int`, got {type(guild).__name__}; {guild!r}.'
         )
     
     return guild_id
@@ -160,38 +136,35 @@ def _validate_guild(guild):
     
     Parameters
     ----------
-    guild : `None`, `int`, ``Guild``, (`list`, `set`) of (`int`, ``Guild``
+    guild : `Guild | int | (list | set)<Guild | int>`
         The `is_global` value to validate.
     
     Returns
     -------
-    guild_ids : `None`, `set` of `int`
+    guild_ids : `set<int>`
         The validated `guild` value.
     
     Raises
     ------
     TypeError
-        If `guild` was not given neither as `None`, ``Guild``,  `int`, (`list`, `set`) of (`int`, ``Guild``)
+        If `guild`'s type is incorrect.
     ValueError
-        - If `guild` is given as an empty container.
-        - If `guild` is or contains an integer out of uint64 value range.
+        If `guild`'s value is incorrect.
     """
-    if guild is None:
-        guild_ids = None
-    else:
-        guild_ids = set()
-        if isinstance(guild, (list, set)):
-            for guild_value in guild:
-                guild_id = _validate_1_guild(guild_value)
-                guild_ids.add(guild_id)
-        else:
-            guild_id = _validate_1_guild(guild)
+    guild_ids = set()
+    
+    if isinstance(guild, (list, set)):
+        for guild_value in guild:
+            guild_id = _validate_1_guild(guild_value)
             guild_ids.add(guild_id)
         
         if not guild_ids:
             raise ValueError(
-                f'`guild` cannot be empty container, got {guild!r}.'
+                f'`guild` cannot be empty, got {guild!r}.'
             )
+    else:
+        guild_id = _validate_1_guild(guild)
+        guild_ids.add(guild_id)
     
     return guild_ids
 
@@ -218,7 +191,7 @@ def _validate_name(name):
         If `name` length is out of the expected range [1:32].
     """
     if name is not None:
-        name_type = name.__class__
+        name_type = type(name)
         if name_type is str:
             pass
         elif issubclass(name_type, str):
@@ -248,23 +221,19 @@ def _validate_required_permissions(required_permissions):
     
     Parameters
     ----------
-    required_permissions : `None`, `int`, ``Permission``
+    required_permissions : `int | Permission`
         The `required_permissions` value to validate.
     
     Returns
     -------
-    required_permissions : `None`, ``Permission``
-        The validated `required_permissions` value.
+    required_permissions : ``Permission``
     
     Raises
     ------
     TypeError
-        If `required_permissions` was not given as `None`, ``Permission``, `int`.
+        If `required_permissions`'s type is incorrect.
     """
-    if (required_permissions is not None):
-        required_permissions = preconvert_flag(required_permissions, 'required_permissions', Permission)
-    
-    return required_permissions
+    return preconvert_flag(required_permissions, 'required_permissions', Permission)
 
 
 APPLICATION_COMMAND_INTEGRATION_CONTEXT_TYPES_BY_ATTRIBUTE_NAME = {
@@ -381,7 +350,7 @@ def _pre_validate_preinstanced_array(field_name, preinstanced_type, string_resol
         return (preinstanced,)
     
     if isinstance(preinstanced_array, int):
-        return (ApplicationCommandIntegrationContextType.get(preinstanced_array),)
+        return (ApplicationCommandIntegrationContextType(preinstanced_array),)
     
     if getattr(preinstanced_array, '__iter__', None) is None:
         _fail_preinstanced_array_validation_single(
@@ -402,7 +371,7 @@ def _pre_validate_preinstanced_array(field_name, preinstanced_type, string_resol
                 )
             
         elif isinstance(preinstanced, int):
-            preinstanced = preinstanced_type.get(preinstanced)
+            preinstanced = preinstanced_type(preinstanced)
         
         else:
             _fail_preinstanced_array_validation_element(
@@ -428,7 +397,7 @@ def _validate_integration_context_types(integration_context_types):
     ----------
     integration_context_types : `None`, ``ApplicationCommandIntegrationContextType``, `int`, `str`, \
             `iterable<ApplicationCommandIntegrationContextType | int | str>`
-        The places where the application command shows up. `None` means all.
+        The places where the application command shows up.
     
     Returns
     -------
@@ -438,19 +407,12 @@ def _validate_integration_context_types(integration_context_types):
     ------
     TypeError
     """
-    integration_context_types = _pre_validate_preinstanced_array(
+    return _pre_validate_preinstanced_array(
         'integration_context_types',
         ApplicationCommandIntegrationContextType,
         APPLICATION_COMMAND_INTEGRATION_CONTEXT_TYPES_BY_ATTRIBUTE_NAME,
         integration_context_types,
     )
-    if (
-        (integration_context_types is not None) and
-        (integration_context_types == APPLICATION_COMMAND_INTEGRATION_CONTEXT_TYPES_ALL)
-    ):
-        integration_context_types = None
-    
-    return integration_context_types
 
 
 def _validate_integration_types(integration_types):
@@ -481,20 +443,3 @@ def _validate_integration_types(integration_types):
         integration_types = (ApplicationIntegrationType.guild_install,)
     
     return integration_types
-
-
-def _maybe_exclude_dm_from_integration_context_types(allow_in_dm, integration_context_types):
-    """
-    Excludes private channels from `integration_context_types` if `allow_in_dm` is false.
-    
-    Parameters
-    ----------
-    allow_in_dm : `bool`
-        Whether the command should be allowed in private channels.
-    integration_context_types : `None | tuple<ApplicationCommandIntegrationContextType>`
-        The places where the application command shows up. `None` means all.
-    """
-    if (allow_in_dm is None) or allow_in_dm:
-        return integration_context_types
-    
-    return (ApplicationCommandIntegrationContextType.guild,)

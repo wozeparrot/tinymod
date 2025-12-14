@@ -4,12 +4,13 @@ from scarletio import RichAttributeErrorBaseType
 
 from ...bases import PlaceHolder
 
+from .constants import SEPARATOR_SPACING_SIZE_DEFAULT
 from .preinstanced import ButtonStyle, TextInputStyle
 
 
 class ComponentMetadataBase(RichAttributeErrorBaseType):
     """
-    Base class for component metadata.
+    Base type for component metadata.
     """
     __slots__ = ()
     
@@ -34,7 +35,7 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Keyword parameters to build the metadata from.
         
         Returns
@@ -53,7 +54,7 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
     
     def __repr__(self):
         """Returns the component metadata's representation."""
-        return f'<{self.__class__.__name__}>'
+        return f'<{type(self).__name__}>'
     
     
     def __hash__(self):
@@ -92,7 +93,7 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Component data.
         
         Returns
@@ -103,7 +104,7 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         return object.__new__(cls)
     
     
-    def to_data(self, *, defaults = False):
+    def to_data(self, *, defaults = False, include_internals = False):
         """
         Returns the component metadata's json serializable representation.
         
@@ -112,11 +113,30 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         defaults : `bool` = `False`, Optional (Keyword only)
             Whether fields with default values should be included as well.
         
+        include_internals : `bool` = `False`, Optional (Keyword only)
+            Whether internal fields should be included as well.
+        
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         return {}
+    
+    
+    def clean_copy(self, guild = None):
+        """
+        Creates a clean copy of the component metadata by removing the mentions in it's contents.
+        
+        Parameters
+        ----------
+        guild : ``None | Guild`` = `None`, Optional
+            The respective guild as a context to look up guild specific names of entities.
+        
+        Returns
+        -------
+        new : `instance<type<self>>`
+        """
+        return object.__new__(type(self))
     
     
     def copy(self):
@@ -156,7 +176,7 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Keyword parameters defining which fields should be changed.
         
         Returns
@@ -171,6 +191,20 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
             - If a parameter's value is incorrect.
         """
         return self.copy_with()
+    
+    
+    def iter_contents(self):
+        """
+        Iterates over the contents of the component metadata.
+        
+        This method is an iterable generator.
+        
+        Yields
+        ------
+        content : `str`
+        """
+        return
+        yield
     
     
     # Field placeholders
@@ -194,7 +228,30 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        channel_types : `None`, `tuple` of ``ChannelType``
+        channel_types : ``None | tuple<ChannelType>``
+        """
+    )
+    
+    
+    color = PlaceHolder(
+        None,
+        """
+        The color of the component. At the case of container components it means the strip on the left.
+        Passing `0` means black.
+        
+        color : ``None | Color``
+        """
+    )
+    
+    
+    component = PlaceHolder(
+        None,
+        """
+        The sub-component nested inside (the label component).
+        
+        Returns
+        -------
+        component : ``None | Component``
         """
     )
     
@@ -206,7 +263,19 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        components : `None`, `tuple` of ``Component``
+        components : ``None | tuple<Component>``
+        """
+    )
+    
+    
+    content = PlaceHolder(
+        None,
+        """
+        The content shown on the component.
+        
+        Returns
+        -------
+        content : `None | str`
         """
     )
     
@@ -220,7 +289,7 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        custom_id : `None`, `str`
+        custom_id : `None | str`
         """
     )
     
@@ -232,7 +301,31 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        default_values : `None`, `tuple` of ``EntitySelectDefaultValue``
+        default_values : ``None | tuple<EntitySelectDefaultValue>``
+        """
+    )
+    
+    
+    description = PlaceHolder(
+        None,
+        """
+        Description of the component's media.
+        
+        Returns
+        -------
+        description : `None | str`
+        """
+    )
+    
+    
+    divider = PlaceHolder(
+        True,
+        """
+        Whether the separator should contain a divider.
+        
+        Returns
+        -------
+        divider : `bool`
         """
     )
     
@@ -244,7 +337,7 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        emoji : `None` ``Emoji``
+        emoji : ``None | Emoji``
         """
     )
     
@@ -261,6 +354,18 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
     )
     
     
+    items = PlaceHolder(
+        None,
+        """
+        The media items shown on the component.
+        
+        Returns
+        -------
+        items : ``None | tuple<MediaItem>``
+        """
+    )
+    
+    
     label = PlaceHolder(
         None,
         """
@@ -268,7 +373,7 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        label : `None`, `str`
+        label : `None | str`
         """
     )
     
@@ -297,6 +402,18 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
     )
     
     
+    media = PlaceHolder(
+        None,
+        """
+        The media of the component.
+        
+        Returns
+        -------
+        media : ``None | MediaInfo``
+        """
+    )
+    
+    
     min_length = PlaceHolder(
         0,
         """
@@ -320,6 +437,16 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         """
     )
     
+    name = PlaceHolder(
+        '',
+        """
+        The name of the component's attachment media.
+        
+        Returns
+        -------
+        name : `str`
+        """
+    )
     
     options = PlaceHolder(
         None,
@@ -328,7 +455,7 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        options : `None`, `tuple` of ``StringSelectOption``
+        options : ``None | tuple<StringSelectOption>``
         """
     )
     
@@ -336,11 +463,11 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
     placeholder = PlaceHolder(
         None,
         """
-        Placeholder text of the select.
+        Place holder text of the select.
         
         Returns
         -------
-        placeholder : `None`, `str`
+        placeholder : `None | str`
         """
     )
     
@@ -356,6 +483,18 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         """
     )
     
+    size = PlaceHolder(
+        0,
+        """
+        The size of the component's attachment media.
+        
+        Returns
+        -------
+        size : `int`
+        """
+    )
+    
+    
     sku_id = PlaceHolder(
         0,
         """
@@ -369,6 +508,31 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         """
     )
     
+    
+    spacing_size = PlaceHolder(
+        SEPARATOR_SPACING_SIZE_DEFAULT,
+        """
+        The separator's spacing's size.
+        
+        Returns
+        -------
+        spacing_size : ``SeparatorSpacingSize``
+        """
+    )
+    
+    
+    spoiler = PlaceHolder(
+        False,
+        """
+        Whether the media or the content of the component is spoilered.
+        
+        Returns
+        -------
+        spoiler : `bool`
+        """
+    )
+    
+    
     text_input_style = PlaceHolder(
         TextInputStyle.none,
         """
@@ -377,6 +541,18 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         Returns
         -------
         text_input_style : ``TextInputStyle``
+        """
+    )
+    
+    
+    thumbnail = PlaceHolder(
+        None,
+        """
+        The thumbnail or other accessory (button) of a section component.
+        
+        Returns
+        -------
+        thumbnail : ``None | Component``
         """
     )
     
@@ -390,7 +566,7 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        url : `None`, `str`
+        url : `None | str`
         """
     )
     
@@ -402,6 +578,6 @@ class ComponentMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        value : `None`, `str`
+        value : `None | str`
         """
     )

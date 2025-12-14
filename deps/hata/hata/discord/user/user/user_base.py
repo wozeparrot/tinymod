@@ -1,28 +1,36 @@
 __all__ = ('UserBase', )
 
 from re import I as re_ignore_case, compile as re_compile, escape as re_escape
+from warnings import warn
 
 from scarletio import include
 
 from ...bases import DiscordEntity, ICON_TYPE_NONE, Icon, IconSlot, IconType, PlaceHolder, PlaceHolderFunctional
 from ...color import Color
-from ...http import urls as module_urls
+from ...http.urls import (
+    build_default_avatar_url, build_user_avatar_url, build_user_avatar_url_as, build_user_avatar_url_for,
+    build_user_avatar_url_for_as, build_user_banner_url, build_user_banner_url_as, build_user_banner_url_for,
+    build_user_banner_url_for_as
+)
 from ...localization.utils import LOCALE_DEFAULT
 from ...utils import DATETIME_FORMAT_CODE
 
+from ..status_by_platform import Status, SessionPlatformType
+
 from .fields import (
-    parse_name, put_avatar_decoration_into, put_banner_color_into, put_bot_into, put_clan_into, put_discriminator_into,
-    put_display_name_into, put_flags_into, put_id_into, put_name_into, validate_name
+    parse_name, put_avatar_decoration, put_banner_color, put_bot, put_discriminator, put_display_name, put_flags,
+    put_id, put_name, put_name_plate, put_primary_guild_badge, validate_name
 )
 from .flags import UserFlag
-from .preinstanced import DefaultAvatar, PremiumType, Status
+from .helpers import _try_get_guild_id
+from .preinstanced import DefaultAvatar, PremiumType
 
 
 ZEROUSER = include('ZEROUSER')
 
 
-USER_AVATAR = IconSlot('avatar', 'avatar', module_urls.user_avatar_url, module_urls.user_avatar_url_as)
-USER_BANNER = IconSlot('banner', 'banner', module_urls.user_banner_url, module_urls.user_banner_url_as)
+USER_AVATAR = IconSlot('avatar', 'avatar')
+USER_BANNER = IconSlot('banner', 'banner')
 
 
 class UserBase(DiscordEntity, immortal = True):
@@ -33,10 +41,13 @@ class UserBase(DiscordEntity, immortal = True):
     ----------
     avatar_hash : `int`
         The user's avatar's hash in `uint128`.
+    
     avatar_type : ``IconType``
         The user's avatar's type.
+    
     id : `int`
         The client's unique identifier number.
+    
     name : str
         The client's username.
     
@@ -59,7 +70,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        avatar : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        avatar : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The user's avatar.
         name : `str`, Optional (Keyword only)
             The user's name.
@@ -97,7 +108,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             User data received from Discord.
         """
         self._set_avatar(data)
@@ -111,12 +122,12 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             User data received from Discord.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dict is optional.
         
         Returned Data Structure
@@ -127,15 +138,13 @@ class UserBase(DiscordEntity, immortal = True):
         +=======================+===============================+=======================+
         | avatar                | ``Icon``                      | all                   |
         +-----------------------+-------------------------------+-----------------------+
-        | avatar_decoration     | `None`, ``AvatarDecoration``  | ``Client``, ``User``  |
+        | avatar_decoration     | ``None | AvatarDecoration``    | ``Client``, ``User``  |
         +-----------------------+-------------------------------+-----------------------+
         | banner                | ``Icon``                      | ``Client``, ``User``  |
         +-----------------------+-------------------------------+-----------------------+
         | banner_color          | `None`, ``Color``             | ``Client``, ``User``  |
         +-----------------------+-------------------------------+-----------------------+
         | channel_id            | `int`                         | ``Webhook``           |
-        +-----------------------+-------------------------------+-----------------------+
-        | clan                  | `None`, ``UserClan``          | ``Client``, ``User``  |
         +-----------------------+-------------------------------+-----------------------+
         | discriminator         | `int`                         | ``Client``, ``User``  |
         +-----------------------+-------------------------------+-----------------------+
@@ -153,7 +162,11 @@ class UserBase(DiscordEntity, immortal = True):
         +-----------------------+-------------------------------+-----------------------+
         | name                  | `str`                         | all                   |
         +-----------------------+-------------------------------+-----------------------+
+        | name_plate            | ``None | NamePlate``          | ``Client``, ``User``  |
+        +-----------------------+-------------------------------+-----------------------+
         | premium_type          | ``PremiumType``               | ``Client``            |
+        +-----------------------+-------------------------------+-----------------------+
+        | primary_guild_badge   | `None`, ``GuildBadge``        | ``Client``, ``User``  |
         +-----------------------+-------------------------------+-----------------------+
         """
         old_attributes = {}
@@ -204,7 +217,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             User data.
         
         Returns
@@ -212,7 +225,7 @@ class UserBase(DiscordEntity, immortal = True):
         self : `instance<cls>`
         """
         raise NotImplementedError(
-            f'`{cls.__class__.__name__}` does not support `.from_data` operation, please call it on a sub-type of it.'
+            f'`{cls.__name__}` does not support `.from_data` operation, please call it on a sub-type of it.'
         )
     
     
@@ -230,23 +243,24 @@ class UserBase(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
         
         USER_AVATAR.put_into(self.avatar, data, defaults, as_data = not include_internals)
         USER_BANNER.put_into(self.banner, data, defaults, as_data = not include_internals)
-        put_avatar_decoration_into(self.avatar_decoration, data, defaults)
-        put_banner_color_into(self.banner_color, data, defaults)
-        put_discriminator_into(self.discriminator, data, defaults)
-        put_display_name_into(self.display_name, data, defaults)
-        put_name_into(self.name, data, defaults)
+        put_avatar_decoration(self.avatar_decoration, data, defaults)
+        put_banner_color(self.banner_color, data, defaults)
+        put_discriminator(self.discriminator, data, defaults)
+        put_display_name(self.display_name, data, defaults)
+        put_name(self.name, data, defaults)
+        put_name_plate(self.name_plate, data, defaults)
         
         if include_internals:
-            put_bot_into(self.bot, data, defaults)
-            put_clan_into(self.clan, data, defaults)
-            put_id_into(self.id, data, defaults)
-            put_flags_into(self.flags, data, defaults)
+            put_bot(self.bot, data, defaults)
+            put_id(self.id, data, defaults)
+            put_flags(self.flags, data, defaults)
+            put_primary_guild_badge(self.primary_guild_badge, data, defaults)
         
         return data
     
@@ -277,7 +291,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        avatar : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        avatar : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The user's avatar.
         name : `str`, Optional (Keyword only)
             The user's name.
@@ -317,7 +331,7 @@ class UserBase(DiscordEntity, immortal = True):
         """Returns the user's representation."""
         repr_parts = [
             '<',
-            self.__class__.__name__,
+            type(self).__name__,
         ]
         
         user_id = self.id
@@ -541,10 +555,6 @@ class UserBase(DiscordEntity, immortal = True):
         if (self.bot != other.bot):
             return False
         
-        # clan
-        if (self.clan != other.clan):
-            return False
-        
         # discriminator
         if (self.discriminator != other.discriminator):
             return False
@@ -577,16 +587,24 @@ class UserBase(DiscordEntity, immortal = True):
         if (self.name != other.name):
             return False
         
+        # name_plate
+        if (self.name_plate != other.name_plate):
+            return False
+        
         # premium_type
         if (self.premium_type is not other.premium_type):
+            return False
+        
+        # primary_guild_badge
+        if (self.primary_guild_badge != other.primary_guild_badge):
             return False
         
         # status
         if (self.status is not other.status):
             return False
         
-        # statuses
-        if (self.statuses != other.statuses):
+        # status_by_platform
+        if (self.status_by_platform != other.status_by_platform):
             return False
         
         return True
@@ -603,7 +621,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Returns
         -------
-        activities : `None`, `list` of ``Activity``
+        activities : ``None | list<Activity>``
         """
     )
     
@@ -615,7 +633,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Returns
         -------
-        avatar_decoration : `None`, ``AvatarDecoration``
+        avatar_decoration : ``None | AvatarDecoration``
         """
     )
     
@@ -668,13 +686,6 @@ class UserBase(DiscordEntity, immortal = True):
     )
     
     
-    banner_url = property(module_urls.user_banner_url)
-    banner_url_as = module_urls.user_banner_url_as
-
-    avatar_decoration_url = property(module_urls.user_avatar_decoration_url)
-    avatar_decoration_url_as = module_urls.user_avatar_decoration_url_as
-    
-    
     bot = PlaceHolder(
         False,
         """
@@ -686,14 +697,14 @@ class UserBase(DiscordEntity, immortal = True):
         """,
     )
     
-    clan = PlaceHolder(
+    primary_guild_badge = PlaceHolder(
         None,
         """
-        Returns the user's primary clan.
+        Returns the user's primary guild's badge.
         
         Returns
         -------
-        clan : `None`, ``UserClan``
+        primary_guild_badge : ``None | GuildBadge``
         """,
     )
     
@@ -765,7 +776,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Returns
         -------
-        guild_profiles : `dict` of (`int`, ``GuildProfile``) items
+        guild_profiles : ``dict<int, GuildProfile>``
         """
     )
     
@@ -794,6 +805,18 @@ class UserBase(DiscordEntity, immortal = True):
     )
     
     
+    name_plate = PlaceHolder(
+        None,
+        """
+        Returns the user's name plate.
+        
+        Returns
+        -------
+        name_plate : ``NamePlate``
+        """
+    )
+    
+    
     premium_type = PlaceHolder(
         PremiumType.none,
         """
@@ -818,14 +841,14 @@ class UserBase(DiscordEntity, immortal = True):
     )
     
     
-    statuses = PlaceHolder(
+    status_by_platform = PlaceHolder(
         None,
         """
-        Returns the user's statuses for each platform.
+        Returns the user's status by their platform.
         
         Returns
         -------
-        statuses : `None`, `dict` of (`str`, `str`) items
+        status_by_platform : ``None | StatusByPlatform``
         """
     )
     
@@ -837,7 +860,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Returns
         -------
-        activities : `None`, `tuple` of ``Activity``
+        activities : ``None | tuple<Activity>``
         """
     )
     
@@ -896,7 +919,13 @@ class UserBase(DiscordEntity, immortal = True):
         -------
         default_avatar_url : `str`
         """
-        return DefaultAvatar.for_(self).url
+        discriminator = self.discriminator
+        if discriminator:
+            key = discriminator
+        else:
+            key = self.id >> 22
+        
+        return build_default_avatar_url(key % len(DefaultAvatar.INSTANCES))
     
     
     @property
@@ -908,7 +937,15 @@ class UserBase(DiscordEntity, immortal = True):
         -------
         default_avatar : ``DefaultAvatar``
         """
-        return DefaultAvatar.for_(self)
+        INSTANCES = DefaultAvatar.INSTANCES
+        
+        discriminator = self.discriminator
+        if discriminator:
+            key = discriminator
+        else:
+            key = self.id >> 22
+        
+        return INSTANCES[key % len(INSTANCES)]
     
     
     def iter_activities(self):
@@ -970,9 +1007,9 @@ class UserBase(DiscordEntity, immortal = True):
         
         Returns
         -------
-        platform : `str`
+        platform : ``SessionPlatformType``
         """
-        return ''
+        return SessionPlatformType.none
     
     
     def get_status_by_platform(self, platform):
@@ -981,7 +1018,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        platform : `str`
+        platform : ``None | str | SessionPlatformType``
             The platform to get the status for.
         
         Returns
@@ -998,7 +1035,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        guild : `None`, ``Guild``, `int`
+        guild : ``None | int | Guild``
             The guild, where the user's color will be checked.
             
             Can be given as `None`.
@@ -1016,7 +1053,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        guild : `None`, ``Guild``, `int`
+        guild : ``None | int | Guild``
             The guild, where the user's nick will be checked.
             
             Can be given as `None`.
@@ -1090,7 +1127,7 @@ class UserBase(DiscordEntity, immortal = True):
         name : `str`
             The name of the user.
         
-        guild : `None`, ``Guild``, `int`
+        guild : ``None | int | Guild``
             The guild, where the user's nick will be also checked.
             
             Can be given as `None`.
@@ -1162,7 +1199,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        guild : `None`, ``Guild``, `int`
+        guild : ``None | int | Guild``
             The guild where the user's top role will be looked up.
         
         default : `object` = `None`, Optional
@@ -1221,7 +1258,7 @@ class UserBase(DiscordEntity, immortal = True):
         ----------
         user : ``User``
             The other user to check.
-        guild : ``Guild``, `None`, `int`
+        guild : ``None | int | Guild``
             The guild where the users' top roles will be checked.
             
             Can be given as `None`.
@@ -1239,12 +1276,12 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        guild : `None`, ``Guild``, `int`
+        guild : ``None | int | Guild``
             The guild to get guild profile for.
         
         Returns
         -------
-        guild_profile : `None`, ``Guild``
+        guild_profile : `None`, ``GuildProfile``
         """
         return None
     
@@ -1287,7 +1324,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        guild : `None`, ``Guild``, `int`
+        guild : ``None | int | Guild``
             The guild to get whether the user is booster of.
         
         Returns
@@ -1295,12 +1332,6 @@ class UserBase(DiscordEntity, immortal = True):
         is_boosting : `bool`
         """
         return False
-    
-    
-    avatar_url_for = module_urls.user_avatar_url_for
-    avatar_url_for_as = module_urls.user_avatar_url_for_as
-    avatar_url_at = module_urls.user_avatar_url_at
-    avatar_url_at_as = module_urls.user_avatar_url_at_as
     
     
     def _delete(self):
@@ -1318,26 +1349,26 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Received guild member data.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dict is optional.
         
         Returned Data Structure
         -----------------------
         
-        +---------------+-------------------------------------------+
-        | Keys          | Values                                    |
-        +===============+===========================================+
-        | activities    | ``ActivityChange``                        |
-        +---------------+-------------------------------------------+
-        | status        | ``Status``                                |
-        +---------------+-------------------------------------------+
-        | statuses      | `None`, `dict` of (`str`, `str`) items    |
-        +---------------+-------------------------------------------+
+        +-----------------------+-------------------------------------------+
+        | Keys                  | Values                                    |
+        +=======================+===========================================+
+        | activities            | ``ActivityChange``                        |
+        +-----------------------+-------------------------------------------+
+        | status                | ``Status``                                |
+        +-----------------------+-------------------------------------------+
+        | status_by_platform    | ``None | StatusByPlatform``               |
+        +-----------------------+-------------------------------------------+
         """
         return {}
     
@@ -1348,7 +1379,7 @@ class UserBase(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Received guild member data.
         """
         pass
@@ -1428,7 +1459,11 @@ class UserBase(DiscordEntity, immortal = True):
             +===================+===============================+
             | avatar            | ``Icon``                      |
             +-------------------+-------------------------------+
-            | boosts_since      | `None`, `DateTime`            |
+            | avatar_decoration | ``None | AvatarDecoration``   |
+            +-------------------+-------------------------------+
+            | banner            | ``Icon``                      |
+            +-------------------+-------------------------------+
+            | boosts_since      | `None | DateTime`             |
             +-------------------+-------------------------------+
             | flags             | `None`, ``GuildProfileFlags`` |
             +-------------------+-------------------------------+
@@ -1436,9 +1471,9 @@ class UserBase(DiscordEntity, immortal = True):
             +-------------------+-------------------------------+
             | pending           | `bool`                        |
             +-------------------+-------------------------------+
-            | role_ids          | `None`, `tuple` of `int`      |
+            | role_ids          | `None | tuple<int>`           |
             +-------------------+-------------------------------+
-            | timed_out_until   | `None`, `DateTime`            |
+            | timed_out_until   | `None | DateTime`             |
             +-------------------+-------------------------------+
         """
         raise NotImplementedError
@@ -1470,7 +1505,11 @@ class UserBase(DiscordEntity, immortal = True):
             +===================+===============================+
             | avatar            | ``Icon``                      |
             +-------------------+-------------------------------+
-            | boosts_since      | `None`, `DateTime`            |
+            | avatar_decoration | ``None | AvatarDecoration``   |
+            +-------------------+-------------------------------+
+            | banner            | ``Icon``                      |
+            +-------------------+-------------------------------+
+            | boosts_since      | `None | DateTime`             |
             +-------------------+-------------------------------+
             | flags             | `None`, ``GuildProfileFlags`` |
             +-------------------+-------------------------------+
@@ -1478,9 +1517,350 @@ class UserBase(DiscordEntity, immortal = True):
             +-------------------+-------------------------------+
             | pending           | `bool`                        |
             +-------------------+-------------------------------+
-            | role_ids          | `None`, `tuple` of `int`      |
+            | role_ids          | `None | tuple<int>`           |
             +-------------------+-------------------------------+
-            | timed_out_until   | `None`, `DateTime`            |
+            | timed_out_until   | `None | DateTime`             |
             +-------------------+-------------------------------+
         """
         raise NotImplementedError
+    
+    
+    @property
+    def clan(self):
+        """
+        Deprecated and will be removed in 2025 November. Use ``.primary_guild_badge`` instead.
+        """
+        warn(
+            (
+                f'`{type(self).__name__}.clan` is deprecated and will be removed in 2025 November. '
+                f'Please use `.primary_guild_badge` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 2,
+        )
+        return self.primary_guild_badge
+    
+    
+    @property
+    def statuses(self):
+        """
+        Deprecated and will be removed in 2025 November. Use ``.status_by_platform`` instead.
+        """
+        warn(
+            (
+                f'`{type(self).__name__}.clan` is deprecated and will be removed in 2026 February. '
+                f'Please use `.status_by_platform` instead.'
+            ),
+            FutureWarning,
+            stacklevel = 2,
+        )
+        return self.status_by_platform.to_data()
+    
+    
+    @property
+    def avatar_decoration_url(self):
+        """
+        Returns the user's avatar decoration's url. If the user has no avatar decoration then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        avatar_decoration = self.avatar_decoration
+        if (avatar_decoration is not None):
+            return avatar_decoration.url
+    
+    
+    def avatar_decoration_url_as(self, ext = None, size = None):
+        """
+        Returns the user's avatar decoration's url. If the user has no avatar decoration then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        avatar_decoration = self.avatar_decoration
+        if (avatar_decoration is not None):
+            return avatar_decoration.url_as(ext = ext, size = size)
+    
+    
+    @property
+    def avatar_url(self):
+        """
+        Returns the user's avatar url.
+        If the user has no avatar then returns its default avatar's url.
+        
+        Returns
+        -------
+        url : `str`
+        """
+        url = build_user_avatar_url(self.id, self.avatar_type, self.avatar_hash)
+        if url is None:
+            url = self.default_avatar_url
+        
+        return url
+    
+    
+    def avatar_url_as(self, ext = None, size = None):
+        """
+        Returns the user's avatar url.
+        If the user has no avatar then returns its default avatar's url.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the user has animated avatar, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `str`
+        """
+        url = build_user_avatar_url_as(self.id, self.avatar_type, self.avatar_hash, ext, size)
+        if url is None:
+            url = self.default_avatar_url
+        
+        return url
+    
+    
+    def avatar_url_for(self, guild):
+        """
+        Returns the user's avatar url at the given guild.
+        If the user has no guild specific avatar then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        guild_id = _try_get_guild_id(guild)
+        
+        try:
+            guild_profile = self.guild_profiles[guild_id]
+        except KeyError:
+            return None
+        
+        return build_user_avatar_url_for(self.id, guild_id, guild_profile.avatar_type, guild_profile.avatar_hash)
+    
+    
+    def avatar_url_for_as(self, guild, ext = None, size = None):
+        """
+        Returns the user's avatar url at the given guild.
+        If the user has no guild specific avatar then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the user has animated avatar, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        guild_id = _try_get_guild_id(guild)
+        
+        try:
+            guild_profile = self.guild_profiles[guild_id]
+        except KeyError:
+            return None
+        
+        return build_user_avatar_url_for_as(
+            self.id, guild_id, guild_profile.avatar_type, guild_profile.avatar_hash, ext, size
+        )
+    
+    
+    def avatar_url_at(self, guild):
+        """
+        Returns the user's avatar url at the given guild.
+        If the user has no guild specific avatar then returns its global avatar's url.
+        If the user has no avatar then returns its default avatar's url.
+        
+        Returns
+        -------
+        url : `str`
+        """
+        url = self.avatar_url_for(guild)
+        if url is None:
+            url = self.avatar_url
+        
+        return url
+    
+    
+    def avatar_url_at_as(self, guild, ext = None, size = None):
+        """
+        Returns the user's avatar url at the given guild.
+        If the user has no guild specific avatar then returns its global avatar's url.
+        If the user has no avatar then returns its default avatar's url.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the user has animated avatar, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `str`
+        """
+        url = self.avatar_url_for_as(guild, ext = ext, size = size)
+        if url is None:
+            url = self.avatar_url_as(ext = ext, size = size)
+        
+        return url
+
+    
+    @property
+    def banner_url(self):
+        """
+        Returns the user's banner url.
+        If the user has no banner then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_user_banner_url(self.id, self.banner_type, self.banner_hash)
+    
+    
+    def banner_url_as(self, ext = None, size = None):
+        """
+        Returns the user's banner url.
+        If the user has no banner then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the user has animated banner, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_user_banner_url_as(self.id, self.banner_type, self.banner_hash, ext, size)
+    
+    
+    def banner_url_for(self, guild):
+        """
+        Returns the user's banner url at the given guild.
+        If the user has no guild specific banner then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        guild_id = _try_get_guild_id(guild)
+        
+        try:
+            guild_profile = self.guild_profiles[guild_id]
+        except KeyError:
+            return None
+        
+        return build_user_banner_url_for(self.id, guild_id, guild_profile.banner_type, guild_profile.banner_hash)
+    
+    
+    def banner_url_for_as(self, guild, ext = None, size = None):
+        """
+        Returns the user's banner url at the given guild.
+        If the user has no guild specific banner then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the user has animated banner, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        guild_id = _try_get_guild_id(guild)
+        
+        try:
+            guild_profile = self.guild_profiles[guild_id]
+        except KeyError:
+            return None
+        
+        return build_user_banner_url_for_as(
+            self.id, guild_id, guild_profile.banner_type, guild_profile.banner_hash, ext, size
+        )
+    
+    
+    def banner_url_at(self, guild):
+        """
+        Returns the user's banner url at the given guild.
+        If the user has no guild specific banner then returns its global banner's url.
+        If the user has no banner then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        url = self.banner_url_for(guild)
+        if url is None:
+            url = self.banner_url
+        
+        return url
+    
+    
+    def banner_url_at_as(self, guild, ext = None, size = None):
+        """
+        Returns the user's banner url at the given guild.
+        If the user has no guild specific banner then returns its global banner's url.
+        If the user has no banner then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the user has animated banner, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        url = self.banner_url_for_as(guild, ext = ext, size = size)
+        if url is None:
+            url = self.banner_url_as(ext = ext, size = size)
+        
+        return url
+    
+    
+    @property
+    def name_plate_url(self):
+        """
+        Returns the user's name plate's url. If the user has no name plate then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        name_plate = self.name_plate
+        if (name_plate is not None):
+            return name_plate.url

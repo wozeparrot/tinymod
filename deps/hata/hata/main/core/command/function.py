@@ -331,7 +331,6 @@ class CommandFunction(RichAttributeErrorBaseType):
                 into.append(note_sign)
                 into.append(' ' * (note_sign_adjustment - len(note_sign)))
                 into.append(NOTE_SIGN_DESCRIPTION[note_sign])
-                into.append('\n')
         
         return into
     
@@ -359,7 +358,7 @@ def parse_parameters_into(parameter_values, start_index, command_parameters, pos
         Parameters of the respective command.
     positional_parameters : `list` of `object`
         Positional parameters to call the respective function with.
-    keyword_parameters : `dict` of (`str`, `object`) items
+    keyword_parameters : `dict<str, object>`
         Keyword parameters to call the respective function with.
     
     Returns
@@ -494,7 +493,7 @@ def parse_modifier_parameter_name(parameter_name):
 
 def find_satisfiable_modifier_parameter_result_for(parameter_results, parameter_name):
     """
-    Finds a satisfiable modifier parameter for the given nane.
+    Finds a satisfiable modifier parameter for the given name.
     
     Parameters
     ----------
@@ -519,7 +518,7 @@ def find_satisfiable_modifier_parameter_result_for(parameter_results, parameter_
 
 def find_satisfiable_keyword_parameter_result_for(parameter_results, parameter_name):
     """
-    Finds a satisfiable keyword parameter for the given nane.
+    Finds a satisfiable keyword parameter for the given name.
     
     Parameters
     ----------
@@ -543,7 +542,7 @@ def find_satisfiable_keyword_parameter_result_for(parameter_results, parameter_n
 
 def find_next_satisfiable_positional_parameter_result(parameter_results):
     """
-    Finds a satisfiable positional parameter for the given nane.
+    Finds a satisfiable positional parameter for the given name.
     
     Parameters
     ----------

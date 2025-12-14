@@ -3,12 +3,12 @@ __all__ = ('ScheduledEventSubscribeEvent',)
 from scarletio import copy_docs
 
 from ...bases import EventBase
-from ...core import GUILDS
+from ...core import GUILDS, SCHEDULED_EVENTS
 from ...user import create_partial_user_from_id
 
 from .fields import (
-    parse_guild_id, parse_scheduled_event_id, parse_user_id, put_guild_id_into, put_scheduled_event_id_into,
-    put_user_id_into, validate_guild_id, validate_scheduled_event_id, validate_user_id
+    parse_guild_id, parse_scheduled_event_id, parse_user_id, put_guild_id, put_scheduled_event_id,
+    put_user_id, validate_guild_id, validate_scheduled_event_id, validate_user_id
 )
 
 
@@ -19,9 +19,11 @@ class ScheduledEventSubscribeEvent(EventBase):
     Attributes
     ----------
     guild_id : `int`
-        The guild's identifier where the event will be.
+        The guild's identifier where the event is for.
+    
     scheduled_event_id : `int`
         The scheduled event's identifier.
+    
     user_id : `int`
         The identifier of the user, who subscribed to the event.
     """
@@ -34,11 +36,13 @@ class ScheduledEventSubscribeEvent(EventBase):
         
         Parameters
         ----------
-        guild_id : `int`, ``Guild``, Optional (Keyword only)
+        guild_id : ˙`None | int | Guild``, Optional (Keyword only)
             The guild or its identifier where the event will be.
-        scheduled_event_id : `int`, ``ScheduledEvent``, Optional (Keyword only)
+        
+        scheduled_event_id : ``None | int | ScheduledEvent``, Optional (Keyword only)
             The scheduled event or its identifier.
-        user_id : `int` ``ClientUserBase``, Optional (Keyword only)
+        
+        user_id : ``None | int | ClientUserBase``, Optional (Keyword only)
             The user or their their identifier who subscribed to the event.
         
         Raises
@@ -80,7 +84,7 @@ class ScheduledEventSubscribeEvent(EventBase):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Scheduled event subscribe event data.
         
         Returns
@@ -105,12 +109,12 @@ class ScheduledEventSubscribeEvent(EventBase):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
-        put_guild_id_into(self.guild_id, data, defaults)
-        put_scheduled_event_id_into(self.scheduled_event_id, data, defaults)
-        put_user_id_into(self.user_id, data, defaults)
+        put_guild_id(self.guild_id, data, defaults)
+        put_scheduled_event_id(self.scheduled_event_id, data, defaults)
+        put_user_id(self.user_id, data, defaults)
         return data
     
     
@@ -186,11 +190,13 @@ class ScheduledEventSubscribeEvent(EventBase):
         
         Parameters
         ----------
-        guild_id : `int`, ``Guild``, Optional (Keyword only)
+        guild_id : ˙`None | int | Guild``, Optional (Keyword only)
             The guild or its identifier where the event will be.
-        scheduled_event_id : `int`, ``ScheduledEvent``, Optional (Keyword only)
+        
+        scheduled_event_id : ``None | int | ScheduledEvent``, Optional (Keyword only)
             The scheduled event or its identifier.
-        user_id : `int` ``ClientUserBase``, Optional (Keyword only)
+        
+        user_id : ``None | int | ClientUserBase``, Optional (Keyword only)
             The user or their their identifier who subscribed to the event.
         
         Returns
@@ -231,13 +237,25 @@ class ScheduledEventSubscribeEvent(EventBase):
     
     
     @property
+    def scheduled_event(self):
+        """
+        Returns the scheduled event.
+        
+        Returns
+        -------
+        scheduled_event : ``None | ScheduledEvent``
+        """
+        return SCHEDULED_EVENTS.get(self.scheduled_event_id, None)
+    
+    
+    @property
     def guild(self):
         """
         Returns the scheduled event subscribe event's guild.
         
         Returns
         -------
-        guild : `None`, ``Guild``
+        guild : ``None | Guild``
         """
         guild_id = self.guild_id
         if guild_id:

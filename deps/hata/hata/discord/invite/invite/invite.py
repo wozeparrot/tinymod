@@ -1,28 +1,28 @@
 __all__ = ('Invite',)
 
-from datetime import datetime as DateTime
-from warnings import warn
+from datetime import datetime as DateTime, timedelta as TimeDelta
 
 from scarletio import export
 
 from ...bases import DiscordEntity
 from ...core import INVITES
-from ...guild import NsfwLevel
-from ...http import urls as module_urls
+from ...http.urls import build_invite_url
+from ...permission import Permission
 from ...precreate_helpers import process_precreate_parameters_and_raise_extra
 from ...user import ClientUserBase, ZEROUSER
 
 from .fields import (
     parse_approximate_online_count, parse_approximate_user_count, parse_channel, parse_code, parse_created_at,
-    parse_flags, parse_guild, parse_inviter, parse_max_age, parse_max_uses, parse_target_application, parse_target_type,
-    parse_target_user, parse_temporary, parse_type, parse_uses, put_approximate_online_count_into,
-    put_approximate_user_count_into, put_channel_into, put_code_into, put_created_at_into, put_flags_into,
-    put_guild_into, put_inviter_into, put_max_age_into, put_max_uses_into, put_target_application_id_into,
-    put_target_application_into, put_target_type_into, put_target_user_id_into, put_target_user_into,
-    put_temporary_into, put_type_into, put_uses_into, validate_approximate_online_count,
-    validate_approximate_user_count, validate_channel, validate_code, validate_created_at, validate_flags,
-    validate_guild, validate_inviter, validate_max_age, validate_max_uses, validate_target_application,
-    validate_target_type, validate_target_user, validate_temporary, validate_type, validate_uses
+    parse_flags, parse_guild, parse_guild_activity_overview, parse_inviter, parse_max_age, parse_max_uses,
+    parse_target_application, parse_target_type, parse_target_user, parse_temporary, parse_type, parse_user_permissions,
+    parse_uses, put_approximate_online_count, put_approximate_user_count, put_channel, put_code, put_created_at,
+    put_flags, put_guild, put_guild_activity_overview, put_inviter, put_max_age, put_max_uses, put_target_application,
+    put_target_application_id, put_target_type, put_target_user, put_target_user_id, put_temporary, put_type,
+    put_user_permissions, put_uses, validate_approximate_online_count, validate_approximate_user_count,
+    validate_channel, validate_code, validate_created_at, validate_flags, validate_guild,
+    validate_guild_activity_overview, validate_inviter, validate_max_age, validate_max_uses,
+    validate_target_application, validate_target_type, validate_target_user, validate_temporary, validate_type,
+    validate_user_permissions, validate_uses
 )
 from .flags import InviteFlag
 from .preinstanced import InviteTargetType, InviteType
@@ -35,6 +35,7 @@ PRECREATE_FIELDS = {
     'created_at': ('created_at', validate_created_at),
     'flags': ('flags', validate_flags),
     'guild': ('guild', validate_guild),
+    'guild_activity_overview' : ('guild_activity_overview', validate_guild_activity_overview),
     'invite_type': ('type', validate_type),
     'inviter': ('inviter', validate_inviter),
     'max_age': ('max_age', validate_max_age),
@@ -43,6 +44,7 @@ PRECREATE_FIELDS = {
     'target_type': ('target_type', validate_target_type),
     'target_user': ('target_user', validate_target_user),
     'temporary': ('temporary', validate_temporary),
+    'user_permissions': ('user_permissions', validate_user_permissions),
     'uses': ('uses', validate_uses),
 }
 
@@ -62,7 +64,7 @@ class Invite(DiscordEntity, immortal = True):
         The approximate amount of users at the respective guild (or group channel).
         Defaults to `0`.
     
-    channel : `None`, ``Channel``
+    channel : ``None | Channel``
         The channel where the invite redirects. If it is announcements or store channel, then the invite is a lurk
         invite. If channel data was not sent with the invite's, then this attribute is set as `None`.
     
@@ -75,32 +77,35 @@ class Invite(DiscordEntity, immortal = True):
     flags : ``InviteFlag``
         The invite's flags.
     
-    guild : `None`, ``Guild``
+    guild : ``None | Guild``
         The guild the invite is for. If not included or if the invite's channel is a group channel, then set as
         `None`.
+    
+    guild_activity_overview : ``None | GuildActivityOverview``
+        The guild's activity overview.
     
     inviter : ``ClientUserBase``
         The creator of the invite. If not included, then set as `ZEROUSER`.
     
-    max_age : `None`, `int`
+    max_age : `None | int`
         The time in seconds after the invite will expire.
         Defaults to `None`.
         
         If the invite was created with max age as `0`, then this value will be negative instead of the expected `0`.
     
-    max_uses : `None`, `int`
+    max_uses : `None | int`
         How much times the invite can be used.
         Defaults to `None`.
         
         If the invite has no use limit, then this value is set as `0`.
     
-    target_application : `None`, ``Application``
+    target_application : ``None | Application``
         The invite's target application.
     
     target_type : ``InviteTargetType``
         The invite's target type.
     
-    target_user : `None`, ``ClientUserBase``
+    target_user : ``None | ClientUserBase``
         The target of the invite if applicable.
     
     temporary : `bool`
@@ -111,14 +116,17 @@ class Invite(DiscordEntity, immortal = True):
     type : ``InviteType``
         The invite's type.
     
-    uses : `None`, `int`
+    user_permissions : ``Permission``
+        A subset of the permission that the user is granted by default upon joining.
+    
+    uses : `None | int`
         The amount how much times the invite was used.
         Defaults to `None`.
     """
     __slots__ = (
         'approximate_user_count', 'approximate_online_count', 'channel', 'code', 'created_at', 'flags', 'guild',
-        'inviter', 'max_age', 'max_uses', 'target_application', 'target_type', 'target_user', 'temporary', 'type',
-        'uses'
+        'guild_activity_overview', 'inviter', 'max_age', 'max_uses', 'target_application', 'target_type',
+        'target_user', 'temporary', 'type', 'user_permissions', 'uses'
     )
     
     
@@ -138,22 +146,22 @@ class Invite(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        flags : ``InviteFlag``, `int`, Optional (Keyword only)
+        flags : ``int | InviteFlag``, Optional (Keyword only)
             The invite's flags.
         
-        max_age : `None`, `int`, Optional (Keyword only)
+        max_age : `None | int`, Optional (Keyword only)
             The time in seconds after the invite will expire.
         
-        max_uses : `None`, `int`, Optional (Keyword only)
+        max_uses : `None | int`, Optional (Keyword only)
             How much times the invite can be used.
         
-        target_application : `None`, ``Application``, Optional (Keyword only)
+        target_application : ``None | Application``, Optional (Keyword only)
             The invite's target application.
         
-        target_type : ``InviteTargetType``, `int`, Optional (Keyword only)
+        target_type : ``None | int | InviteTargetType``, Optional (Keyword only)
             The invite's target type.
         
-        target_user : `None`, ``ClientUserBase``, Optional (Keyword only)
+        target_user : ``None | ClientUserBase``, Optional (Keyword only)
             The target of the invite if applicable.
         
         temporary : `bool`, Optional (Keyword only)
@@ -218,6 +226,7 @@ class Invite(DiscordEntity, immortal = True):
         self.created_at = None
         self.flags = flags
         self.guild = None
+        self.guild_activity_overview = None
         self.inviter = ZEROUSER
         self.max_age = max_age
         self.max_uses = max_uses
@@ -226,6 +235,7 @@ class Invite(DiscordEntity, immortal = True):
         self.target_user = target_user
         self.temporary = temporary
         self.type = InviteType.guild
+        self.user_permissions = Permission()
         self.uses = None
         
         return self
@@ -238,7 +248,7 @@ class Invite(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Invite data.
         
         Returns
@@ -275,39 +285,41 @@ class Invite(DiscordEntity, immortal = True):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
         
-        put_flags_into(self.flags, data, defaults)
-        put_max_age_into(self.max_age, data, defaults)
-        put_max_uses_into(self.max_uses, data, defaults)
-        put_target_type_into(self.target_type, data, defaults)
-        put_temporary_into(self.temporary, data, defaults)
+        put_flags(self.flags, data, defaults)
+        put_max_age(self.max_age, data, defaults)
+        put_max_uses(self.max_uses, data, defaults)
+        put_target_type(self.target_type, data, defaults)
+        put_temporary(self.temporary, data, defaults)
         
         if include_internals:
-            put_approximate_user_count_into(self.approximate_user_count, data, defaults)
-            put_approximate_online_count_into(self.approximate_online_count, data, defaults)
-            put_channel_into(self.channel, data, defaults)
-            put_code_into(self.code, data, defaults)
-            put_created_at_into(self.created_at, data, defaults)
-            put_guild_into(self.guild, data, defaults)
-            put_inviter_into(self.inviter, data, defaults)
-            put_target_application_into(self.target_application, data, defaults)
-            put_target_user_into(self.target_user, data, defaults)
-            put_type_into(self.type, data, defaults)
-            put_uses_into(self.uses, data, defaults)
+            put_approximate_user_count(self.approximate_user_count, data, defaults)
+            put_approximate_online_count(self.approximate_online_count, data, defaults)
+            put_channel(self.channel, data, defaults)
+            put_code(self.code, data, defaults)
+            put_created_at(self.created_at, data, defaults)
+            put_guild(self.guild, data, defaults)
+            put_guild_activity_overview(self.guild_activity_overview, data, defaults)
+            put_inviter(self.inviter, data, defaults)
+            put_target_application(self.target_application, data, defaults)
+            put_target_user(self.target_user, data, defaults)
+            put_type(self.type, data, defaults)
+            put_user_permissions(self.user_permissions, data, defaults)
+            put_uses(self.uses, data, defaults)
         
         else:
-            put_target_application_id_into(self.target_application_id, data, defaults)
-            put_target_user_id_into(self.target_user_id, data, defaults)
+            put_target_application_id(self.target_application_id, data, defaults)
+            put_target_user_id(self.target_user_id, data, defaults)
         
         return data
     
     
     def __repr__(self):
         """Returns the representation of the invite."""
-        return f'<{self.__class__.__name__} code = {self.code!r}>'
+        return f'<{type(self).__name__} code = {self.code!r}>'
     
     
     def __hash__(self):
@@ -424,7 +436,7 @@ class Invite(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Invite data.
         """
         self._set_attributes_common(data)
@@ -437,7 +449,7 @@ class Invite(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Invite data.
         """
         self._set_attributes_common(data)
@@ -450,7 +462,7 @@ class Invite(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Invite data.
         """
         self.channel = parse_channel(data)
@@ -463,13 +475,14 @@ class Invite(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Invite data.
         """
         self.channel = parse_channel(data)
         self.created_at = parse_created_at(data)
         self.flags = parse_flags(data)
         self.guild = parse_guild(data)
+        self.guild_activity_overview = parse_guild_activity_overview(data)
         self.inviter = parse_inviter(data)
         self.max_age = parse_max_age(data)
         self.max_uses = parse_max_uses(data)
@@ -478,6 +491,7 @@ class Invite(DiscordEntity, immortal = True):
         self.target_user = parse_target_user(data)
         self.temporary = parse_temporary(data)
         self.type = parse_type(data)
+        self.user_permissions = parse_user_permissions(data)
         self.uses = parse_uses(data)
     
     
@@ -487,7 +501,7 @@ class Invite(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Received invite data.
         """
         guild = self.guild
@@ -507,7 +521,7 @@ class Invite(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Received invite data.
         """
         guild = self.guild
@@ -545,43 +559,49 @@ class Invite(DiscordEntity, immortal = True):
         approximate_user_count : `int`, Optional (Keyword only)
             The amount of users at the respective guild (or group channel).
         
-        channel : `None`, ``Channel``, Optional (Keyword only)
+        channel : ``None | Channel``, Optional (Keyword only)
             The channel where the invite redirects.
         
-        created_at : `None`, `DateTime`, Optional (Keyword only)
+        created_at : `None | DateTime`, Optional (Keyword only)
             When the invite was created.
         
-        flags : ``InviteFlag``, `int`, Optional (Keyword only)
+        flags : ``int | InviteFlag``, Optional (Keyword only)
             The invite's flags.
         
-        guild : `None`, ``Guild``, Optional (Keyword only)
+        guild : ``None | Guild``, Optional (Keyword only)
             The guild the invite is for.
         
-        invite_type : `int`, ``InviteType``, Optional (Keyword only)
+        guild_activity_overview : ``None | GuildActivityOverview``, Optional (Keyword only)
+            The guild's activity overview.
+        
+        invite_type : ``None | int | InviteType``, Optional (Keyword only)
             The invite's type.
         
         inviter : ``ClientUserBase``, Optional (Keyword only)
             The creator of the invite.
         
-        max_age : `None`, `int`, Optional (Keyword only)
+        max_age : `None | int`, Optional (Keyword only)
             The time in seconds after the invite will expire.
         
-        max_uses : `None`, `int`, Optional (Keyword only)
+        max_uses : `None | int`, Optional (Keyword only)
             How much times the invite can be used.
         
-        target_application : `None`, ``Application``, Optional (Keyword only)
+        target_application : ``None | Application``, Optional (Keyword only)
             The target application of the invite.
         
-        target_type : ``InviteTargetType``, `int` Optional (Keyword only)
+        target_type : ``int | InviteTargetType`` Optional (Keyword only)
             The invite's target type.
         
-        target_user : `None`, ``ClientUserBase``, Optional (Keyword only)
+        target_user : ``None | ClientUserBase``, Optional (Keyword only)
             The target user of the invite.
         
         temporary : `bool`, Optional (Keyword only)
             Whether this invite only grants temporary membership.
         
-        uses : `None`, `int`, Optional (Keyword only)
+        user_permissions : ``None | int | Permission``, Optional (Keyword only)
+            A subset of the permission that the user is granted by default upon joining.
+            
+        uses : `None | int`, Optional (Keyword only)
             The amount how much times the invite was used.
         
         Returns
@@ -642,14 +662,16 @@ class Invite(DiscordEntity, immortal = True):
         self.created_at = None
         self.flags = InviteFlag()
         self.guild = None
+        self.guild_activity_overview = None
         self.inviter = ZEROUSER
         self.max_age = None
         self.max_uses = None
         self.target_application = None
         self.target_type = InviteTargetType.none
-        self.target_user = ZEROUSER
+        self.target_user = None
         self.temporary = False
         self.type = InviteType.guild
+        self.user_permissions = Permission()
         self.uses = None
         
         return self
@@ -672,6 +694,7 @@ class Invite(DiscordEntity, immortal = True):
         new.created_at = None
         new.flags = self.flags
         new.guild = None
+        new.guild_activity_overview = None
         new.inviter = ZEROUSER
         new.max_age = self.max_age
         new.max_uses = self.max_uses
@@ -680,6 +703,7 @@ class Invite(DiscordEntity, immortal = True):
         new.target_user = self.target_user
         new.temporary = self.temporary
         new.type = InviteType.guild
+        new.user_permissions = Permission()
         new.uses = None
         
         return new
@@ -701,22 +725,22 @@ class Invite(DiscordEntity, immortal = True):
         
         Parameters
         ----------
-        flags : ``InviteFlag``, `int`, Optional (Keyword only)
+        flags : ``int | InviteFlag``, Optional (Keyword only)
             The invite's flags.
         
-        max_age : `None`, `int`, Optional (Keyword only)
+        max_age : `None | int`, Optional (Keyword only)
             The time in seconds after the invite will expire.
         
-        max_uses : `None`, `int`, Optional (Keyword only)
+        max_uses : `None | int`, Optional (Keyword only)
             How much times the invite can be used.
         
-        target_application : `None`, ``Application``, Optional (Keyword only)
+        target_application : ``None | Application``, Optional (Keyword only)
             The invite's target application.
         
-        target_type : ``InviteTargetType``, `int`, Optional (Keyword only)
+        target_type : ``None | int | InviteTargetType``, Optional (Keyword only)
             The invite's target type.
         
-        target_user : `None`, ``ClientUserBase``, Optional (Keyword only)
+        target_user : ``None | ClientUserBase``, Optional (Keyword only)
             The target of the invite if applicable.
         
         temporary : `bool`, Optional (Keyword only)
@@ -785,6 +809,7 @@ class Invite(DiscordEntity, immortal = True):
         new.created_at = None
         new.flags = flags
         new.guild = None
+        new.guild_activity_overview = None
         new.inviter = ZEROUSER
         new.max_age = max_age
         new.max_uses = max_uses
@@ -793,12 +818,22 @@ class Invite(DiscordEntity, immortal = True):
         new.target_user = target_user
         new.temporary = temporary
         new.type = InviteType.guild
+        new.user_permissions = Permission()
         new.uses = None
         
         return new
-        
     
-    url = property(module_urls.invite_url)
+    
+    @property
+    def url(self):
+        """
+        Returns the invite's url.
+        
+        Returns
+        -------
+        url : `str`
+        """
+        return build_invite_url(self.code)
     
     
     @property
@@ -909,46 +944,14 @@ class Invite(DiscordEntity, immortal = True):
     
     
     @property
-    def stage(self):
+    def expires_at(self):
         """
-        Returns the invite's stage.
-        
-        Deprecated and will be removed in 2024 February.
+        Returns when the invite expires.
         
         Returns
         -------
-        stage : `None`, ``InviteStage``
+        expires_at : `None | DateTime`
         """
-        warn(
-            f'`{self.__class__.__name__}.stage` is deprecated and will be removed in 2024 February.',
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return None
-    
-    
-    @property
-    def nsfw_level(self):
-        """
-        Returns the invite's guild's nsfw level if applicable.
-        
-        Deprecated and will be removed in 2024 February.
-        
-        Returns
-        -------
-        stage : ``NsfwLevel``
-        """
-        warn(
-            f'`{self.__class__.__name__}.nsfw_level` is deprecated and will be removed in 2024 February.',
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        guild = self.guild
-        if (guild is None):
-            nsfw_level = NsfwLevel.none
-        else:
-            nsfw_level = guild.nsfw_level
-        
-        return nsfw_level
+        max_age = self.max_age
+        if (max_age is not None):
+            return self.created_at + TimeDelta(seconds = max_age)

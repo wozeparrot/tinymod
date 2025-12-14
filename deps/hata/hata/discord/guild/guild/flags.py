@@ -1,9 +1,24 @@
-__all__ = ('SystemChannelFlag',)
+__all__ = ('GuildFeatureFlag', 'SystemChannelFlag',)
 
-from ...bases import ReverseFlagBase
+from ...bases import FlagBase, FlagBaseReversed, FlagDescriptor as F
 
 
-class SystemChannelFlag(ReverseFlagBase):
+class GuildFeatureFlag(FlagBase):
+    """
+    The flags of a guild feature representing its properties.
+    
+    The implemented guild feature flags are the following:
+    
+    +---------------------------------------+-------------------+
+    | Respective name                       | Bitwise position  |
+    +=======================================+===================+
+    | boost                                 | 0                 |
+    +---------------------------------------+-------------------+
+    """
+    boost = F(0)
+
+
+class SystemChannelFlag(FlagBaseReversed):
     """
     The flags of a ``Guild``'s system channel.
     
@@ -27,25 +42,32 @@ class SystemChannelFlag(ReverseFlagBase):
     +---------------------------------------+-------------------+
     | role_subscription_purchase_replies    | 5                 |
     +---------------------------------------+-------------------+
+    | ???                                   | 6                 |
+    +---------------------------------------+-------------------+
+    | ???                                   | 7                 |
+    +---------------------------------------+-------------------+
+    | emoji_added_notification              | 8                 |
+    +---------------------------------------+-------------------+
     
     There are also predefined ``SystemChannelFlag``-s:
     
     +-----------------------+---------------------------+
-    | Class attribute name  | value                     |
+    | Type attribute name   | value                     |
     +=======================+===========================+
-    | NONE                  | ActivityFlag(0b111111)    |
+    | NONE                  | ActivityFlag(0b100111111) |
     +-----------------------+---------------------------+
-    | ALL                   | ActivityFlag(0b000000)    |
-    +-----------------------+----------------------------+
+    | ALL                   | ActivityFlag(0b000000000) |
+    +-----------------------+---------------------------+
     """
-    __keys__ = {
-        'welcome': 0,
-        'boost': 1,
-        'setup_tips': 2,
-        'join_sticker_replies': 3,
-        'role_subscription_purchase': 4,
-        'role_subscription_purchase_replies': 5,
-    }
+    welcome = F(0)
+    boost = F(1)
+    setup_tips = F(2)
+    join_sticker_replies = F(3)
+    role_subscription_purchase = F(4)
+    role_subscription_purchase_replies = F(5)
+    # 6 ???
+    # 7 ???
+    emoji_added_notification = F(8)
     
     @property
     def none(self):
@@ -69,9 +91,10 @@ class SystemChannelFlag(ReverseFlagBase):
         """
         return (self == self.ALL)
     
+    
     NONE = NotImplemented
     ALL = NotImplemented
 
 
-SystemChannelFlag.NONE = SystemChannelFlag(0b111111)
-SystemChannelFlag.ALL = SystemChannelFlag(0b000000)
+SystemChannelFlag.NONE = SystemChannelFlag(0b100111111)
+SystemChannelFlag.ALL = SystemChannelFlag(0b000000000)

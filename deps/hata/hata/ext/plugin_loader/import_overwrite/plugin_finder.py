@@ -22,9 +22,9 @@ class PluginFinder(PathFinder):
         ----------
         full_name : `str`
             The full name of the module to find.
-        paths : `None`, `list` of `str` = `None`, Optional
+        paths : `None | list<str>` = `None`, Optional
             Path to find the module in.
-        target : `None`, `object` = `None`, Optional
+        target : `None | object` = `None`, Optional
             Helper value to find the target specification.
             
             > Could not find a case where this value is actually used.

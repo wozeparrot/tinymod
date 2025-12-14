@@ -217,7 +217,7 @@ class UserMenuFactory:
         | exception | `None`, `BaseException`   |
         +-----------+---------------------------+
     
-    close_emoji : `None`, ``Emoji``
+    close_emoji : ``None | Emoji``
         The emoji which triggers closing.
     
     emojis : `None`, `tuple` of ``Emoji``
@@ -281,7 +281,7 @@ class UserMenuFactory:
             - If `klass` was not given as `type`.
             - If `klass.check` is not `None` neither a non-async function accepting 1 parameter.
             - If `invoke` is not async callable or accepts not 1 parameter.
-            - If `close_emoji` is neither `None`, ``Emoji``.
+            - If `close_emoji` is not ``None | Emoji``.
             - If `emojis` is neither `None` nor `tuple`, `list`.
             - If `emojis` contains a non ``Emoji`` element.
             - If `initial_invoke` is not async callable or accepts any parameters.
@@ -468,13 +468,13 @@ class UserMenuRunner(PaginationBase):
     client : ``Client``
         The client who executes the ``UserMenuRunner``.
     
-    message : `None`, ``Message``
+    message : ``None | Message``
         The message on what the ``UserMenuRunner`` is executed.
     
     _factory : ``UserMenuFactory``
         The factory of the menu containing it's details.
     
-    _instance : `None`, `object`
+    _instance : `None | object`
         The respective ``UserMenuFactory``'s class instanced.
     """
     __slots__ = ('_factory', '_instance',)
@@ -495,7 +495,7 @@ class UserMenuRunner(PaginationBase):
             The channel where the ``UserMenuRunner`` is executed.
         *args : Parameters
             Additional parameters to pass to the factory's class's constructor.
-        message : `None`, ``Message`` = `None`, Optional (Keyword Only)
+        message : ``None | Message`` = `None`, Optional (Keyword Only)
             The message to use instead of creating a new one.
         **kwargs : Keyword parameters
             Additional keyword parameters to pass to the factory's class's constructor.
@@ -579,7 +579,7 @@ class UserMenuRunner(PaginationBase):
         
         emojis = factory.emojis
         if (emojis is not None):
-            if not target_channel.cached_permissions_for(client).can_add_reactions:
+            if not target_channel.cached_permissions_for(client).add_reactions:
                 await self.cancel(PermissionError())
                 return self
             
@@ -812,7 +812,7 @@ class UserPagination:
         
         Returns
         -------
-        page : `None`, `object`
+        page : `None | object`
             The page to kick-off the pagination with.
         """
         pages = self.pages
@@ -868,7 +868,7 @@ class UserPagination:
         
         Parameters
         ----------
-        exception : `None`, ``BaseException``
+        exception : `None`, `BaseException`
             - `CancelledError` if closed with the close emoji.
             - `TimeoutError` if closed by timeout.
             - `PermissionError` if closed because cant add reactions.
@@ -902,7 +902,7 @@ class UserPagination:
             return
         
         if isinstance(exception, TimeoutError):
-            if self.menu.channel.cached_permissions_for(client).can_manage_messages:
+            if self.menu.channel.cached_permissions_for(client).manage_messages:
                 try:
                     await client.reaction_clear(self.menu.message)
                 except GeneratorExit:

@@ -2,7 +2,7 @@ from datetime import datetime as DateTime
 
 import vampytest
 
-from ....bases import Icon
+from ....bases import Icon, IconType
 from ....emoji import Emoji
 
 from ..flags import ChannelFlag
@@ -30,6 +30,8 @@ def test__ChannelMetadataBase__place_holders():
     vampytest.assert_instance(channel_metadata.default_thread_reaction_emoji, Emoji, nullable = True)
     vampytest.assert_instance(channel_metadata.flags, ChannelFlag)
     vampytest.assert_instance(channel_metadata.icon, Icon)
+    vampytest.assert_instance(channel_metadata.icon_hash, int)
+    vampytest.assert_instance(channel_metadata.icon_type, IconType)
     vampytest.assert_instance(channel_metadata.invitable, bool)
     vampytest.assert_instance(channel_metadata.name, str)
     vampytest.assert_instance(channel_metadata.nsfw, bool)
@@ -45,3 +47,4 @@ def test__ChannelMetadataBase__place_holders():
     vampytest.assert_instance(channel_metadata.topic, str, nullable = True)
     vampytest.assert_instance(channel_metadata.user_limit, int)
     vampytest.assert_instance(channel_metadata.video_quality_mode, VideoQualityMode)
+    vampytest.assert_instance(channel_metadata.voice_engaged_since, DateTime, nullable = True)

@@ -22,6 +22,58 @@ class ClientCompoundRoleEndpoints(Compound):
     async def guild_sync(self, guild): ...
     
     
+    async def role_get(self, role, *, force_update = False):
+        """
+        Requests the given role and returns it.
+        
+        This method is a coroutine.
+        
+        Parameters
+        ----------
+        role : `Role | (int, int)`
+            The role or a pair of `guild-id`, `role-id`.
+        
+        force_update : `bool` = `False`, Optional (Keyword only)
+            Whether the role should be requested even if it supposed to be up to date.
+        
+        Returns
+        -------
+        role : ``Role``
+        
+        Raises
+        ------
+        TypeError
+            - If a parameter's type is incorrect.
+        ConnectionError
+            No internet connection.
+        DiscordException
+            If any exception was received from the Discord API.
+        """
+        role, guild_id, role_id = get_role_role_guild_id_and_id(role)
+        
+        # a goto to check whether we should force update the role.
+        while True:
+            if force_update:
+                break
+            
+            if role is None:
+                break
+            
+            if not role.partial:
+                return role
+            
+            break
+        
+        data = await self.api.role_get(guild_id, role_id)
+        
+        if role is None:
+            role = Role.from_data(data, guild_id)
+        else:
+            role._update_attributes(data)
+        
+        return role
+    
+    
     async def guild_role_get_all(self, guild):
         """
         Requests the given guild's roles and if there any de-sync between the wrapper and Discord, applies the
@@ -31,7 +83,7 @@ class ClientCompoundRoleEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, what's roles will be requested.
         
         Returns
@@ -66,13 +118,13 @@ class ClientCompoundRoleEndpoints(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild where the role will be created.
         
-        role_template : `None`, ``Role`` = `None`, Optional
+        role_template : ``None | Role`` = `None`, Optional
             Role entity to use as a template.
         
-        reason : `None`, `str` = `None`, Optional (Keyword only)
+        reason : `None | str` = `None`, Optional (Keyword only)
             Shows up at the guild's audit logs.
         
         **keyword_parameters : Keyword parameters
@@ -80,13 +132,16 @@ class ClientCompoundRoleEndpoints(Compound):
         
         Other Parameters
         ----------------
-        color : ``Color``, `int`, Optional (Keyword only)
+        color : ``None | int | Color``, Optional (Keyword only)
             The role's color.
         
-        flags : ``RoleFlag``, `int`, Optional (Keyword only)
+        color_configuration : ``None | RoleColorConfiguration``, Optional (Keyword only)
+            The role's color's configuration.
+        
+        flags : ``None | int | RoleFlag``, Optional (Keyword only)
             The role's flags.
         
-        icon : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        icon : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The role's icon.
         
         mentionable : `bool`, Optional (Keyword only)
@@ -95,7 +150,7 @@ class ClientCompoundRoleEndpoints(Compound):
         name : `str`, Optional (Keyword only)
             The role's name.
         
-        permissions : `int`, ``Permission``, Optional (Keyword only)
+        permissions : ``None | int | Permission``, Optional (Keyword only)
             The permissions of the users having the role.
         
         position : `int`, Optional (Keyword only)
@@ -104,7 +159,7 @@ class ClientCompoundRoleEndpoints(Compound):
         separated : `bool`, Optional (Keyword only)
             Users show up in separated groups by their highest `separated` role.
         
-        unicode_emoji : `None`, ``Emoji``, Optional (Keyword only)
+        unicode_emoji : ``None | Emoji``, Optional (Keyword only)
             The role's icon as an unicode emoji.
         
         Raises
@@ -132,13 +187,13 @@ class ClientCompoundRoleEndpoints(Compound):
         
         Parameters
         ----------
-        role : ``Role``, `tuple` (`int`, `int`)
+        role : ``Role | (int, int)``
             The role to edit.
         
-        role_template : `None`, ``Role`` = `None`, Optional
+        role_template : ``None | Role`` = `None`, Optional
             Role entity to use as a template.
         
-        reason : `None`, `str` = `None`, Optional (Keyword only)
+        reason : `None | str` = `None`, Optional (Keyword only)
             Shows up at the guild's audit logs.
         
         **keyword_parameters : Keyword parameters
@@ -146,13 +201,16 @@ class ClientCompoundRoleEndpoints(Compound):
         
         Other Parameters
         ----------------
-        color : ``Color``, `int`, Optional (Keyword only)
+        color : ``None | int | Color``, Optional (Keyword only)
             The role's color.
         
-        flags : ``RoleFlag``, `int`, Optional (Keyword only)
+        color_configuration : ``None | RoleColorConfiguration``, Optional (Keyword only)
+            The role's color's configuration.
+        
+        flags : ``None | int | RoleFlag``, Optional (Keyword only)
             The role's flags.
         
-        icon : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        icon : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The role's icon.
             
         mentionable : `bool`, Optional (Keyword only)
@@ -161,7 +219,7 @@ class ClientCompoundRoleEndpoints(Compound):
         name : `str`, Optional (Keyword only)
             The role's name.
         
-        permissions : `int`, ``Permission``, Optional (Keyword only)
+        permissions : ``None | int | Permission``, Optional (Keyword only)
             The permissions of the users having the role.
         
         position : `int`, Optional (Keyword only)
@@ -170,7 +228,7 @@ class ClientCompoundRoleEndpoints(Compound):
         separated : `bool`, Optional (Keyword only)
             Users show up in separated groups by their highest `separated` role.
         
-        unicode_emoji : `None`, ``Emoji``, Optional (Keyword only)
+        unicode_emoji : ``None | Emoji``, Optional (Keyword only)
             The role's icon as an unicode emoji.
         
         Raises
@@ -198,10 +256,10 @@ class ClientCompoundRoleEndpoints(Compound):
         
         Parameters
         ----------
-        role : ``Role``, `tuple` (`int`, `int`)
+        role : ``Role | (int, int)``
             The role to delete
         
-        reason : `None`, `str` = `None`, Optional (Keyword only)
+        reason : `None | str` = `None`, Optional (Keyword only)
             Shows up at the respective guild's audit logs.
         
         Raises
@@ -225,17 +283,19 @@ class ClientCompoundRoleEndpoints(Compound):
         
         Parameters
         ----------
-        role : ``Role``, `tuple` of (`int`, `int`)
+        role : ``Role | (int, int)``
             The role to move.
+        
         position : `int`
             The position to move the given role.
-        reason : `None`, `str` = `None`, Optional (Keyword only)
+        
+        reason : `None | str` = `None`, Optional (Keyword only)
             Shows up at the respective guild's audit logs.
         
         Raises
         ------
         TypeError
-            If `role` was not given neither as ``Role`` nor as `tuple` of (`int`, `int`).
+            If `role` was not given as invalid type.
         ValueError
             - If default role would be moved.
             - If any role would be moved to position `0`.
@@ -309,12 +369,12 @@ class ClientCompoundRoleEndpoints(Compound):
         -------
         role : ``Role``
             The validated role.
-        guild : ``None`, ``Guild``
+        guild : ```None | Guild``
             The role's guild.
         
         Yields
         ------
-        item : `None`, `tuple` (``Role``, ``Guild``, `int`)
+        item : ``None | (Role, Guild, int)``
         
         Raises
         ------
@@ -376,7 +436,7 @@ class ClientCompoundRoleEndpoints(Compound):
         
         Yields
         ------
-        item : `None`, `tuple` (``Role``, ``Guild``, `int`)
+        item : ``None | (Role, Guild, int)``
         
         Raises
         ------
@@ -410,7 +470,7 @@ class ClientCompoundRoleEndpoints(Compound):
         ----------
         roles : (`dict` like or `iterable`) of `tuple` (``Role`` or (`tuple` (`int`, `int`), `int`) items
             A `dict`, `list`, `set`, `tuple`, which contains role-position items.
-        reason : `None`, `str` = `None`, Optional (Keyword only)
+        reason : `None | str` = `None`, Optional (Keyword only)
             Shows up at the respective guild's audit logs.
         
         Raises

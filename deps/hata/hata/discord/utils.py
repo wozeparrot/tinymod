@@ -1,14 +1,15 @@
 ﻿__all__ = (
-    'CHANNEL_MENTION_RP', 'DATETIME_FORMAT_CODE', 'DISCORD_EPOCH', 'EMOJI_NAME_RP', 'EMOJI_RP', 'Gift', 'ID_RP',
-    'IS_MENTION_RP', 'REACTION_RP', 'ROLE_MENTION_RP', 'Relationship', 'TIMESTAMP_STYLES', 'USER_MENTION_RP', 'Unknown',
-    'cchunkify', 'chunkify', 'datetime_to_id', 'datetime_to_timestamp', 'datetime_to_unix_time', 'elapsed_time',
-    'escape_markdown', 'filter_content', 'format_datetime', 'format_id', 'format_loop_time', 'format_unix_time',
-    'id_difference_to_seconds', 'id_difference_to_timedelta', 'id_to_datetime', 'id_to_unix_time', 'is_id',
-    'is_invite_code', 'is_mention', 'is_role_mention', 'is_url', 'is_user_mention', 'mention_channel_by_id',
-    'mention_role_by_id', 'mention_user_by_id', 'mention_user_nick_by_id', 'now_as_id', 'parse_message_reference',
-    'parse_rdelta', 'parse_signed_url', 'parse_tdelta', 'random_id', 'sanitize_content', 'sanitize_mentions',
-    'seconds_to_id_difference', 'seconds_to_elapsed_time', 'timedelta_to_id_difference', 'unix_time_to_datetime',
-    'unix_time_to_id'
+    'CHANNEL_MENTION_RP', 'DATETIME_FORMAT_CODE', 'DISCORD_EPOCH', 'EMAIL_MENTION_RP', 'EMOJI_NAME_RP', 'EMOJI_RP',
+    'Gift', 'ID_RP', 'IS_MENTION_RP', 'REACTION_RP', 'ROLE_MENTION_RP', 'Relationship', 'TIMESTAMP_STYLES',
+    'USER_MENTION_RP', 'Unknown', 'cchunkify', 'chunkify', 'datetime_to_id', 'datetime_to_timestamp',
+    'datetime_to_unix_time', 'elapsed_time', 'escape_markdown', 'filter_content', 'format_datetime', 'format_id',
+    'format_loop_time', 'format_unix_time', 'id_difference_to_seconds', 'id_difference_to_timedelta', 'id_to_datetime',
+    'id_to_unix_time', 'is_id', 'is_invite_code', 'is_mention', 'is_role_mention', 'is_url', 'is_user_mention',
+    'mention_channel_and_roles_screen', 'mention_channel_browse_screen', 'mention_channel_by_id',
+    'mention_guild_guide_screen', 'mention_linked_roles_screen', 'mention_role_by_id', 'mention_user_by_id',
+    'mention_user_nick_by_id', 'now_as_id', 'parse_message_reference', 'parse_rdelta', 'parse_signed_url',
+    'parse_tdelta', 'random_id', 'sanitize_content', 'sanitise_links', 'sanitize_mentions', 'seconds_to_elapsed_time',
+    'seconds_to_id_difference', 'timedelta_to_id_difference', 'unix_time_to_datetime', 'unix_time_to_id'
 )
 
 import reprlib, sys
@@ -84,6 +85,10 @@ def get_image_media_type(data):
         media_type = 'image/jpeg'
     elif data.startswith(b'\x47\x49\x46\x38\x37\x61') or data.startswith(b'\x47\x49\x46\x38\x39\x61'):
         media_type = 'image/gif'
+    elif data.startswith(b'\x00\x00\x00\x20\x66\x74\x79\x70\x61\x76\x69\x66'):
+        media_type = 'image/avif'
+    elif data[0 : 4] == b'RIFF' and data[8 : 12] == b'WEBP':
+        media_type = 'image/webp'
     elif data.startswith(b'{') and data.endswith(b'}'):
         media_type = 'application/json'
     else:
@@ -96,6 +101,8 @@ MEDIA_TYPE_TO_EXTENSION = {
     'image/png': 'png',
     'image/jpeg': 'jpg',
     'image/gif': 'gif',
+    'image/avif': 'avif',
+    'image/webp': 'webp',
     'application/json': 'json',
 }
 
@@ -124,6 +131,10 @@ def image_to_base64(data):
         media_type = 'image/jpeg'
     elif data.startswith(b'\x47\x49\x46\x38\x37\x61') or data.startswith(b'\x47\x49\x46\x38\x39\x61'):
         media_type = 'image/gif'
+    elif data.startswith(b'\x00\x00\x00\x20\x66\x74\x79\x70\x61\x76\x69\x66'):
+        media_type = 'image/avif'
+    elif data[0 : 4] == b'RIFF' and data[8 : 12] == b'WEBP':
+        media_type = 'image/webp'
     else:
         raise ValueError(f'Unsupported image type given, got {reprlib.repr(data)}.')
     
@@ -169,7 +180,7 @@ def _datetime_from_parsed(parsed):
     else:
         micro = int(micro)
     
-    return DateTime(year, month, day, hour, minute, second, micro)
+    return DateTime(year, month, day, hour, minute, second, micro, tzinfo = TimeZone.utc)
 
 
 def timestamp_to_datetime(timestamp):
@@ -261,7 +272,7 @@ def id_to_datetime(id_):
     -------
     date_time : `DateTime`
     """
-    return DateTime.utcfromtimestamp(((id_ >> 22) + DISCORD_EPOCH) / 1000.0)
+    return DateTime.fromtimestamp(((id_ >> 22) + DISCORD_EPOCH) / 1000.0, TimeZone.utc)
 
 
 DISCORD_EPOCH_START = id_to_datetime(0)
@@ -312,7 +323,7 @@ def unix_time_to_datetime(unix_time):
     date_time : `DateTime`
     """
     try:
-        return DateTime.utcfromtimestamp(unix_time)
+        return DateTime.fromtimestamp(unix_time, TimeZone.utc)
     except ValueError:
         # Normal oses
         pass
@@ -451,7 +462,7 @@ DATETIME_MIN = unix_time_to_datetime(UNIX_TIME_MIN)
 
 while True:
     try:
-        DATETIME_MAX = DateTime(year = 3000, month = 1, day = 1)
+        DATETIME_MAX = DateTime(year = 3000, month = 1, day = 1, tzinfo = TimeZone.utc)
         UNIX_TIME_MAX = datetime_to_unix_time(DATETIME_MAX)
     except OverflowError:
         pass
@@ -459,14 +470,14 @@ while True:
         break
     
     try:
-        DATETIME_MAX = DateTime(year = 2300, month = 1, day = 1)
+        DATETIME_MAX = DateTime(year = 2300, month = 1, day = 1, tzinfo = TimeZone.utc)
         UNIX_TIME_MAX = datetime_to_unix_time(DATETIME_MAX)
     except OverflowError:
         pass
     else:
         break
 
-    DATETIME_MAX = DateTime(year = 2038, month = 1, day = 1)
+    DATETIME_MAX = DateTime(year = 2038, month = 1, day = 1, tzinfo = TimeZone.utc)
     UNIX_TIME_MAX = datetime_to_unix_time(DATETIME_MAX)
     break
 
@@ -552,7 +563,7 @@ def log_time_converter(value):
     
     Parameters
     ----------
-    value : `None`, `int`, ``DiscordEntity``, `DateTime`
+    value : ``None | int | DiscordEntity | DateTime``
         If the value is given as `int`, returns it. If given as a ``DiscordEntity``, then returns it's id and if it
         is given as a `DateTime` object, then converts that to snowflake then returns it.
     
@@ -578,25 +589,40 @@ def log_time_converter(value):
         return datetime_to_id(value)
     
     raise TypeError(
-        f'Expected `None`, `int`, `{DiscordEntity.__name__}`, `DateTime`, got '
-        f'{value.__class__.__name__}; {value!r}.'
+        f'Expected `None | int | {DiscordEntity.__name__} | DateTime`, got '
+        f'{type(value).__name__}; {value!r}.'
     )
 
 
-APPLICATION_COMMAND_NAME_RP = re_compile('[a-zA-Z0-9_\-]{1,32}')
+APPLICATION_COMMAND_NAME_RP = re_compile('[a-zA-Z0-9_\\-]{1,32}')
 
-ID_RP = re_compile('(\d{7,21})')
-IS_MENTION_RP = re_compile('@(?:everyone|here)|<(?:@[!&]?|#|/[a-zA-Z0-9_\-]{3,32}:)\d{7,21}>')
+ID_RP = re_compile('(\\d{7,21})')
+IS_MENTION_RP = re_compile('@(?:everyone|here)|<(?:@[!&]?|#|/[a-zA-Z0-9_\\-]{3,32}:)\\d{7,21}>')
 
-USER_MENTION_RP = re_compile('<@!?(\d{7,21})>')
-CHANNEL_MENTION_RP = re_compile('<#(\d{7,21})>')
-ROLE_MENTION_RP = re_compile('<@&(\d{7,21})>')
-APPLICATION_COMMAND_MENTION_RP = re_compile('</([a-zA-Z0-9_\-]{3,32}):(\d{7,21})>')
+USER_MENTION_RP = re_compile('<@!?(\\d{7,21})>')
+CHANNEL_MENTION_RP = re_compile('<#(\\d{7,21})>')
+ROLE_MENTION_RP = re_compile('<@&(\\d{7,21})>')
+APPLICATION_COMMAND_MENTION_RP = re_compile('</([a-zA-Z0-9_\\-]{3,32}):(\\d{7,21})>')
+EMAIL_MENTION_RP = re_compile(
+    '<'
+    '(?:(mailto)(?:\\:))?'
+    '([-a-z\u00a1-\uffff0-9._~%!$&\'\\(\\)*+,;=:]+)'
+    '@'
+    '('
+        '(?:(?:(?:xn--)|[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]-?)*[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]+)'
+        '(?:\\.(?:(?:xn--)|[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]-?)*[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]+)*'
+        '(?:\\.(?:(?:xn--[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]{2,})|[a-z\u00a1-\uffff\U00010000-\U0010ffff]{2,}))'
+        '(?:\\?\\S*)?'
+    ')'
+    '>'
+)
+TELEPHONE_NUMBER_MENTION_RP = re_compile('<(?:(mailto)(?:\\:))?\\+(\\d+)>')
+SCREEN_MENTION_RP = re_compile('\\<id\\:(customize|browse|guide|linked\\-roles(?:\\:\\d{7,21})?)\\>')
 
-EMOJI_RP = re_compile('<(a)?:([a-zA-Z0-9_]{2,32})(?:~[1-9])?:(\d{7,21})>')
-REACTION_RP = re_compile('([a-zA-Z0-9_]{2,32}):(\d{7,21})')
+EMOJI_RP = re_compile('<(a)?:([a-zA-Z0-9_]{2,32})(?:~[1-9])?:(\\d{7,21})>')
+REACTION_RP = re_compile('([a-zA-Z0-9_]{2,32}):(\\d{7,21})')
 EMOJI_NAME_RP = re_compile(':?([a-zA-Z0-9_\\-~]{1,32}):?')
-FILTER_RP = re_compile('("(.+?)"|\S + )')
+FILTER_RP = re_compile('("(.+?)"|\\S + )')
 INVITE_CODE_RP = re_compile('([a-zA-Z0-9-]+)')
 
 
@@ -969,7 +995,7 @@ def cchunkify(lines, lang = '', limit = 2000):
             chunk_length += ln
             break
     
-    if len(chunk)>1:
+    if len(chunk) > 1:
         chunk.append('```')
         result.append('\n'.join(chunk))
     
@@ -1050,12 +1076,19 @@ else:
             If `delta` was not passed as `DateTime`, `RelativeDelta`.
         """
         if isinstance(delta, DateTime):
-            delta = RelativeDelta(DateTime.utcnow(), delta)
+            # apparently it matters in which order you do this or perhaps it is a bug
+            now = DateTime.now(TimeZone.utc)
+            if delta > now:
+                delta = RelativeDelta(delta, now)
+            else:
+                delta = RelativeDelta(now, delta)
+        
         elif isinstance(delta, RelativeDelta):
             pass
+        
         else:
             raise TypeError(
-                f'Expected, `RelativeDelta`, `DateTime`, got {delta.__class__.__name__}; {delta!r}.'
+                f'Expected, `RelativeDelta`, `DateTime`, got {type(delta).__name__}; {delta!r}.'
             )
         
         return _relative_delta_to_elapsed_time(delta, limit, names)
@@ -1111,18 +1144,18 @@ class Relationship:
         ----------
         client : ``Client``
             The client, who's relationship is created.
-        data : `dict` of (`str`, `object`)
+        data : `dict<str, object>`
             Relationship data.
         user_id : `int`
             The relationship's target user's id.
         """
         self.user = create_partial_user_from_id(user_id)
-        self.type = RelationshipType.get(data['type'])
+        self.type = RelationshipType.decode(data['type'])
         client.relationships[user_id] = self
     
     def __repr__(self):
         """Returns the representation of the relationship."""
-        return f'<{self.__class__.__name__} {self.type.name} user = {self.user.full_name!r}>'
+        return f'<{type(self).__name__} {self.type.name} user = {self.user.full_name!r}>'
 
 
 class Unknown(DiscordEntity):
@@ -1176,7 +1209,7 @@ class Unknown(DiscordEntity):
     
     def __repr__(self):
         """Returns the representation of the entity."""
-        return f'<{self.__class__.__name__} type={self.type} id = {self.id} name = {self.name!r}>'
+        return f'<{type(self).__name__} type = {self.type} id = {self.id} name = {self.name!r}>'
     
     def __gt__(self, other):
         """Returns whether this entity's respective type matches with the other's and it's id is greater than the
@@ -1185,7 +1218,7 @@ class Unknown(DiscordEntity):
             if self.type != other.type:
                 return NotImplemented
         elif isinstance(other, DiscordEntity):
-            if self.type not in other.__class__.__name__:
+            if self.type not in type(other).__name__:
                 return NotImplemented
         else:
             return NotImplemented
@@ -1199,7 +1232,7 @@ class Unknown(DiscordEntity):
             if self.type != other.type:
                 return NotImplemented
         elif isinstance(other, DiscordEntity):
-            if self.type not in other.__class__.__name__:
+            if self.type not in type(other).__name__:
                 return NotImplemented
         else:
             return NotImplemented
@@ -1212,7 +1245,7 @@ class Unknown(DiscordEntity):
             if self.type != other.type:
                 return NotImplemented
         elif isinstance(other, DiscordEntity):
-            if self.type not in other.__class__.__name__:
+            if self.type not in type(other).__name__:
                 return NotImplemented
         else:
             return NotImplemented
@@ -1226,7 +1259,7 @@ class Unknown(DiscordEntity):
             if self.type != other.type:
                 return NotImplemented
         elif isinstance(other, DiscordEntity):
-            if self.type not in other.__class__.__name__:
+            if self.type not in type(other).__name__:
                 return NotImplemented
         else:
             return NotImplemented
@@ -1240,7 +1273,7 @@ class Unknown(DiscordEntity):
             if self.type != other.type:
                 return NotImplemented
         elif isinstance(other, DiscordEntity):
-            if self.type not in other.__class__.__name__:
+            if self.type not in type(other).__name__:
                 return NotImplemented
         else:
             return NotImplemented
@@ -1254,7 +1287,7 @@ class Unknown(DiscordEntity):
             if self.type != other.type:
                 return NotImplemented
         elif isinstance(other, DiscordEntity):
-            if self.type not in other.__class__.__name__:
+            if self.type not in type(other).__name__:
                 return NotImplemented
         else:
             return NotImplemented
@@ -1281,7 +1314,7 @@ class Gift:
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Gift data received from Discord.
         """
         self.uses = data['uses']
@@ -1377,7 +1410,7 @@ def url_cutter(url):
         
     return f'{url[:from_start]}...{url[top_limit - from_end - 1:]}'
 
-DELTA_RP = re_compile('([\+\-]?\d+)[ \t]*([a-zA-Z]+)')
+DELTA_RP = re_compile('([\\+\\-]?\\d+)[ \\t]*([a-zA-Z]+)')
 TDELTA_KEYS = ('weeks', 'days', 'hours', 'minutes', 'seconds', 'microseconds')
 RDELTA_KEYS = ('years', 'months', *TDELTA_KEYS)
 
@@ -1444,7 +1477,7 @@ else:
         if result:
             return RelativeDelta(**result)
 
-CHANNEL_MESSAGE_RP = re_compile('(\d{7,21})-(\d{7,21})')
+CHANNEL_MESSAGE_RP = re_compile('(\\d{7,21})-(\\d{7,21})')
 
 def parse_message_reference(text):
     """
@@ -1500,13 +1533,20 @@ def parse_message_reference(text):
     return guild_id, channel_id, message_id
 
 
-def sanitise_mention_escaper(transformations, match):
+EVERYONE_MENTION_RP = re_compile('@(?:everyone|here)')
+EVERY_MENTION_TRANSLATION_TABLE = {
+    '@everyone':'@\u200beveryone',
+    '@here':'@\u200bhere',
+}
+
+
+def sanitize_mention_escaper(transformations, match):
     """
     used inside of ``sanitize_mentions`` to escape mentions.
     
     Parameters
     ----------
-    transformations : `dict` of (`str`, `str`) items
+    transformations : `dict<str, str>`
         Escape table.
     match : `re.Match`
         The matched mention to escape.
@@ -1525,55 +1565,78 @@ def sanitize_mentions(content, guild = None):
     
     Parameters
     ----------
-    content : `None`, `str`
+    content : `None | str`
         The content to sanitize.
-    guild : `None`, ``Guild`` = `None`, Optional
+    guild : ``None | Guild`` = `None`, Optional
         Respective context to look up guild specific names of entities.
     
     Returns
     -------
-    content : `None`, `str`
+    content : `None | str`
     """
-    if (content is None):
-        return
+    if (content is None) or (not content):
+        return content
     
-    transformations = {
-        '@everyone':'@\u200beveryone',
-        '@here':'@\u200bhere',
-    }
+    transformations = {}
     
-    for id_ in USER_MENTION_RP.findall(content):
-        id_ = int(id_)
-        user = USERS.get(id_, None)
+    for entity_id in USER_MENTION_RP.findall(content):
+        entity_id = int(entity_id)
+        user = USERS.get(entity_id, None)
         if (user is None):
             sanitized_mention = '@invalid-user'
         else:
             sanitized_mention = '@' + user.name_at(guild)
         
-        transformations[f'<@{id_}>'] = sanitized_mention
-        transformations[f'<@!{id_}>'] = sanitized_mention
+        transformations[f'<@{entity_id}>'] = sanitized_mention
+        transformations[f'<@!{entity_id}>'] = sanitized_mention
     
-    for id_ in CHANNEL_MENTION_RP.findall(content):
-        id_ = int(id_)
-        channel = CHANNELS.get(id_, None)
+    for entity_id in CHANNEL_MENTION_RP.findall(content):
+        entity_id = int(entity_id)
+        channel = CHANNELS.get(entity_id, None)
         if (channel is None):
             sanitized_mention = '@deleted channel'
         else:
             sanitized_mention = '#' + channel.name
         
-        transformations[f'<#{id_}>'] = sanitized_mention
+        transformations[f'<#{entity_id}>'] = sanitized_mention
     
-    for id_ in ROLE_MENTION_RP.findall(content):
-        id_ = int(id_)
-        role = ROLES.get(id_, None)
+    for entity_id in ROLE_MENTION_RP.findall(content):
+        entity_id = int(entity_id)
+        role = ROLES.get(entity_id, None)
         if (role is None):
             sanitized_mention = '@deleted role'
         else:
             sanitized_mention = '@' + role.name
         
-        transformations[f'<@&{id_}>'] = sanitized_mention
+        transformations[f'<@&{entity_id}>'] = sanitized_mention
     
-    return re_compile('|'.join(transformations)).sub(partial_func(sanitise_mention_escaper, transformations), content)
+    for prefix, user_name, domain_with_fragment in EMAIL_MENTION_RP.findall(content):
+        middle = f'{prefix}{":" if prefix else ""}{user_name}@{domain_with_fragment}'
+        transformations[f'<{middle}>'] = middle
+    
+    for prefix, phone_number in TELEPHONE_NUMBER_MENTION_RP.findall(content):
+        middle = phone_number
+        if prefix:
+            middle = f'{prefix}:{middle}'
+        
+        transformations[f'<{middle}>'] = middle
+    
+    for screen in SCREEN_MENTION_RP.findall(content):
+        if screen == 'customize':
+            screen_name = 'Channels & Roles'
+        elif screen == 'browse':
+            screen_name = 'Browse Channels'
+        elif screen == 'guide':
+            screen_name = 'Server Guide'
+        elif screen.startswith('linked-roles'):
+            screen_name = 'Linked Roles'
+        else:
+            continue
+        
+        transformations[f'<id:{screen}>'] = screen_name
+    
+    content = re_compile('|'.join(transformations)).sub(partial_func(sanitize_mention_escaper, transformations), content)
+    return EVERYONE_MENTION_RP.sub(partial_func(sanitize_mention_escaper, EVERY_MENTION_TRANSLATION_TABLE), content)
 
 
 def sanitize_content(content, guild = None):
@@ -1582,19 +1645,22 @@ def sanitize_content(content, guild = None):
     
     Parameters
     ----------
-    content : `None`, `str`
+    content : `None | str`
         The content to sanitize.
-    guild : `None`, ``Guild`` = `None`, Optional
+    guild : ``None | Guild`` = `None`, Optional
         Respective context to look up guild specific names of entities.
     
     Returns
     -------
-    content : `None`, `str`
+    content : `None | str`
     """
-    content = escape_markdown(content)
     content = sanitize_mentions(content, guild = guild)
+    content = sanitise_links(content)
+    content = escape_markdown(content)
     return content
 
+
+ESCAPEABLE = frozenset(('\\', '_', '*', '|', '~', '>', ':', '[', ']', '#', '-', '`'))
 
 def escape_markdown(content):
     """
@@ -1602,27 +1668,67 @@ def escape_markdown(content):
     
     Parameters
     ----------
-    content : `None`, `str`
+    content : `None | str`
         The content to sanitize.
     
     Returns
     -------
-    content : `None`, `str`
+    content : `None | str`
     """
-    if (content is None):
-        return
+    if (content is None) or (not content):
+        return content
     
-    content = content.replace('\\', '\\\\')
-    content = content.replace('_', '\\_')
-    content = content.replace('*', '\\*')
-    content = content.replace('|', '\\|')
-    content = content.replace('~', '\\~')
-    content = content.replace('`', '\\`')
-    content = content.replace('>', '\\>')
-    content = content.replace(':', '\\:')
-    content = content.replace('[', '\\[')
-    content = content.replace(']', '\\]')
-    return content
+    characters = []
+    
+    for character in content:
+        if character in ESCAPEABLE:
+            characters.append('\\')
+        characters.append(character)
+    
+    return ''.join(characters)
+
+
+MARKDOWN_LINK_RP = re_compile('\\[(.+?)\\]\\(https?\\://.+?\\)')
+
+
+def sanitise_links(content):
+    """
+    Escapes links from the given content.
+    
+    Parameters
+    ----------
+    content : `None | str`
+        The content to sanitize.
+    
+    Returns
+    -------
+    content : `None | str`
+    """
+    if (content is None) or (not content):
+        return content
+    
+    parts = None
+    end = 0
+    for match in MARKDOWN_LINK_RP.finditer(content):
+        if parts is None:
+            parts = []
+        
+        start = match.start()
+        if start != end:
+            parts.append(content[end : start])
+        
+        parts.append(match.group(1))
+        end = match.end()
+        continue
+    
+    if parts is None:
+        return content
+    
+    content_length = len(content)
+    if end != content_length:
+        parts.append(content[end : content_length])
+    
+    return ''.join(parts)
 
 
 def parse_date_header_to_datetime(date_data):
@@ -1631,7 +1737,7 @@ def parse_date_header_to_datetime(date_data):
     
     Parameters
     ----------
-    date_data : ``str``
+    date_data : `str`
         Date value inside of a header.
 
     Returns
@@ -1640,26 +1746,23 @@ def parse_date_header_to_datetime(date_data):
         The parsed out date time.
     """
     *date_tuple, tz = parse_date_timezone(date_data)
-    if tz is None:
-        date = DateTime(*date_tuple[:6])
-    else:
-        date = DateTime(*date_tuple[:6], tzinfo = TimeZone(TimeDelta(seconds = tz)))
-    return date
+    
+    return DateTime(*date_tuple[:6], tzinfo = TimeZone.utc if tz is None else TimeZone(TimeDelta(seconds = tz)))
 
 
 URL_RP = re_compile(
     # protocol identifier
     '(?:(?:https?|ftp)://)'
     # user:pass authentication
-    '(?:[-a-z\u00a1-\uffff0-9._~%!$&\'()*+,;=:]+'
-    '(?::[-a-z0-9._~%!$&\'()*+,;=:]*)?@)?'
+    '(?:[-a-z\u00a1-\uffff0-9._~%!$&\'\\(\\)*+,;=:]+'
+    '(?::[-a-z0-9._~%!$&\'\\(\\)*+,;=:]*)?@)?'
     '(?:'
     '(?:'
     # IP address exclusion
     # private & local networks
-    '(?:(?:10|127)(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:0|[1-9]\d?|1\d\d|2[0-4]\d|25[0-5])))|'
-    '(?:(?:169\.254|192\.168)(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5]))(?:\.(?:0|[1-9]\d?|1\d\d|2[0-4]\d|25[0-5])))|'
-    '(?:172\.(?:1[6-9]|2\d|3[0-1])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5]))(?:\.(?:0|[1-9]\d?|1\d\d|2[0-4]\d|25[0-5]))))'
+    '(?:(?:10|127)(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:0|[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-5])))|'
+    '(?:(?:169\\.254|192\\.168)(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5]))(?:\\.(?:0|[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-5])))|'
+    '(?:172\\.(?:1[6-9]|2\\d|3[0-1])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5]))(?:\\.(?:0|[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-5]))))'
     '|'
     # private & local hosts
     '(?:localhost)'
@@ -1670,12 +1773,12 @@ URL_RP = re_compile(
     # excludes network & broadcast addresses
     # (first & last IP address of each class)
     '(?:'
-    '(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])'
-    '(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}'
-    '(?:\.(?:0|[1-9]\d?|1\d\d|2[0-4]\d|25[0-5])))'
+    '(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])'
+    '(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}'
+    '(?:\\.(?:0|[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-5])))'
     '|'
     # IPv6 RegEx
-    '\[('
+    '\\[('
     # 1:2:3:4:5:6:7:8
     '([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|'
     # 1::                              1:2:3:4:5:6:7::
@@ -1696,29 +1799,29 @@ URL_RP = re_compile(
     ':((:[0-9a-fA-F]{1,4}){1,7}|:)|'
     # fe80::7:8%eth0   fe80::7:8%1
     # (link-local IPv6 addresses with zone index)
-    'fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]?|::(ffff(:0{1,4})?:)?((25[0-5]|(2[0-4]|1?[0-9])?[0-9])\.){3}'
+    'fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]?|::(ffff(:0{1,4})?:)?((25[0-5]|(2[0-4]|1?[0-9])?[0-9])\\.){3}'
     # ::255.255.255.255   ::ffff:255.255.255.255  ::ffff:0:255.255.255.255
     # (IPv4-mapped IPv6 addresses and IPv4-translated addresses)
-    '(25[0-5]|(2[0-4]|1?[0-9])?[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1?[0-9])?[0-9])\.){3}'
+    '(25[0-5]|(2[0-4]|1?[0-9])?[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1?[0-9])?[0-9])\\.){3}'
     # 2001:db8:3:4::192.0.2.33  64:ff9b::192.0.2.33
     # (IPv4-Embedded IPv6 Address)
     '(25[0-5]|(2[0-4]|1?[0-9])?[0-9])'
-    ')\]|'
+    ')\\]|'
     # host name
     '(?:(?:(?:xn--)|[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]-?)*[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]+)'
     # domain name
-    '(?:\.(?:(?:xn--)|[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]-?)*[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]+)*'
+    '(?:\\.(?:(?:xn--)|[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]-?)*[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]+)*'
     # TLD identifier
-    '(?:\.(?:(?:xn--[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]{2,})|[a-z\u00a1-\uffff\U00010000-\U0010ffff]{2,}))'
+    '(?:\\.(?:(?:xn--[a-z\u00a1-\uffff\U00010000-\U0010ffff0-9]{2,})|[a-z\u00a1-\uffff\U00010000-\U0010ffff]{2,}))'
     ')'
     # port number
-    '(?::\d{2,5})?'
+    '(?::\\d{2,5})?'
     # resource path
     '(?:/[-a-z\u00a1-\uffff\U00010000-\U0010ffff0-9._~%!$&\'()*+,;=:@/]*)?'
     # query string
-    '(?:\?\S*)?'
+    '(?:\\?\\S*)?'
     # fragment
-    '(?:#\S*)?',
+    '(?:#\\S*)?',
     re_unicode | re_ignore_case
 )
 
@@ -1746,23 +1849,27 @@ class TIMESTAMP_STYLES:
     
     The style formats are the following:
     
-    +-------------------+-------+-----------+
-    | Name              | Value | Note      |
-    +====================+======+===========+
-    | short_time        | `'t'` |           |
-    +-------------------+-------+-----------+
-    | long_time         | `'T'` |           |
-    +-------------------+-------+-----------+
-    | short_date        | `'d'` |           |
-    +-------------------+-------+-----------+
-    | long_date         | `'D'` |           |
-    +-------------------+-------+-----------+
-    | short_date_time   | `'f'` | default   |
-    +-------------------+-------+-----------+
-    | long_date_time    | `'F'` |           |
-    +-------------------+-------+-----------+
-    | relative_time     | `'R'` |           |
-    +-------------------+-------+-----------+
+    +-----------------------+-------+-----------+
+    | Name                  | Value | Note      |
+    +========================+======+===========+
+    | short_time            | `'t'` |           |
+    +-----------------------+-------+-----------+
+    | long_time             | `'T'` |           |
+    +-----------------------+-------+-----------+
+    | short_date            | `'d'` |           |
+    +-----------------------+-------+-----------+
+    | long_date             | `'D'` |           |
+    +-----------------------+-------+-----------+
+    | short_date_time       | `'f'` | default   |
+    +-----------------------+-------+-----------+
+    | long_date_time        | `'F'` |           |
+    +-----------------------+-------+-----------+
+    | relative_time         | `'R'` |           |
+    +-----------------------+-------+-----------+
+    | shortest_date_time    | '`s`' |           |
+    +-----------------------+-------+-----------+
+    | shorter_date_time     | '`S`' |           |
+    +-----------------------+-------+-----------+
     
     Note, that Discord's time formatting is localized and they are all stultus when english language is selected.
     To avoid insanity, I beg you to use
@@ -1774,8 +1881,8 @@ class TIMESTAMP_STYLES:
     
     ```py
     >>> from hata import DATETIME_FORMAT_CODE
-    >>> from datetime import datetime as DateTime
-    >>> print(f'{DateTime.utcnow():{DATETIME_FORMAT_CODE}}')
+    >>> from datetime import datetime as DateTime, timezone as TimeZone
+    >>> print(f'{DateTime.now(TimeZone.utc):{DATETIME_FORMAT_CODE}}')
     2021-08-05 13:53:16
     ```
     
@@ -1784,8 +1891,8 @@ class TIMESTAMP_STYLES:
     
     ```py
     >>> from hata import elapsed_time
-    >>> from datetime import datetime as DateTime, timedelta as TimeDelta
-    >>> when = DateTime.utcnow() - TimeDelta(days = 5)
+    >>> from datetime import datetime as DateTime, timedelta as TimeDelta, timezone as TimeZone
+    >>> when = DateTime.now(TimeZone.utc) - TimeDelta(days = 5)
     >>> print(f'{elapsed_time(when)} ago')
     5 days ago
     ```
@@ -1797,6 +1904,8 @@ class TIMESTAMP_STYLES:
     short_date_time = 'f'
     long_date_time = 'F'
     relative_time = 'R'
+    shortest_date_time = 's'
+    shorter_date_time = 'S'
 
 
 def format_datetime(date_time, style = None):
@@ -1809,7 +1918,7 @@ def format_datetime(date_time, style = None):
     ----------
     date_time : `DateTime`
         The date time to format.
-    style : `None`, `str` = `None`, Optional
+    style : `None | str` = `None`, Optional
         Format code to use. They are listed within ``TIMESTAMP_STYLES``.
     
     Returns
@@ -1829,7 +1938,7 @@ def format_id(id_, style = None):
     ----------
     id_ : `int`
         The Discord identifier to format.
-    style : `None`, `str` = `None`, Optional
+    style : `None | str` = `None`, Optional
         Format code to use. They are listed within ``TIMESTAMP_STYLES``.
     
     Returns
@@ -1849,7 +1958,7 @@ def format_loop_time(loop_time, style = None):
     ----------
     loop_time : `float`
         Monotonic loop time.
-    style : `None`, `str` = `None`, Optional
+    style : `None | str` = `None`, Optional
         Format code to use. They are listed within ``TIMESTAMP_STYLES``.
     
     Returns
@@ -1869,7 +1978,7 @@ def format_unix_time(unix_time, style = None):
     ----------
     unix_time : `int`
         The date time to format.
-    style : `None`, `str` = `None`, Optional
+    style : `None | str` = `None`, Optional
         Format code to use. They are listed within ``TIMESTAMP_STYLES``.
     
     Returns
@@ -2019,41 +2128,97 @@ def parse_signed_url(signed_url):
     url = URL(signed_url)
     query = url.query
     
-    # url
-    url = str(url.with_query(None))
-    
-    # expired_at
-    expires_at_str = query.get('ex', '')
-    if not expires_at_str:
+    if (query is None):
+        url = signed_url
         expires_at = None
+        signed_at = None
+        signature = None
+    
     else:
-        try:
-            expires_at_int = int(expires_at_str, 16)
-        except ValueError:
+        # url
+        url = str(url.with_query(None))
+        
+        # expired_at
+        expires_at_str = query.get('ex', '')
+        if not expires_at_str:
             expires_at = None
         else:
-            expires_at = unix_time_to_datetime(expires_at_int)
-    
-    # signed_at
-    signed_at_str = query.get('is', '')
-    if not signed_at_str:
-        signed_at = None
-    else:
-        try:
-            signed_at_int = int(signed_at_str, 16)
-        except ValueError:
+            try:
+                expires_at_int = int(expires_at_str, 16)
+            except ValueError:
+                expires_at = None
+            else:
+                expires_at = unix_time_to_datetime(expires_at_int)
+        
+        # signed_at
+        signed_at_str = query.get('is', '')
+        if not signed_at_str:
             signed_at = None
         else:
-            signed_at = unix_time_to_datetime(signed_at_int)
-    
-    # signature
-    signature_str = query.get('hm', '')
-    if not signature_str:
-        signature = None
-    else:
-        try:
-            signature = bytes.fromhex(signature_str)
-        except ValueError:
+            try:
+                signed_at_int = int(signed_at_str, 16)
+            except ValueError:
+                signed_at = None
+            else:
+                signed_at = unix_time_to_datetime(signed_at_int)
+        
+        # signature
+        signature_str = query.get('hm', '')
+        if not signature_str:
             signature = None
+        else:
+            try:
+                signature = bytes.fromhex(signature_str)
+            except ValueError:
+                signature = None
     
     return SignedUrlParseResult(url, signed_at, expires_at, signature)
+
+
+def mention_channel_and_roles_screen():
+    """
+    Builds and returns a channel and roles screen link.
+    
+    Returns
+    -------
+    link : `str`
+    """
+    return '<id:customize>'
+
+
+def mention_channel_browse_screen():
+    """
+    Builds a channel browse screen link.
+    
+    Returns
+    -------
+    link : `str`
+    """
+    return '<id:browse>'
+
+
+def mention_guild_guide_screen():
+    """
+    Builds a guild guide screen link.
+    
+    Returns
+    -------
+    link : `str`
+    """
+    return '<id:guide>'
+
+
+def mention_linked_roles_screen(role_id = 0):
+    """
+    Builds a linked roles screen link.
+    
+    Parameters
+    ----------
+    role_id : `int` = `0`, Optional
+        A specific role to reference.
+    
+    Returns
+    -------
+    link : `str`
+    """
+    return f'<id:linked-roles{(":" if role_id else "")!s}{(str(role_id) if role_id else "")!s}>'

@@ -1,11 +1,8 @@
 __all__ = ('ChannelMetadataBase',)
 
-from warnings import warn
-
 from scarletio import RichAttributeErrorBaseType, include
 
-from ...bases import Icon, IconType, PlaceHolder, IconSlot
-from ...http import urls as module_urls
+from ...bases import Icon, IconType, PlaceHolder
 from ...permission.permission import PERMISSION_NONE
 from ...utils import id_to_datetime
 
@@ -15,14 +12,6 @@ from .preinstanced import ForumLayout, SortOrder, VideoQualityMode, VoiceRegion
 
 
 Client = include('Client')
-
-
-CHANNEL_METADATA_ICON_SLOT = IconSlot(
-    'icon',
-    'icon',
-    module_urls.channel_group_icon_url,
-    module_urls.channel_group_icon_url_as,
-)
 
 
 class ChannelMetadataBase(RichAttributeErrorBaseType):
@@ -59,7 +48,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Keyword parameters to work with.
         
         Raises
@@ -79,12 +68,12 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Channel data receive from Discord.
         
         Returns
         -------
-        self : instance<cls>
+        self : `instance<cls>`
         """
         self = object.__new__(cls)
         
@@ -95,7 +84,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
     
     def __repr__(self):
         """Returns the channel metadata's representation."""
-        return f'<{self.__class__.__name__}>'
+        return f'<{type(self).__name__}>'
     
     
     def __hash__(self):
@@ -159,7 +148,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         return {}
     
@@ -170,7 +159,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Channel data received from Discord.
         """
         pass
@@ -183,12 +172,12 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Channel data received from Discord.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dict is optional.
             
             Might contain the following items:
@@ -197,11 +186,11 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
             +---------------------------------------+-----------------------------------------------------------+
             | Keys                                  | Values                                                    |
             +=======================================+===========================================================+
-            | applied_tag_ids                       | `None`, `tuple` of `int`                                  |
+            | applied_tag_ids                       | `None | tuple<int>`                                       |
             +---------------------------------------+-----------------------------------------------------------+
             | archived                              | `bool`                                                    |
             +---------------------------------------+-----------------------------------------------------------+
-            | archived_at                           | `None`, `datetime`                                        |
+            | archived_at                           | `None | DateTime`                                         |
             +---------------------------------------+-----------------------------------------------------------+
             | auto_archive_after                    | `int`                                                     |
             +---------------------------------------+-----------------------------------------------------------+
@@ -215,7 +204,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
             +---------------------------------------+-----------------------------------------------------------+
             | default_thread_auto_archive_after     | `int`                                                     |
             +---------------------------------------+-----------------------------------------------------------+
-            | default_thread_reaction_emoji         | `None`, ``Emoji``                                         |
+            | default_thread_reaction_emoji         | ``None | Emoji``                                          |
             +---------------------------------------+-----------------------------------------------------------+
             | default_thread_slowmode               | `int`                                                     |
             +---------------------------------------+-----------------------------------------------------------+
@@ -263,10 +252,10 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Channel status update data received from Discord.
         """
-        pass
+        return
     
     
     def _difference_update_status(self, data):
@@ -276,12 +265,12 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Channel status update data received from Discord.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             All item in the returned dict is optional.
             
             Might contain the following items:
@@ -295,6 +284,44 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         return {}
     
     
+    def _update_voice_engaged_since(self, data):
+        """
+        Updates the channel metadata's voice engaged since.
+        
+        Parameters
+        ----------
+        data : `dict<str, object>`
+            Channel status update data received from Discord.
+        """
+        return
+    
+    
+    def _difference_update_voice_engaged_since(self, data):
+        """
+        Updates the channel metadata's status and if changed returns it in a `dict` with a
+        `attribute-name` - `old-value` relation.
+        
+        Parameters
+        ----------
+        data : `dict<str, object>`
+            Channel status update data received from Discord.
+        
+        Returns
+        -------
+        old_attributes : `dict<str, object>`
+            All item in the returned dict is optional.
+            
+            Might contain the following items:
+            
+            +-----------------------+-------------------+
+            | Keys                  | Values            |
+            +=======================+===================+
+            | voice_engaged_since   | `None | DateTime` |
+            +-----------------------+-------------------+
+        """
+        return {}
+    
+    
     @classmethod
     def _from_partial_data(cls, data):
         """
@@ -303,7 +330,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `None`, `dict` of (`str`, `object`) items
+        data : `None`, `dict<str, object>`
             Partial channel data.
         
         Returns
@@ -360,7 +387,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        keyword_parameters : `dict` of (`str`, `object`) items
+        keyword_parameters : `dict<str, object>`
             Keyword parameters to copy the channel metadata with. The used ones are removed from the dictionary.
         
         Returns
@@ -426,7 +453,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        users : `list` of ``ClientUserBase``
+        users : ``list<ClientUserBase>``
         """
         return []
     
@@ -450,25 +477,24 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         yield
     
     
-    def _get_clients(self, channel_entity):
+    def _iter_clients(self, channel_entity):
         """
-        Helper class to get the channel's clients.
+        Helper to get the channel's clients.
+        
+        This method is an iterable generator.
         
         Parameters
         ----------
         channel_entity : ``Channel``
             The channel entity owning the metadata.
         
-        Returns
-        -------
-        clients : `list` of ``Client``
+        Yields
+        ------
+        client : ``Client``
         """
-        clients = []
         for user in self._get_users(channel_entity):
             if isinstance(user, Client):
-                clients.append(user)
-        
-        return clients
+                yield user
     
     
     def _get_processed_name(self):
@@ -492,7 +518,26 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         """
         return self.name
     
-
+    
+    def _get_partial(self, channel_entity):
+        """
+        Returns whether the channel is partial.
+        
+        Parameters
+        ----------
+        channel_entity : ``Channel``
+            The channel entity owning the metadata.
+        
+        Returns
+        -------
+        is_partial : `bool`
+        """
+        for client in self._iter_clients(channel_entity):
+            return False
+        
+        return True
+    
+    
     def _get_permissions_for(self, channel_entity, user):
         """
         Returns the permissions for the given user at the channel.
@@ -501,6 +546,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         ----------
         channel_entity : ``Channel``
             The channel entity owning the metadata.
+        
         user : ``UserBase``
             The user to calculate it's permissions of.
         
@@ -508,7 +554,6 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         -------
         permissions : ``Permission``
             The calculated permissions.
-            
         
         See Also
         --------
@@ -526,6 +571,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         ----------
         channel_entity : ``Channel``
             The channel entity owning the metadata.
+        
         user : ``UserBase``
             The user to calculate it's permissions of.
         
@@ -543,13 +589,14 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        roles : `tuple` of ``Role``
+        channel_entity : ``Channel``
+            The channel entity owning the metadata.
+        
+        roles : ``tuple<Role>``
             The roles to calculate final permissions from.
         
         Returns
         -------
-        channel_entity : ``Channel``
-            The channel entity owning the metadata.
         permissions : ``Permission``
             The calculated permissions.
         """
@@ -559,6 +606,11 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
     def _get_created_at(self, channel_entity):
         """
         Returns when the channel was created.
+        
+        Parameters
+        ----------
+        channel_entity : ``Channel``
+            The channel entity owning the metadata.
         
         Returns
         -------
@@ -574,6 +626,45 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         This method is only applicable for channel types with permission cache.
         """
         pass
+    
+    
+    def _get_icon_url(self, channel_entity):
+        """
+        Returns the channel metadata's icon.
+        
+        Parameters
+        ----------
+        channel_entity : ``Channel``
+            The channel entity owning the metadata.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return None
+    
+    
+    def _get_icon_url_as(self, channel_entity, ext, size):
+        """
+        Returns the channel metadata's icon.
+        
+        Parameters
+        ----------
+        channel_entity : ``Channel``
+            The channel entity owning the metadata.
+        
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return None
+    
     
     # Slot place holders
     
@@ -595,7 +686,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        applied_tag_ids : `None`, `tuple` of `int`
+        applied_tag_ids : `None | tuple<int>`
         """
     )
     
@@ -623,7 +714,7 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         
         Returns
         -------
-        archived_at : `None`, `datetime`
+        archived_at : `None | DateTime`
         """
     )
     
@@ -718,22 +809,6 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         """
     )
     
-
-    @property
-    def default_thread_reaction(self):
-        """
-        Deprecated and will be removed in 2024 Marc. Please use `.default_thread_reaction_emoji` instead.
-        """
-        warn(
-            (
-                f'`{self.__class__.__name__}.default_thread_reaction` is deprecated and will be removed in '
-                f'2024 Marc. Please use `.default_thread_reaction_emoji` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        return self.default_thread_reaction_emoji
-    
     
     default_thread_slowmode = PlaceHolder(
         0,
@@ -769,6 +844,30 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         Returns
         -------
         icon : ``Icon``
+        """
+    )
+    
+    
+    icon_hash = PlaceHolder(
+        0,
+        """
+        Returns the channel's icon's hash.
+        
+        Returns
+        -------
+        icon_hash : `int`
+        """
+    )
+    
+    
+    icon_type = PlaceHolder(
+        IconType.none,
+        """
+        Returns the channel's icon's type.
+        
+        Returns
+        -------
+        icon_type : ``IconType``
         """
     )
     
@@ -977,5 +1076,17 @@ class ChannelMetadataBase(RichAttributeErrorBaseType):
         Returns
         -------
         video_quality_mode : ``VideoQualityMode``
+        """
+    )
+    
+    
+    voice_engaged_since = PlaceHolder(
+        None,
+        """
+        Since when the voice channel is engaged with.
+        
+        Returns
+        -------
+        voice_engaged_since : ``None | DateTime``
         """
     )

@@ -3,8 +3,8 @@ from re import compile as re_compile
 from scarletio.http_client import HTTPClient
 
 
-# out_websocket uses `__init__` instead of `__new__`.
-assert HTTPClient.__init__ is not object.__init__
+# http client uses `__new__` and not `__init__`.
+assert HTTPClient.__init__ is object.__init__
 
 GATEWAY_URL_RP = re_compile('https\\://discord\\.com/api/v\\d+/gateway/bot')
 
@@ -44,24 +44,25 @@ class TestHTTPClient(HTTPClient):
     `out_operations` is a list of `tuple<str, object>` -> operation name and parameter(s).
     `in_operations` is a list of `tuple<str, bool, object>` -> operation name, raise and value.
     """
-    __slots__ = ('out_websocket',)
+    __slots__ = ('out_web_socket',)
     
-    def __init__(self, loop, *, out_websocket = None):
-        HTTPClient.__init__(self, loop)
-        self.out_websocket = out_websocket
+    def __new__(cls, loop, *, out_web_socket = None):
+        self = HTTPClient.__new__(cls, loop)
+        self.out_web_socket = out_web_socket
+        return self
         
     
-    async def _request(self, method, url, headers, data, query_parameters):
+    async def _request(self, method, url, headers, data, query):
         if method == 'GET' and GATEWAY_URL_RP.fullmatch(url) is not None:
-            return TestClientResponse('{"url": "orin"}')
+            return TestClientResponse('{"url": "wss://orin.nyan/"}')
         
-        raise RuntimeError('Unexpected request', method, url, headers, data, query_parameters)
+        raise RuntimeError('Unexpected request', method, url, headers, data, query)
 
     
-    async def connect_websocket(self, url):
-        out_websocket = self.out_websocket
-        if out_websocket is None:
-            raise RuntimeError('websocket is null.')
+    async def connect_web_socket(self, url):
+        out_web_socket = self.out_web_socket
+        if out_web_socket is None:
+            raise RuntimeError('web socket is null.')
         
-        out_websocket.url = url
-        return out_websocket
+        out_web_socket.url = url
+        return out_web_socket

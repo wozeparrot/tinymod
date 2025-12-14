@@ -1,7 +1,5 @@
 __all__ = ('ChannelMetadataGuildForumBase',)
 
-from warnings import warn
-
 from scarletio import copy_docs
 
 from ...permission import Permission
@@ -14,9 +12,9 @@ from ..forum_tag_update import ForumTagUpdate
 from .constants import AUTO_ARCHIVE_DEFAULT, SLOWMODE_DEFAULT
 from .fields import (
     parse_available_tags, parse_default_forum_layout, parse_default_sort_order, parse_default_thread_auto_archive_after,
-    parse_default_thread_reaction_emoji, parse_default_thread_slowmode, parse_flags, parse_topic, put_available_tags_into,
-    put_default_forum_layout_into, put_default_sort_order_into, put_default_thread_auto_archive_after_into,
-    put_default_thread_reaction_emoji_into, put_default_thread_slowmode_into, put_flags_into, put_topic_into,
+    parse_default_thread_reaction_emoji, parse_default_thread_slowmode, parse_flags, parse_topic, put_available_tags,
+    put_default_forum_layout, put_default_sort_order, put_default_thread_auto_archive_after,
+    put_default_thread_reaction_emoji, put_default_thread_slowmode, put_flags, put_topic,
     validate_available_tags, validate_default_forum_layout, validate_default_sort_order,
     validate_default_thread_auto_archive_after, validate_default_thread_reaction_emoji, validate_default_thread_slowmode,
     validate_flags, validate_topic
@@ -32,7 +30,7 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
     
     Attributes
     ----------
-    _cache_permission : `None`, `dict` of (`int`, ``Permission``) items
+    _cache_permission : ``None | dict<int, Permission>``
         A `user_id` to ``Permission`` relation mapping for caching permissions. Defaults to `None`.
     available_tags : `None`, `tuple` of ``ForumTag``
         The available tags to assign to the child-thread channels.
@@ -43,7 +41,7 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
     default_thread_auto_archive_after : `int`
         The default duration (in seconds) for newly created threads to automatically archive the themselves. Defaults
         to `3600`. Can be one of: `3600`, `86400`, `259200`, `604800`.
-    default_thread_reaction_emoji : `None`, ``Emoji``
+    default_thread_reaction_emoji : ``None | Emoji``
         The emoji to show in the add reaction button on a thread of the forum channel.
     default_thread_slowmode : `int`
         The default slowmode applied to the channel's threads.
@@ -53,7 +51,7 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
         The channel's name.
     parent_id : `int`
         The channel's parent's identifier.
-    permission_overwrites :`None`,  `dict` of (`int`, ``PermissionOverwrite``) items
+    permission_overwrites : ``None | dict<int, PermissionOverwrite>``
         The channel's permission overwrites.
     position : `int`
         The channel's position.
@@ -77,7 +75,6 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
         default_forum_layout = ...,
         default_sort_order = ...,
         default_thread_auto_archive_after = ...,
-        default_thread_reaction = ...,
         default_thread_reaction_emoji = ...,
         default_thread_slowmode = ...,
         flags = ...,
@@ -100,7 +97,7 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
             The default thread ordering of the forum.
         default_thread_auto_archive_after : `int`, Optional (Keyword only)
             The default duration (in seconds) for newly created threads to automatically archive the themselves.
-        default_thread_reaction_emoji : `None`, ``Emoji``, Optional (Keyword only)
+        default_thread_reaction_emoji : ``None | Emoji``, Optional (Keyword only)
             The emoji to show in the add reaction button on a thread of the forum channel.
         default_thread_slowmode : `int`, Optional (Keyword only)
             The default slowmode applied to the channel's threads.
@@ -108,9 +105,9 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
             The channel's flags.
         name : `str`, Optional (Keyword only)
             The channel's name.
-        parent_id : `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
-        permission_overwrites : `None`, `iterable` of ``PermissionOverwrite``, Optional (Keyword only)
+        permission_overwrites : ``None | iterable<PermissionOverwrite>``, Optional (Keyword only)
             The channel's permission overwrites.
         position : `int`, Optional (Keyword only)
             The channel's position.
@@ -124,16 +121,6 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
         ValueError
             - If a parameter's value is incorrect.
         """
-        # Deprecated fields
-        if default_thread_reaction is not ...:
-            warn(
-                '`default_thread_reaction` parameter is deprecated. Please use `default_thread_reaction_emoji` instead.',
-                FutureWarning,
-                stacklevel = 3,
-            )
-            default_thread_reaction_emoji = default_thread_reaction
-        
-        
         # available_tags
         if available_tags is ...:
             available_tags = None
@@ -211,7 +198,6 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
             default_forum_layout = keyword_parameters.pop('default_forum_layout', ...),
             default_sort_order = keyword_parameters.pop('default_sort_order', ...),
             default_thread_auto_archive_after = keyword_parameters.pop('default_thread_auto_archive_after', ...),
-            default_thread_reaction = keyword_parameters.pop('default_thread_reaction', ...),
             default_thread_reaction_emoji = keyword_parameters.pop('default_thread_reaction_emoji', ...),
             default_thread_slowmode = keyword_parameters.pop('default_thread_slowmode', ...),
             flags = keyword_parameters.pop('flags', ...),
@@ -352,7 +338,6 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
         default_forum_layout = ...,
         default_sort_order = ...,
         default_thread_auto_archive_after = ...,
-        default_thread_reaction = ...,
         default_thread_reaction_emoji = ...,
         default_thread_slowmode = ...,
         flags = ...,
@@ -375,7 +360,7 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
             The default thread ordering of the forum.
         default_thread_auto_archive_after : `int`, Optional (Keyword only)
             The default duration (in seconds) for newly created threads to automatically archive the themselves.
-        default_thread_reaction_emoji : `None`, ``Emoji``, Optional (Keyword only)
+        default_thread_reaction_emoji : ``None | Emoji``, Optional (Keyword only)
             The emoji to show in the add reaction button on a thread of the forum channel.
         default_thread_slowmode : `int`, Optional (Keyword only)
             The default slowmode applied to the channel's threads.
@@ -383,9 +368,9 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
             The channel's flags.
         name : `str`, Optional (Keyword only)
             The channel's name.
-        parent_id : `int`, ``Channel``, Optional (Keyword only)
+        parent_id : ``None | int | Channel``, Optional (Keyword only)
             The channel's parent's identifier.
-        permission_overwrites : `None`, `iterable` of ``PermissionOverwrite``, Optional (Keyword only)
+        permission_overwrites : ``None | iterable<PermissionOverwrite>``, Optional (Keyword only)
             The channel's permission overwrites.
         position : `int`, Optional (Keyword only)
             The channel's position.
@@ -403,16 +388,6 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
         ValueError
             - If a parameter's value is incorrect.
         """
-        # Deprecated fields
-        if default_thread_reaction is not ...:
-            warn(
-                '`default_thread_reaction` parameter is deprecated. Please use `default_thread_reaction_emoji` instead.',
-                FutureWarning,
-                stacklevel = 3,
-            )
-            default_thread_reaction_emoji = default_thread_reaction
-        
-        
         # available_tags
         if available_tags is ...:
             available_tags = self.available_tags
@@ -491,7 +466,6 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
             default_forum_layout = keyword_parameters.pop('default_forum_layout', ...),
             default_sort_order = keyword_parameters.pop('default_sort_order', ...),
             default_thread_auto_archive_after = keyword_parameters.pop('default_thread_auto_archive_after', ...),
-            default_thread_reaction = keyword_parameters.pop('default_thread_reaction', ...),
             default_thread_reaction_emoji = keyword_parameters.pop('default_thread_reaction_emoji', ...),
             default_thread_slowmode = keyword_parameters.pop('default_thread_slowmode', ...),
             flags = keyword_parameters.pop('flags', ...),
@@ -592,7 +566,7 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Channel data.
         
         Returns
@@ -694,27 +668,27 @@ class ChannelMetadataGuildForumBase(ChannelMetadataGuildMainBase):
         data = ChannelMetadataGuildMainBase.to_data(self, defaults = defaults, include_internals = include_internals)
         
         # available_tags
-        put_available_tags_into(self.available_tags, data, defaults, include_internals = include_internals)
+        put_available_tags(self.available_tags, data, defaults, include_internals = include_internals)
         
         # default_forum_layout
-        put_default_forum_layout_into(self.default_forum_layout, data, defaults)
+        put_default_forum_layout(self.default_forum_layout, data, defaults)
         
         # default_sort_order
-        put_default_sort_order_into(self.default_sort_order, data, defaults)
+        put_default_sort_order(self.default_sort_order, data, defaults)
         
         # default_auto_archive_duration
-        put_default_thread_auto_archive_after_into(self.default_thread_auto_archive_after, data, defaults)
+        put_default_thread_auto_archive_after(self.default_thread_auto_archive_after, data, defaults)
         
         # default_thread_reaction_emoji
-        put_default_thread_reaction_emoji_into(self.default_thread_reaction_emoji, data, defaults)
+        put_default_thread_reaction_emoji(self.default_thread_reaction_emoji, data, defaults)
         
         # default_thread_slowmode
-        put_default_thread_slowmode_into(self.default_thread_slowmode, data, defaults)
+        put_default_thread_slowmode(self.default_thread_slowmode, data, defaults)
         
         # flags
-        put_flags_into(self.flags, data, defaults)
+        put_flags(self.flags, data, defaults)
         
         # topic
-        put_topic_into(self.topic, data, defaults)
+        put_topic(self.topic, data, defaults)
         
         return data

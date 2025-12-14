@@ -2,10 +2,12 @@ __all__ = ('ActivityType',)
 
 from ...bases import Preinstance as P, PreinstancedBase
 
-from ..activity_metadata import ActivityMetadataBase, ActivityMetadataCustom, ActivityMetadataRich
+from ..activity_metadata import (
+    ActivityMetadataBase, ActivityMetadataCustom, ActivityMetadataHanging, ActivityMetadataRich
+)
 
 
-class ActivityType(PreinstancedBase):
+class ActivityType(PreinstancedBase, value_type = int):
     """
     Represents an ``Activity``'s type.
     
@@ -13,32 +15,25 @@ class ActivityType(PreinstancedBase):
     ----------
     value : `int`
         The Discord side identifier value of the activity type.
+    
     name : `str`
         The default name of the activity type.
+    
     metadata_type : `type<ActivityMetadataBase>`
         The activity type's respective metadata type.
     
-    Class Attributes
+    Type Attributes
     ----------------
-    INSTANCES : `dict` of (`str`, ``ActivityType``) items
-        Stores the predefined activity types. This container is accessed when translating a Discord side
-        identifier of a activity type. The identifier value is used as a key to get it's wrapper side
-        representation.
-    VALUE_TYPE : `type` = `str`
-        The activity types' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the activity types.
-    
-    Every predefined activity type is also stored as a class attribute:
+    Every predefined activity type is also stored as a type attribute:
     
     +-----------------------+-----------------------+-----------+---------------------------------------+
-    | Class attribute name  | Name                  | Value     | Metadata type                         |
+    | Type attribute name   | Name                  | Value     | Metadata type                         |
     +=======================+=======================+===========+=======================================+
     | unknown               | unknown               | -1        | ``ActivityMetadataBase``              |
     +-----------------------+-----------------------+-----------+---------------------------------------+
-    | game                  | game                  | 0         | ``ActivityMetadataRich``              |
+    | playing               | playing               | 0         | ``ActivityMetadataRich``              |
     +-----------------------+-----------------------+-----------+---------------------------------------+
-    | stream                | block stream          | 1         | ``ActivityMetadataRich``              |
+    | stream                | stream                | 1         | ``ActivityMetadataRich``              |
     +-----------------------+-----------------------+-----------+---------------------------------------+
     | spotify               | spotify               | 2         | ``ActivityMetadataRich``              |
     +-----------------------+-----------------------+-----------+---------------------------------------+
@@ -48,59 +43,40 @@ class ActivityType(PreinstancedBase):
     +-----------------------+-----------------------+-----------+---------------------------------------+
     | competing             | competing             | 5         | ``ActivityMetadataRich``              |
     +-----------------------+-----------------------+-----------+---------------------------------------+
+    | hanging               | hanging               | 6         | ``ActivityMetadataHanging``           |
+    +-----------------------+-----------------------+-----------+---------------------------------------+
     """
     __slots__ = ('metadata_type',)
     
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
-    @classmethod
-    def _from_value(cls, value):
+    def __new__(cls, value, name = None, metadata_type = None):
         """
-        Creates a new activity type with the given value.
-        
-        Parameters
-        ----------
-        value : `int`
-            The activity type's identifier value.
-        
-        Returns
-        -------
-        self : `instance<cls>`
-            The created instance.
-        """
-        self = object.__new__(cls)
-        self.name = cls.DEFAULT_NAME
-        self.value = value
-        self.metadata_type = ActivityMetadataRich
-        
-        return self
-    
-    
-    def __init__(self, value, name, metadata_type):
-        """
-        Creates an ``ActivityType`` and stores it at the class's `.INSTANCES` class attribute as well.
+        Creates an new activity type.
         
         Parameters
         ----------
         value : `int`
             The Discord side identifier value of the activity type.
-        name : `str`
-            The default name of the activity type.
-        metadata_type : `None`, `type<ActivityMetadataBase>`
+        
+        name : `None | str` = `None`, Optional
+            The name of the activity type.
+        
+        metadata_type : `None | type<ActivityMetadataBase>` = `None`, Optional
             The activity type's respective metadata type.
         """
-        self.value = value
-        self.name = name
-        self.metadata_type = metadata_type
+        if metadata_type is None:
+            metadata_type = ActivityMetadataRich
         
-        self.INSTANCES[value] = self
+        self = PreinstancedBase.__new__(cls, value, name)
+        self.metadata_type = metadata_type
+        return self
+    
     
     # predefined
     unknown = P(-1, 'unknown', ActivityMetadataBase)
-    game = P(0, 'game', ActivityMetadataRich)
+    playing = P(0, 'playing', ActivityMetadataRich)
     stream = P(1, 'stream message', ActivityMetadataRich)
     spotify = P(2, 'spotify', ActivityMetadataRich)
     watching = P(3, 'watching', ActivityMetadataRich)
     custom = P(4, 'custom', ActivityMetadataCustom)
     competing = P(5, 'competing', ActivityMetadataRich)
+    hanging = P(6, 'hanging', ActivityMetadataHanging)

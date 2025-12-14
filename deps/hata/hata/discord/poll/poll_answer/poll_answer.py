@@ -5,7 +5,7 @@ from ...precreate_helpers import process_precreate_parameters_and_raise_extra
 from ...utils import sanitize_mentions
 
 from .fields import (
-    parse_emoji, parse_id, parse_text, put_emoji_into, put_id_into, put_text_into, validate_emoji, validate_id,
+    parse_emoji, parse_id, parse_text, put_emoji, put_id, put_text, validate_emoji, validate_id,
     validate_text
 )
 
@@ -22,7 +22,7 @@ class PollAnswer(DiscordEntity):
     
     Attributes
     ----------
-    emoji : `None`, ``Emoji``
+    emoji : ``None | Emoji``
         The poll answer's emoji.
     id : `int`
         The answer's identifier.
@@ -37,7 +37,7 @@ class PollAnswer(DiscordEntity):
         
         Parameters
         ----------
-        emoji : `None`, ``Emoji``, Optional (Keyword only)
+        emoji : ``None | Emoji``, Optional (Keyword only)
             The answer's emoji.
         text : `None`, `str`, Optional (Keyword only)
             The answer's text.
@@ -220,11 +220,11 @@ class PollAnswer(DiscordEntity):
         """
         data = {}
         
-        put_emoji_into(self.emoji, data, defaults)
-        put_text_into(self.text, data, defaults)
+        put_emoji(self.emoji, data, defaults)
+        put_text(self.text, data, defaults)
         
         if include_internals:
-            put_id_into(self.id, data, defaults)
+            put_id(self.id, data, defaults)
         
         return data
     
@@ -235,7 +235,7 @@ class PollAnswer(DiscordEntity):
         
         Parameters
         ----------
-        guild : `None`, ``Guild`` = `None`, Optional
+        guild : ``None | Guild`` = `None`, Optional
             The respective guild as a context to look up guild specific names of entities.
         
         Returns
@@ -270,7 +270,7 @@ class PollAnswer(DiscordEntity):
         
         Parameters
         ----------
-        emoji : `None`, ``Emoji``, Optional (Keyword only)
+        emoji : ``None | Emoji``, Optional (Keyword only)
             The answer's emoji.
         text : `None`, `str`, Optional (Keyword only)
             The answer's text.
@@ -324,7 +324,7 @@ class PollAnswer(DiscordEntity):
         
         Other Parameters
         ----------------
-        emoji : `None`, ``Emoji``, Optional (Keyword only)
+        emoji : ``None | Emoji``, Optional (Keyword only)
             The answer's emoji.
         text : `None`, `str`, Optional (Keyword only)
             The answer's text.

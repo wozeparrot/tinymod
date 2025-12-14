@@ -1,7 +1,7 @@
 __all__ = ()
 
-import warnings
 from itertools import chain
+from warnings import warn
 
 from scarletio import Task, WeakSet, export
 
@@ -109,7 +109,28 @@ def get_plugin_event_handler_and_parameter_count(event_handler_manager, name):
         except KeyError:
             pass
         else:
-            return event_handler_plugin, event_handler_plugin._plugin_parameter_counts[name]
+            parameter_counts = event_handler_plugin._plugin_parameter_counts
+            if (parameter_counts is None):
+                parameter_count = 0
+            else:
+                parameter_count = parameter_counts.get(name, 0)
+            return event_handler_plugin, parameter_count
+    
+    plugin_events_deprecated = event_handler_manager._plugin_events_deprecated
+    if (plugin_events_deprecated is not None):
+        try:
+            event_handler_plugin, deprecation = plugin_events_deprecated[name]
+        except KeyError:
+            pass
+        else:
+            deprecation.trigger(name, 3)
+            parameter_counts = event_handler_plugin._plugin_parameter_counts
+            if (parameter_counts is None):
+                parameter_count = 0
+            else:
+                parameter_count = parameter_counts.get(deprecation.use_instead, 0)
+            return event_handler_plugin, parameter_count
+            
     
     return None, 0
 
@@ -129,7 +150,7 @@ def get_plugin_event_handler_and_parser_names(event_handler_manager, name):
     -------
     plugin : `None`, ``EventHandlerManager``, ``EventHandlerPlugin``
         The event handler or the plugin owning the event.
-    parser_names : `None`, `tuple` of `str`
+    parser_names : `None | tuple<str>`
         Dispatch event parser's names relating to the event.
     """
     try:
@@ -147,6 +168,17 @@ def get_plugin_event_handler_and_parser_names(event_handler_manager, name):
             pass
         else:
             return event_handler_plugin, None
+    
+    plugin_events_deprecated = event_handler_manager._plugin_events_deprecated
+    if (plugin_events_deprecated is not None):
+        try:
+            event_handler_plugin, deprecation = plugin_events_deprecated[name]
+        except KeyError:
+            pass
+        else:
+            deprecation.trigger(name, 3)
+            return event_handler_plugin, None
+    
     
     return None, None
 
@@ -179,6 +211,16 @@ def get_plugin_event_handler(event_handler_manager, name):
         else:
             return event_handler_plugin
     
+    plugin_events_deprecated = event_handler_manager._plugin_events_deprecated
+    if (plugin_events_deprecated is not None):
+        try:
+            event_handler_plugin, deprecation = plugin_events_deprecated[name]
+        except KeyError:
+            pass
+        else:
+            deprecation.trigger(name, 3)
+            return event_handler_plugin
+    
     return None
 
 
@@ -207,7 +249,11 @@ add_event_handler('user_update', 3, 'PRESENCE_UPDATE',)
 add_event_handler('user_presence_update', 3, 'PRESENCE_UPDATE',)
 add_event_handler('guild_user_update', 4, 'GUILD_MEMBER_UPDATE',)
 add_event_handler('channel_delete', 2, ('CHANNEL_DELETE', 'THREAD_DELETE'),)
-add_event_handler('channel_update', 3, ('CHANNEL_UPDATE', 'THREAD_UPDATE', 'VOICE_CHANNEL_STATUS_UPDATE'),)
+add_event_handler(
+    'channel_update',
+    3,
+    ('CHANNEL_UPDATE', 'THREAD_UPDATE', 'VOICE_CHANNEL_STATUS_UPDATE', 'VOICE_CHANNEL_START_TIME_UPDATE'),
+)
 add_event_handler('channel_create', 2, ('CHANNEL_CREATE', 'THREAD_CREATE'),)
 add_event_handler('channel_pin_update', 2, 'CHANNEL_PINS_UPDATE',)
 add_event_handler('channel_group_user_add', 3, 'CHANNEL_RECIPIENT_ADD',)
@@ -265,11 +311,11 @@ add_event_handler('scheduled_event_update', 3, 'GUILD_SCHEDULED_EVENT_UPDATE',)
 add_event_handler('scheduled_event_delete', 2, 'GUILD_SCHEDULED_EVENT_DELETE',)
 add_event_handler('scheduled_event_user_subscribe', 2, 'GUILD_SCHEDULED_EVENT_USER_ADD',)
 add_event_handler('scheduled_event_user_unsubscribe', 2, 'GUILD_SCHEDULED_EVENT_USER_REMOVE',)
-add_event_handler('embedded_activity_create', 2, 'EMBEDDED_ACTIVITY_UPDATE',)
-add_event_handler('embedded_activity_delete', 2, 'EMBEDDED_ACTIVITY_UPDATE',)
-add_event_handler('embedded_activity_update', 3, 'EMBEDDED_ACTIVITY_UPDATE',)
-add_event_handler('embedded_activity_user_add', 3, 'EMBEDDED_ACTIVITY_UPDATE',)
-add_event_handler('embedded_activity_user_delete', 3, 'EMBEDDED_ACTIVITY_UPDATE',)
+add_event_handler('embedded_activity_create', 2, ('EMBEDDED_ACTIVITY_UPDATE', 'EMBEDDED_ACTIVITY_UPDATE_V2'),)
+add_event_handler('embedded_activity_delete', 2, ('EMBEDDED_ACTIVITY_UPDATE', 'EMBEDDED_ACTIVITY_UPDATE_V2'),)
+add_event_handler('embedded_activity_update', 3, ('EMBEDDED_ACTIVITY_UPDATE', 'EMBEDDED_ACTIVITY_UPDATE_V2'),)
+add_event_handler('embedded_activity_user_add', 3, ('EMBEDDED_ACTIVITY_UPDATE', 'EMBEDDED_ACTIVITY_UPDATE_V2'),)
+add_event_handler('embedded_activity_user_delete', 3, ('EMBEDDED_ACTIVITY_UPDATE', 'EMBEDDED_ACTIVITY_UPDATE_V2',))
 add_event_handler('application_command_count_update', 2, 'GUILD_APPLICATION_COMMAND_INDEX_UPDATE',)
 add_event_handler('auto_moderation_rule_create', 2, 'AUTO_MODERATION_RULE_CREATE',)
 add_event_handler('auto_moderation_rule_update', 3, 'AUTO_MODERATION_RULE_UPDATE',)
@@ -286,6 +332,15 @@ add_event_handler('entitlement_update', 3, 'ENTITLEMENT_UPDATE',)
 add_event_handler('entitlement_delete', 2, 'ENTITLEMENT_DELETE',)
 add_event_handler('poll_vote_add', 2, 'MESSAGE_POLL_VOTE_ADD',)
 add_event_handler('poll_vote_delete', 2, 'MESSAGE_POLL_VOTE_REMOVE',)
+add_event_handler('subscription_create', 2, 'SUBSCRIPTION_CREATE',)
+add_event_handler('subscription_update', 3, 'SUBSCRIPTION_UPDATE',)
+add_event_handler('subscription_delete', 2, 'SUBSCRIPTION_DELETE',)
+add_event_handler('scheduled_event_occasion_overwrite_create', 2, 'GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE',)
+add_event_handler('scheduled_event_occasion_overwrite_update', 3, 'GUILD_SCHEDULED_EVENT_EXCEPTION_CREATE',)
+add_event_handler('scheduled_event_occasion_overwrite_delete', 2, 'GUILD_SCHEDULED_EVENT_EXCEPTION_DELETE',)
+add_event_handler('guild_enhancement_entitlements_create', 2, 'GUILD_POWERUP_ENTITLEMENTS_CREATE',)
+add_event_handler('guild_enhancement_entitlements_delete', 2, 'GUILD_POWERUP_ENTITLEMENTS_DELETE',)
+add_event_handler('guild_boost_update', 3, 'GUILD_APPLIED_BOOSTS_UPDATE',)
 
 
 class ParserSettingOption:
@@ -314,7 +369,7 @@ class ParserSettingOption:
         try:
             intent_shifts = DISPATCH_EVENT_TO_INTENTS[name]
         except KeyError:
-            warnings.warn(
+            warn(
                 (
                     f'Dispatch event parser {name!r} is not registered to any intent. '
                     'Will always use optimized parser to dispatch it.'
@@ -333,7 +388,7 @@ class ParserSettingOption:
     
     def __repr__(self):
         """Returns the parser description's representation."""
-        return f'<{self.__class__.__name__} name = {self.name!r}, intent_shift = {self.intent_shift!r}>'
+        return f'<{type(self).__name__} name = {self.name!r}, intent_shift = {self.intent_shift!r}>'
 
 
 class ParserSetting:
@@ -510,7 +565,7 @@ def register_client(client):
         try:
             parser_default = PARSER_SETTINGS[parser_name]
         except KeyError:
-            warnings.warn(
+            warn(
                 f'No parser added for: {parser_name!r}.',
                 RuntimeWarning,
             )

@@ -2,7 +2,7 @@ __all__ = ()
 
 from base64 import b64decode
 from binascii import Error as Base64DecodeError
-from datetime import datetime
+from datetime import datetime as DateTime, timezone as TimeZone
 from math import inf
 
 from scarletio import BaseMethodType, Future, LOOP_TIME, Task, TaskGroup
@@ -97,7 +97,7 @@ class SingleUserChunker:
         
         Returns
         -------
-        users : `list` of ``ClientUserBase`` objects
+        users : ``list<ClientUserBase>``
             The received users. Can be an empty list.
         
         Raises
@@ -612,9 +612,9 @@ class MultiClientMessageDeleteSequenceSharder:
     ----------
     client : ``Client``
         The respective client.
-    can_read_message_history : `int`
+    read_message_history : `bool`
         Whether the `client` can read message history at the respective channel.
-    can_manage_messages : `int`
+    manage_messages : `bool`
         Whether the respective client can manage messages at the respective channel.
     delete_mass_task : `None`, ``Task``
         Task of bulk deleting messages.
@@ -624,7 +624,7 @@ class MultiClientMessageDeleteSequenceSharder:
         task of deleting other's old messages.
     """
     __slots__ = (
-        'can_manage_messages', 'can_read_message_history', 'client', 'delete_mass_task', 'delete_new_task',
+        'manage_messages', 'read_message_history', 'client', 'delete_mass_task', 'delete_new_task',
         'delete_old_task'
     )
     
@@ -650,8 +650,8 @@ class MultiClientMessageDeleteSequenceSharder:
         
         self = object.__new__(cls)
         self.client = client
-        self.can_read_message_history = permissions.can_read_message_history
-        self.can_manage_messages = permissions.can_manage_messages
+        self.read_message_history = permissions.read_message_history
+        self.manage_messages = permissions.manage_messages
         
         self.delete_mass_task = None
         self.delete_new_task = None
@@ -931,7 +931,7 @@ async def request_channel_thread_channels(client, guild_id, channel_id, request_
         if thread_channels:
             before = thread_channels[-1].created_at
         else:
-            before = datetime.utcnow()
+            before = DateTime.now(TimeZone.utc)
         
         query_parameters = {'before': before}
     

@@ -1,11 +1,11 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
-from ....activity import Activity
 from ....bases import Icon, IconType
 from ....channel import Channel, ChannelType
 from ....client import Client
+from ....embedded_activity import EmbeddedActivity
 from ....emoji import Emoji
 from ....localization import Locale
 from ....role import Role
@@ -15,7 +15,6 @@ from ....stage import Stage
 from ....sticker import Sticker
 from ....user import GuildProfile, User, VoiceState
 
-from ...embedded_activity_state import EmbeddedActivityState
 from ...guild_incidents import GuildIncidents
 from ...guild_inventory_settings import GuildInventorySettings
 
@@ -67,6 +66,7 @@ def test__Guild__from_data__all_fields():
     available = True
     banner = Icon(IconType.animated, 12)
     boost_count = 3
+    boost_level = 1
     boost_progress_bar_enabled = True
     channels = [
         Channel.precreate(202306210040, channel_type = ChannelType.guild_text),
@@ -75,18 +75,19 @@ def test__Guild__from_data__all_fields():
     explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     description = 'Koishi'
     discovery_splash = Icon(IconType.animated, 14)
-    embedded_activity_states = [
-        EmbeddedActivityState(activity = Activity('dance'), guild_id = guild_id, channel_id = 202306220032),
-        EmbeddedActivityState(activity = Activity('party'), guild_id = guild_id, channel_id = 202306220033),
+    embedded_activities = [
+        EmbeddedActivity.precreate(202409040003, guild_id = guild_id),
+        EmbeddedActivity.precreate(202409040004, guild_id = guild_id),
     ]
     emojis = [
         Emoji.precreate(202306210042),
         Emoji.precreate(202306210043),
     ]
-    features = [GuildFeature.animated_icon]
+    features = [GuildFeature.icon_animated]
+    home_splash = Icon(IconType.animated, 36)
     hub_type = HubType.college
     icon = Icon(IconType.animated, 16)
-    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14))
+    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     inventory_settings = GuildInventorySettings(emoji_pack_collectible = True)
     invite_splash = Icon(IconType.animated, 18)
     large = True
@@ -100,7 +101,6 @@ def test__Guild__from_data__all_fields():
     nsfw_level = NsfwLevel.explicit
     owner_id = 202306210044
     locale = Locale.finnish
-    premium_tier = 1
     public_updates_channel_id = 202306210045
     roles = [
         Role.precreate(202306210046),
@@ -112,7 +112,10 @@ def test__Guild__from_data__all_fields():
         ScheduledEvent.precreate(202306210050),
     ]
     safety_alerts_channel_id = 202306210051
-    # soundboard_sounds = [SoundboardSound.precreate(202306210052), SoundboardSound.precreate(202306210053),]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202306210052),
+        SoundboardSound.precreate(202306210053),
+    ]
     stages = [
         Stage.precreate(202306210054),
         Stage.precreate(202306210055),
@@ -149,13 +152,14 @@ def test__Guild__from_data__all_fields():
         'approximate_presence_count': approximate_online_count,
         'approximate_member_count': approximate_user_count,
         'unavailable': not available,
-        'premium_progress_bar_enabled': boost_progress_bar_enabled,
         'premium_subscription_count': boost_count,
+        'premium_tier': boost_level,
+        'premium_progress_bar_enabled': boost_progress_bar_enabled,
         'channels': [channel.to_data(include_internals = True) for channel in channels],
         'explicit_content_filter': explicit_content_filter_level.value,
         'description': description,
-        'embedded_activities': [
-            embedded_activity_state.to_data() for embedded_activity_state in embedded_activity_states
+        'activity_instances': [
+            embedded_activity.to_data(include_internals = True) for embedded_activity in embedded_activities
         ],
         'emojis': [emoji.to_data(include_internals = True) for emoji in emojis],
         'features': [feature.value for feature in features],
@@ -173,14 +177,15 @@ def test__Guild__from_data__all_fields():
         'nsfw_level': nsfw_level.value,
         'owner_id': str(owner_id),
         'preferred_locale': locale.value,
-        'premium_tier': premium_tier,
         'public_updates_channel_id': str(public_updates_channel_id),
         'roles': [role.to_data(include_internals = True) for role in roles],
         'rules_channel_id': str(rules_channel_id),
         'safety_alerts_channel_id': str(safety_alerts_channel_id),
-        # soundboard_sounds: [soundboard_sound.to_data(include_internals = True) for soundboard_sound in soundboard_sounds],
         'guild_scheduled_events': [
             scheduled_event.to_data(include_internals = True) for scheduled_event in scheduled_events
+        ],
+        'soundboard_sounds': [
+            soundboard_sound.to_data(include_internals = True) for soundboard_sound in soundboard_sounds
         ],
         'stage_instances': [stage.to_data(include_internals = True) for stage in stages],
         'stickers': [sticker.to_data(include_internals = True) for sticker in stickers],
@@ -201,6 +206,7 @@ def test__Guild__from_data__all_fields():
         'banner': banner.as_base_16_hash,
         'discovery_splash': discovery_splash.as_base_16_hash,
         'splash': invite_splash.as_base_16_hash,
+        'home_header': home_splash.as_base_16_hash,
     }
     
     guild = Guild.from_data(data)
@@ -214,14 +220,16 @@ def test__Guild__from_data__all_fields():
     vampytest.assert_eq(guild.available, available)
     vampytest.assert_eq(guild.banner, banner)
     vampytest.assert_eq(guild.boost_count, boost_count)
+    vampytest.assert_eq(guild.boost_level, boost_level)
     vampytest.assert_eq(guild.boost_progress_bar_enabled, boost_progress_bar_enabled)
     vampytest.assert_eq(guild.channels, {channel.id: channel for channel in channels})
     vampytest.assert_is(guild.explicit_content_filter_level, explicit_content_filter_level)
     vampytest.assert_eq(guild.description, description)
     vampytest.assert_eq(guild.discovery_splash, discovery_splash)
-    vampytest.assert_eq(guild.embedded_activity_states, set(embedded_activity_states))
+    vampytest.assert_eq(guild.embedded_activities, set(embedded_activities))
     vampytest.assert_eq(guild.emojis, {emoji.id: emoji for emoji in emojis})
     vampytest.assert_eq(guild.features, tuple(features))
+    vampytest.assert_eq(guild.home_splash, home_splash)
     vampytest.assert_is(guild.hub_type, hub_type)
     vampytest.assert_eq(guild.icon, icon)
     vampytest.assert_eq(guild.incidents, incidents)
@@ -238,7 +246,6 @@ def test__Guild__from_data__all_fields():
     vampytest.assert_is(guild.nsfw_level, nsfw_level)
     vampytest.assert_eq(guild.owner_id, owner_id)
     vampytest.assert_is(guild.locale, locale)
-    vampytest.assert_eq(guild.premium_tier, premium_tier)
     vampytest.assert_eq(guild.public_updates_channel_id, public_updates_channel_id)
     vampytest.assert_eq(guild.roles, {role.id: role for role in roles})
     vampytest.assert_eq(guild.rules_channel_id, rules_channel_id)
@@ -246,7 +253,7 @@ def test__Guild__from_data__all_fields():
     vampytest.assert_eq(
         guild.scheduled_events, {scheduled_event.id: scheduled_event for scheduled_event in scheduled_events}
     )
-    # vampytest.assert_eq(guild.soundboard_sounds, {soundboard_sound.id: soundboard_sound for soundboard_sound in soundboard_sounds})
+    vampytest.assert_eq(guild.soundboard_sounds, {soundboard_sound.id: soundboard_sound for soundboard_sound in soundboard_sounds})
     vampytest.assert_eq(guild.stages, {stage.id: stage for stage in stages})
     vampytest.assert_eq(guild.stickers, {sticker.id: sticker for sticker in stickers})
     vampytest.assert_eq(guild.system_channel_id, system_channel_id)
@@ -322,6 +329,7 @@ def test__Guild__to_data():
     available = True
     banner = Icon(IconType.animated, 12)
     boost_count = 3
+    boost_level = 1
     boost_progress_bar_enabled = True
     channels = [
         Channel.precreate(202306220002, channel_type = ChannelType.guild_text),
@@ -330,18 +338,19 @@ def test__Guild__to_data():
     explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     description = 'Koishi'
     discovery_splash = Icon(IconType.animated, 14)
-    embedded_activity_states = [
-        EmbeddedActivityState(activity = Activity('dance'), guild_id = guild_id, channel_id = 202306220030),
-        EmbeddedActivityState(activity = Activity('party'), guild_id = guild_id, channel_id = 202306220031),
+    embedded_activities = [
+        EmbeddedActivity.precreate(202409040005, guild_id = guild_id),
+        EmbeddedActivity.precreate(202409040006, guild_id = guild_id),
     ]
     emojis = [
         Emoji.precreate(202306220004),
         Emoji.precreate(202306220005),
     ]
-    features = [GuildFeature.animated_icon]
+    features = [GuildFeature.icon_animated]
+    home_splash = Icon(IconType.animated, 36)
     hub_type = HubType.college
     icon = Icon(IconType.animated, 16)
-    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14))
+    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     inventory_settings = GuildInventorySettings(emoji_pack_collectible = True)
     invite_splash = Icon(IconType.animated, 18)
     large = True
@@ -355,19 +364,21 @@ def test__Guild__to_data():
     nsfw_level = NsfwLevel.explicit
     owner_id = 202306220006
     locale = Locale.finnish
-    premium_tier = 1
     public_updates_channel_id = 202306220007
     roles = [
         Role.precreate(202306220008),
         Role.precreate(202306220009),
     ]
     rules_channel_id = 202306220010
+    safety_alerts_channel_id = 202306220013
     scheduled_events = [
         ScheduledEvent.precreate(202306220011),
         ScheduledEvent.precreate(202306220012),
     ]
-    safety_alerts_channel_id = 202306220013
-    # soundboard_sounds = [SoundboardSound.precreate(202306220014), SoundboardSound.precreate(202306220015),]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202306220014),
+        SoundboardSound.precreate(202306220015),
+    ]
     stages = [
         Stage.precreate(202306220016),
         Stage.precreate(202306220017),
@@ -406,13 +417,15 @@ def test__Guild__to_data():
         'approximate_presence_count': approximate_online_count,
         'approximate_member_count': approximate_user_count,
         'unavailable': not available,
-        'premium_progress_bar_enabled': boost_progress_bar_enabled,
         'premium_subscription_count': boost_count,
+        'premium_tier': boost_level,
+        'premium_progress_bar_enabled': boost_progress_bar_enabled,
         'channels': [channel.to_data(defaults = True, include_internals = True) for channel in channels],
         'explicit_content_filter': explicit_content_filter_level.value,
         'description': description,
-        'embedded_activities': [
-            embedded_activity_state.to_data(defaults = True) for embedded_activity_state in embedded_activity_states
+        'activity_instances': [
+            embedded_activity.to_data(defaults = True, include_internals = True)
+            for embedded_activity in embedded_activities
         ],
         'emojis': [emoji.to_data(defaults = True, include_internals = True) for emoji in emojis],
         'features': [feature.value for feature in features],
@@ -431,14 +444,16 @@ def test__Guild__to_data():
         'nsfw_level': nsfw_level.value,
         'owner_id': str(owner_id),
         'preferred_locale': locale.value,
-        'premium_tier': premium_tier,
         'public_updates_channel_id': str(public_updates_channel_id),
         'roles': [role.to_data(defaults = True, include_internals = True) for role in roles],
         'rules_channel_id': str(rules_channel_id),
         'safety_alerts_channel_id': str(safety_alerts_channel_id),
-        # soundboard_sounds: [soundboard_sound.to_data(defaults = True, include_internals = True) for soundboard_sound in soundboard_sounds],
         'guild_scheduled_events': [
             scheduled_event.to_data(defaults = True, include_internals = True) for scheduled_event in scheduled_events
+        ],
+        'soundboard_sounds': [
+            soundboard_sound.to_data(defaults = True, include_internals = True)
+            for soundboard_sound in soundboard_sounds
         ],
         'stage_instances': [stage.to_data(defaults = True, include_internals = True) for stage in stages],
         'stickers': [sticker.to_data(defaults = True, include_internals = True) for sticker in stickers],
@@ -461,6 +476,7 @@ def test__Guild__to_data():
         'banner': banner.as_base_16_hash,
         'discovery_splash': discovery_splash.as_base_16_hash,
         'splash': invite_splash.as_base_16_hash,
+        'home_header': home_splash.as_base_16_hash,
     }
     
     guild = Guild.precreate(
@@ -472,14 +488,16 @@ def test__Guild__to_data():
         available = available,
         banner = banner,
         boost_count = boost_count,
+        boost_level = boost_level,
         boost_progress_bar_enabled = boost_progress_bar_enabled,
         channels = channels,
         explicit_content_filter_level = explicit_content_filter_level,
         description = description,
         discovery_splash = discovery_splash,
-        embedded_activity_states = embedded_activity_states,
+        embedded_activities = embedded_activities,
         emojis = emojis,
         features = features,
+        home_splash = home_splash,
         hub_type = hub_type,
         icon = icon,
         incidents = incidents,
@@ -496,12 +514,11 @@ def test__Guild__to_data():
         nsfw_level = nsfw_level,
         owner_id = owner_id,
         locale = locale,
-        premium_tier = premium_tier,
         public_updates_channel_id = public_updates_channel_id,
         roles = roles,
         rules_channel_id = rules_channel_id,
         safety_alerts_channel_id = safety_alerts_channel_id,
-        # soundboard_sounds = soundboard_sounds,
+        soundboard_sounds = soundboard_sounds,
         scheduled_events = scheduled_events,
         stages = stages,
         stickers = stickers,
@@ -538,6 +555,7 @@ def test__Guild__set_attributes__create():
     available = True
     banner = Icon(IconType.animated, 12)
     boost_count = 3
+    boost_level = 1
     boost_progress_bar_enabled = True
     channels = [
         Channel.precreate(202306220038, channel_type = ChannelType.guild_text),
@@ -546,18 +564,19 @@ def test__Guild__set_attributes__create():
     explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     description = 'Koishi'
     discovery_splash = Icon(IconType.animated, 14)
-    embedded_activity_states = [
-        EmbeddedActivityState(activity = Activity('dance'), guild_id = guild_id, channel_id = 202306220040),
-        EmbeddedActivityState(activity = Activity('party'), guild_id = guild_id, channel_id = 202306220041),
+    embedded_activities = [
+        EmbeddedActivity.precreate(202409040007, guild_id = guild_id),
+        EmbeddedActivity.precreate(202409040008, guild_id = guild_id),
     ]
     emojis = [
         Emoji.precreate(202306220042),
         Emoji.precreate(202306220043),
     ]
-    features = [GuildFeature.animated_icon]
+    features = [GuildFeature.icon_animated]
+    home_splash = Icon(IconType.animated, 36)
     hub_type = HubType.college
     icon = Icon(IconType.animated, 16)
-    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14))
+    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     inventory_settings = GuildInventorySettings(emoji_pack_collectible = True)
     invite_splash = Icon(IconType.animated, 18)
     large = True
@@ -571,7 +590,6 @@ def test__Guild__set_attributes__create():
     nsfw_level = NsfwLevel.explicit
     owner_id = 202306220044
     locale = Locale.finnish
-    premium_tier = 1
     public_updates_channel_id = 202306220045
     roles = [
         Role.precreate(202306220046),
@@ -583,7 +601,10 @@ def test__Guild__set_attributes__create():
         ScheduledEvent.precreate(202306220050),
     ]
     safety_alerts_channel_id = 202306220051
-    # soundboard_sounds = [SoundboardSound.precreate(202306220052), SoundboardSound.precreate(202306220053),]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202306220052),
+        SoundboardSound.precreate(202306220053),
+    ]
     stages = [
         Stage.precreate(202306220054),
         Stage.precreate(202306220055),
@@ -620,13 +641,14 @@ def test__Guild__set_attributes__create():
         'approximate_presence_count': approximate_online_count,
         'approximate_member_count': approximate_user_count,
         'unavailable': not available,
-        'premium_progress_bar_enabled': boost_progress_bar_enabled,
         'premium_subscription_count': boost_count,
+        'premium_tier': boost_level,
+        'premium_progress_bar_enabled': boost_progress_bar_enabled,
         'channels': [channel.to_data(include_internals = True) for channel in channels],
         'explicit_content_filter': explicit_content_filter_level.value,
         'description': description,
-        'embedded_activities': [
-            embedded_activity_state.to_data() for embedded_activity_state in embedded_activity_states
+        'activity_instances': [
+            embedded_activity.to_data(include_internals = True) for embedded_activity in embedded_activities
         ],
         'emojis': [emoji.to_data(include_internals = True) for emoji in emojis],
         'features': [feature.value for feature in features],
@@ -644,14 +666,15 @@ def test__Guild__set_attributes__create():
         'nsfw_level': nsfw_level.value,
         'owner_id': str(owner_id),
         'preferred_locale': locale.value,
-        'premium_tier': premium_tier,
         'public_updates_channel_id': str(public_updates_channel_id),
         'roles': [role.to_data(include_internals = True) for role in roles],
         'rules_channel_id': str(rules_channel_id),
         'safety_alerts_channel_id': str(safety_alerts_channel_id),
-        # soundboard_sounds: [soundboard_sound.to_data(include_internals = True) for soundboard_sound in soundboard_sounds],
         'guild_scheduled_events': [
             scheduled_event.to_data(include_internals = True) for scheduled_event in scheduled_events
+        ],
+        'soundboard_sounds': [
+            soundboard_sound.to_data(include_internals = True) for soundboard_sound in soundboard_sounds
         ],
         'stage_instances': [stage.to_data(include_internals = True) for stage in stages],
         'stickers': [sticker.to_data(include_internals = True) for sticker in stickers],
@@ -672,6 +695,7 @@ def test__Guild__set_attributes__create():
         'banner': banner.as_base_16_hash,
         'discovery_splash': discovery_splash.as_base_16_hash,
         'splash': invite_splash.as_base_16_hash,
+        'home_header': home_splash.as_base_16_hash,
     }
     
     guild = object.__new__(Guild)
@@ -687,14 +711,16 @@ def test__Guild__set_attributes__create():
     vampytest.assert_eq(guild.available, available)
     vampytest.assert_eq(guild.banner, banner)
     vampytest.assert_eq(guild.boost_count, boost_count)
+    vampytest.assert_eq(guild.boost_level, boost_level)
     vampytest.assert_eq(guild.boost_progress_bar_enabled, boost_progress_bar_enabled)
     vampytest.assert_eq(guild.channels, {channel.id: channel for channel in channels})
     vampytest.assert_is(guild.explicit_content_filter_level, explicit_content_filter_level)
     vampytest.assert_eq(guild.description, description)
     vampytest.assert_eq(guild.discovery_splash, discovery_splash)
-    vampytest.assert_eq(guild.embedded_activity_states, set(embedded_activity_states))
+    vampytest.assert_eq(guild.embedded_activities, set(embedded_activities))
     vampytest.assert_eq(guild.emojis, {emoji.id: emoji for emoji in emojis})
     vampytest.assert_eq(guild.features, tuple(features))
+    vampytest.assert_eq(guild.home_splash, home_splash)
     vampytest.assert_is(guild.hub_type, hub_type)
     vampytest.assert_eq(guild.icon, icon)
     vampytest.assert_eq(guild.incidents, incidents)
@@ -711,7 +737,6 @@ def test__Guild__set_attributes__create():
     vampytest.assert_is(guild.nsfw_level, nsfw_level)
     vampytest.assert_eq(guild.owner_id, owner_id)
     vampytest.assert_is(guild.locale, locale)
-    vampytest.assert_eq(guild.premium_tier, premium_tier)
     vampytest.assert_eq(guild.public_updates_channel_id, public_updates_channel_id)
     vampytest.assert_eq(guild.roles, {role.id: role for role in roles})
     vampytest.assert_eq(guild.rules_channel_id, rules_channel_id)
@@ -719,7 +744,7 @@ def test__Guild__set_attributes__create():
     vampytest.assert_eq(
         guild.scheduled_events, {scheduled_event.id: scheduled_event for scheduled_event in scheduled_events}
     )
-    # vampytest.assert_eq(guild.soundboard_sounds, {soundboard_sound.id: soundboard_sound for soundboard_sound in soundboard_sounds})
+    vampytest.assert_eq(guild.soundboard_sounds, {soundboard_sound.id: soundboard_sound for soundboard_sound in soundboard_sounds})
     vampytest.assert_eq(guild.stages, {stage.id: stage for stage in stages})
     vampytest.assert_eq(guild.stickers, {sticker.id: sticker for sticker in stickers})
     vampytest.assert_eq(guild.system_channel_id, system_channel_id)
@@ -749,6 +774,7 @@ def test__Guild__set_attributes__existing():
     available = True
     banner = Icon(IconType.animated, 12)
     boost_count = 3
+    boost_level = 1
     boost_progress_bar_enabled = True
     channels = [
         Channel.precreate(202306220070, channel_type = ChannelType.guild_text),
@@ -757,18 +783,19 @@ def test__Guild__set_attributes__existing():
     explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     description = 'Koishi'
     discovery_splash = Icon(IconType.animated, 14)
-    embedded_activity_states = [
-        EmbeddedActivityState(activity = Activity('dance'), guild_id = guild_id, channel_id = 202306220072),
-        EmbeddedActivityState(activity = Activity('party'), guild_id = guild_id, channel_id = 202306220073),
+    embedded_activities = [
+        EmbeddedActivity.precreate(202409040009, guild_id = guild_id),
+        EmbeddedActivity.precreate(202409040010, guild_id = guild_id),
     ]
     emojis = [
         Emoji.precreate(202306220074),
         Emoji.precreate(202306220075),
     ]
-    features = [GuildFeature.animated_icon]
+    features = [GuildFeature.icon_animated]
+    home_splash = Icon(IconType.animated, 36)
     hub_type = HubType.college
     icon = Icon(IconType.animated, 16)
-    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14))
+    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     inventory_settings = GuildInventorySettings(emoji_pack_collectible = True)
     invite_splash = Icon(IconType.animated, 18)
     large = True
@@ -782,7 +809,6 @@ def test__Guild__set_attributes__existing():
     nsfw_level = NsfwLevel.explicit
     owner_id = 202306220044
     locale = Locale.finnish
-    premium_tier = 1
     public_updates_channel_id = 202306220076
     roles = [
         Role.precreate(202306220077),
@@ -794,7 +820,10 @@ def test__Guild__set_attributes__existing():
         ScheduledEvent.precreate(202306220081),
     ]
     safety_alerts_channel_id = 202306220082
-    # soundboard_sounds = [SoundboardSound.precreate(202306220083), SoundboardSound.precreate(202306220084),]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202306220083),
+        SoundboardSound.precreate(202306220084),
+    ]
     stages = [
         Stage.precreate(202306220085),
         Stage.precreate(202306220086),
@@ -831,13 +860,14 @@ def test__Guild__set_attributes__existing():
         'approximate_presence_count': approximate_online_count,
         'approximate_member_count': approximate_user_count,
         'unavailable': not available,
-        'premium_progress_bar_enabled': boost_progress_bar_enabled,
         'premium_subscription_count': boost_count,
+        'premium_tier': boost_level,
+        'premium_progress_bar_enabled': boost_progress_bar_enabled,
         'channels': [channel.to_data(include_internals = True) for channel in channels],
         'explicit_content_filter': explicit_content_filter_level.value,
         'description': description,
-        'embedded_activities': [
-            embedded_activity_state.to_data() for embedded_activity_state in embedded_activity_states
+        'activity_instances': [
+            embedded_activity.to_data(include_internals = True) for embedded_activity in embedded_activities
         ],
         'emojis': [emoji.to_data(include_internals = True) for emoji in emojis],
         'features': [feature.value for feature in features],
@@ -855,14 +885,15 @@ def test__Guild__set_attributes__existing():
         'nsfw_level': nsfw_level.value,
         'owner_id': str(owner_id),
         'preferred_locale': locale.value,
-        'premium_tier': premium_tier,
         'public_updates_channel_id': str(public_updates_channel_id),
         'roles': [role.to_data(include_internals = True) for role in roles],
         'rules_channel_id': str(rules_channel_id),
         'safety_alerts_channel_id': str(safety_alerts_channel_id),
-        # soundboard_sounds: [soundboard_sound.to_data(include_internals = True) for soundboard_sound in soundboard_sounds],
         'guild_scheduled_events': [
             scheduled_event.to_data(include_internals = True) for scheduled_event in scheduled_events
+        ],
+        'soundboard_sounds': [
+            soundboard_sound.to_data(include_internals = True) for soundboard_sound in soundboard_sounds
         ],
         'stage_instances': [stage.to_data(include_internals = True) for stage in stages],
         'stickers': [sticker.to_data(include_internals = True) for sticker in stickers],
@@ -883,6 +914,7 @@ def test__Guild__set_attributes__existing():
         'banner': banner.as_base_16_hash,
         'discovery_splash': discovery_splash.as_base_16_hash,
         'splash': invite_splash.as_base_16_hash,
+        'home_header': home_splash.as_base_16_hash,
     }
     
     guild = Guild._create_empty(guild_id)
@@ -897,14 +929,16 @@ def test__Guild__set_attributes__existing():
     vampytest.assert_eq(guild.available, available)
     vampytest.assert_eq(guild.banner, banner)
     vampytest.assert_eq(guild.boost_count, boost_count)
+    vampytest.assert_eq(guild.boost_level, boost_level)
     vampytest.assert_eq(guild.boost_progress_bar_enabled, boost_progress_bar_enabled)
     vampytest.assert_eq(guild.channels, {channel.id: channel for channel in channels})
     vampytest.assert_is(guild.explicit_content_filter_level, explicit_content_filter_level)
     vampytest.assert_eq(guild.description, description)
     vampytest.assert_eq(guild.discovery_splash, discovery_splash)
-    vampytest.assert_eq(guild.embedded_activity_states, set(embedded_activity_states))
+    vampytest.assert_eq(guild.embedded_activities, set(embedded_activities))
     vampytest.assert_eq(guild.emojis, {emoji.id: emoji for emoji in emojis})
     vampytest.assert_eq(guild.features, tuple(features))
+    vampytest.assert_eq(guild.home_splash, home_splash)
     vampytest.assert_is(guild.hub_type, hub_type)
     vampytest.assert_eq(guild.icon, icon)
     vampytest.assert_eq(guild.incidents, incidents)
@@ -921,7 +955,6 @@ def test__Guild__set_attributes__existing():
     vampytest.assert_is(guild.nsfw_level, nsfw_level)
     vampytest.assert_eq(guild.owner_id, owner_id)
     vampytest.assert_is(guild.locale, locale)
-    vampytest.assert_eq(guild.premium_tier, premium_tier)
     vampytest.assert_eq(guild.public_updates_channel_id, public_updates_channel_id)
     vampytest.assert_eq(guild.roles, {role.id: role for role in roles})
     vampytest.assert_eq(guild.rules_channel_id, rules_channel_id)
@@ -929,7 +962,9 @@ def test__Guild__set_attributes__existing():
     vampytest.assert_eq(
         guild.scheduled_events, {scheduled_event.id: scheduled_event for scheduled_event in scheduled_events}
     )
-    # vampytest.assert_eq(guild.soundboard_sounds, {soundboard_sound.id: soundboard_sound for soundboard_sound in soundboard_sounds})
+    vampytest.assert_eq(
+        guild.soundboard_sounds, {soundboard_sound.id: soundboard_sound for soundboard_sound in soundboard_sounds}
+    )
     vampytest.assert_eq(guild.stages, {stage.id: stage for stage in stages})
     vampytest.assert_eq(guild.stickers, {sticker.id: sticker for sticker in stickers})
     vampytest.assert_eq(guild.system_channel_id, system_channel_id)
@@ -957,14 +992,16 @@ def test__Guild__update_attributes():
     old_available = True
     old_banner = Icon(IconType.animated, 12)
     old_boost_count = 3
+    old_boost_level = 1
     old_boost_progress_bar_enabled = True
     old_explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     old_description = 'Koishi'
     old_discovery_splash = Icon(IconType.animated, 14)
-    old_features = [GuildFeature.animated_icon]
+    old_features = [GuildFeature.icon_animated]
+    old_home_splash = Icon(IconType.animated, 36)
     old_hub_type = HubType.college
     old_icon = Icon(IconType.animated, 16)
-    old_incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14))
+    old_incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     old_inventory_settings = GuildInventorySettings(emoji_pack_collectible = True)
     old_invite_splash = Icon(IconType.animated, 18)
     old_max_presences = 420
@@ -977,7 +1014,6 @@ def test__Guild__update_attributes():
     old_nsfw_level = NsfwLevel.explicit
     old_owner_id = 202306220102
     old_locale = Locale.finnish
-    old_premium_tier = 1
     old_public_updates_channel_id = 202306220103
     old_rules_channel_id = 202306220104
     old_safety_alerts_channel_id = 202306220105
@@ -995,14 +1031,16 @@ def test__Guild__update_attributes():
     new_available = False
     new_banner = Icon(IconType.animated, 112)
     new_boost_count = 13
+    new_boost_level = 2
     new_boost_progress_bar_enabled = False
     new_explicit_content_filter_level = ExplicitContentFilterLevel.everyone
     new_description = 'Orin'
     new_discovery_splash = Icon(IconType.animated, 114)
-    new_features = [GuildFeature.animated_banner]
+    new_features = [GuildFeature.banner_animated]
+    new_home_splash = Icon(IconType.animated, 37)
     new_hub_type = HubType.high_school
     new_icon = Icon(IconType.animated, 116)
-    new_incidents = GuildIncidents(direct_messages_disabled_until = DateTime(2016, 5, 14))
+    new_incidents = GuildIncidents(direct_messages_disabled_until = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     new_inventory_settings = GuildInventorySettings(emoji_pack_collectible = False)
     new_invite_splash = Icon(IconType.animated, 118)
     new_max_presences = 1420
@@ -1015,7 +1053,6 @@ def test__Guild__update_attributes():
     new_nsfw_level = NsfwLevel.safe
     new_owner_id = 202306220109
     new_locale = Locale.dutch
-    new_premium_tier = 2
     new_public_updates_channel_id = 202306220110
     new_rules_channel_id = 202306220111
     new_safety_alerts_channel_id = 202306220112
@@ -1036,11 +1073,13 @@ def test__Guild__update_attributes():
         available = old_available,
         banner = old_banner,
         boost_count = old_boost_count,
+        boost_level = old_boost_level,
         boost_progress_bar_enabled = old_boost_progress_bar_enabled,
         explicit_content_filter_level = old_explicit_content_filter_level,
         description = old_description,
         discovery_splash = old_discovery_splash,
         features = old_features,
+        home_splash = old_home_splash,
         hub_type = old_hub_type,
         icon = old_icon,
         incidents = old_incidents,
@@ -1056,7 +1095,6 @@ def test__Guild__update_attributes():
         nsfw_level = old_nsfw_level,
         owner_id = old_owner_id,
         locale = old_locale,
-        premium_tier = old_premium_tier,
         public_updates_channel_id = old_public_updates_channel_id,
         rules_channel_id = old_rules_channel_id,
         safety_alerts_channel_id = old_safety_alerts_channel_id,
@@ -1074,8 +1112,9 @@ def test__Guild__update_attributes():
         'approximate_presence_count': new_approximate_online_count,
         'approximate_member_count': new_approximate_user_count,
         'unavailable': not new_available,
-        'premium_progress_bar_enabled': new_boost_progress_bar_enabled,
         'premium_subscription_count': new_boost_count,
+        'premium_tier': new_boost_level,
+        'premium_progress_bar_enabled': new_boost_progress_bar_enabled,
         'explicit_content_filter': new_explicit_content_filter_level.value,
         'description': new_description,
         'features': [feature.value for feature in new_features],
@@ -1092,7 +1131,6 @@ def test__Guild__update_attributes():
         'nsfw_level': new_nsfw_level.value,
         'owner_id': str(new_owner_id),
         'preferred_locale': new_locale.value,
-        'premium_tier': new_premium_tier,
         'public_updates_channel_id': str(new_public_updates_channel_id),
         'rules_channel_id': str(new_rules_channel_id),
         'safety_alerts_channel_id': str(new_safety_alerts_channel_id),
@@ -1106,6 +1144,7 @@ def test__Guild__update_attributes():
         'banner': new_banner.as_base_16_hash,
         'discovery_splash': new_discovery_splash.as_base_16_hash,
         'splash': new_invite_splash.as_base_16_hash,
+        'home_header': new_home_splash.as_base_16_hash,
     }
     
     guild._update_attributes(data)
@@ -1117,11 +1156,13 @@ def test__Guild__update_attributes():
     vampytest.assert_eq(guild.available, new_available)
     vampytest.assert_eq(guild.banner, new_banner)
     vampytest.assert_eq(guild.boost_count, new_boost_count)
+    vampytest.assert_eq(guild.boost_level, new_boost_level)
     vampytest.assert_eq(guild.boost_progress_bar_enabled, new_boost_progress_bar_enabled)
     vampytest.assert_is(guild.explicit_content_filter_level, new_explicit_content_filter_level)
     vampytest.assert_eq(guild.description, new_description)
     vampytest.assert_eq(guild.discovery_splash, new_discovery_splash)
     vampytest.assert_eq(guild.features, tuple(new_features))
+    vampytest.assert_eq(guild.home_splash, new_home_splash)
     vampytest.assert_is(guild.hub_type, new_hub_type)
     vampytest.assert_eq(guild.icon, new_icon)
     vampytest.assert_eq(guild.incidents, new_incidents)
@@ -1137,7 +1178,6 @@ def test__Guild__update_attributes():
     vampytest.assert_is(guild.nsfw_level, new_nsfw_level)
     vampytest.assert_eq(guild.owner_id, new_owner_id)
     vampytest.assert_is(guild.locale, new_locale)
-    vampytest.assert_eq(guild.premium_tier, new_premium_tier)
     vampytest.assert_eq(guild.public_updates_channel_id, new_public_updates_channel_id)
     vampytest.assert_eq(guild.rules_channel_id, new_rules_channel_id)
     vampytest.assert_eq(guild.safety_alerts_channel_id, new_safety_alerts_channel_id)
@@ -1193,14 +1233,16 @@ def test__Guild__difference_update_attributes():
     old_available = True
     old_banner = Icon(IconType.animated, 12)
     old_boost_count = 3
+    old_boost_level = 1
     old_boost_progress_bar_enabled = True
     old_explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     old_description = 'Koishi'
     old_discovery_splash = Icon(IconType.animated, 14)
-    old_features = [GuildFeature.animated_icon]
+    old_features = [GuildFeature.icon_animated]
+    old_home_splash = Icon(IconType.animated, 36)
     old_hub_type = HubType.college
     old_icon = Icon(IconType.animated, 16)
-    old_incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14))
+    old_incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     old_inventory_settings = GuildInventorySettings(emoji_pack_collectible = True)
     old_invite_splash = Icon(IconType.animated, 18)
     old_max_presences = 420
@@ -1213,7 +1255,6 @@ def test__Guild__difference_update_attributes():
     old_nsfw_level = NsfwLevel.explicit
     old_owner_id = 202306220118
     old_locale = Locale.finnish
-    old_premium_tier = 1
     old_public_updates_channel_id = 202306220119
     old_rules_channel_id = 202306220120
     old_safety_alerts_channel_id = 202306220121
@@ -1231,14 +1272,16 @@ def test__Guild__difference_update_attributes():
     new_available = False
     new_banner = Icon(IconType.animated, 112)
     new_boost_count = 13
+    new_boost_level = 2
     new_boost_progress_bar_enabled = False
     new_explicit_content_filter_level = ExplicitContentFilterLevel.everyone
     new_description = 'Orin'
     new_discovery_splash = Icon(IconType.animated, 114)
-    new_features = [GuildFeature.animated_banner]
+    new_features = [GuildFeature.banner_animated]
+    new_home_splash = Icon(IconType.animated, 37)
     new_hub_type = HubType.high_school
     new_icon = Icon(IconType.animated, 116)
-    new_incidents = GuildIncidents(direct_messages_disabled_until = DateTime(2016, 5, 14))
+    new_incidents = GuildIncidents(direct_messages_disabled_until = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     new_inventory_settings = GuildInventorySettings(emoji_pack_collectible = False)
     new_invite_splash = Icon(IconType.animated, 118)
     new_max_presences = 1420
@@ -1251,7 +1294,6 @@ def test__Guild__difference_update_attributes():
     new_nsfw_level = NsfwLevel.safe
     new_owner_id = 202306220125
     new_locale = Locale.dutch
-    new_premium_tier = 2
     new_public_updates_channel_id = 202306220126
     new_rules_channel_id = 202306220127
     new_safety_alerts_channel_id = 202306220128
@@ -1272,11 +1314,13 @@ def test__Guild__difference_update_attributes():
         available = old_available,
         banner = old_banner,
         boost_count = old_boost_count,
+        boost_level = old_boost_level,
         boost_progress_bar_enabled = old_boost_progress_bar_enabled,
         explicit_content_filter_level = old_explicit_content_filter_level,
         description = old_description,
         discovery_splash = old_discovery_splash,
         features = old_features,
+        home_splash = old_home_splash,
         hub_type = old_hub_type,
         icon = old_icon,
         incidents = old_incidents,
@@ -1292,7 +1336,6 @@ def test__Guild__difference_update_attributes():
         nsfw_level = old_nsfw_level,
         owner_id = old_owner_id,
         locale = old_locale,
-        premium_tier = old_premium_tier,
         public_updates_channel_id = old_public_updates_channel_id,
         rules_channel_id = old_rules_channel_id,
         safety_alerts_channel_id = old_safety_alerts_channel_id,
@@ -1310,8 +1353,9 @@ def test__Guild__difference_update_attributes():
         'approximate_presence_count': new_approximate_online_count,
         'approximate_member_count': new_approximate_user_count,
         'unavailable': not new_available,
-        'premium_progress_bar_enabled': new_boost_progress_bar_enabled,
         'premium_subscription_count': new_boost_count,
+        'premium_tier': new_boost_level,
+        'premium_progress_bar_enabled': new_boost_progress_bar_enabled,
         'explicit_content_filter': new_explicit_content_filter_level.value,
         'description': new_description,
         'features': [feature.value for feature in new_features],
@@ -1328,7 +1372,6 @@ def test__Guild__difference_update_attributes():
         'nsfw_level': new_nsfw_level.value,
         'owner_id': str(new_owner_id),
         'preferred_locale': new_locale.value,
-        'premium_tier': new_premium_tier,
         'public_updates_channel_id': str(new_public_updates_channel_id),
         'rules_channel_id': str(new_rules_channel_id),
         'safety_alerts_channel_id': str(new_safety_alerts_channel_id),
@@ -1342,6 +1385,7 @@ def test__Guild__difference_update_attributes():
         'banner': new_banner.as_base_16_hash,
         'discovery_splash': new_discovery_splash.as_base_16_hash,
         'splash': new_invite_splash.as_base_16_hash,
+        'home_header': new_home_splash.as_base_16_hash,
     }
     
     old_attributes = guild._difference_update_attributes(data)
@@ -1353,11 +1397,13 @@ def test__Guild__difference_update_attributes():
     vampytest.assert_eq(guild.available, new_available)
     vampytest.assert_eq(guild.banner, new_banner)
     vampytest.assert_eq(guild.boost_count, new_boost_count)
+    vampytest.assert_eq(guild.boost_level, new_boost_level)
     vampytest.assert_eq(guild.boost_progress_bar_enabled, new_boost_progress_bar_enabled)
     vampytest.assert_is(guild.explicit_content_filter_level, new_explicit_content_filter_level)
     vampytest.assert_eq(guild.description, new_description)
     vampytest.assert_eq(guild.discovery_splash, new_discovery_splash)
     vampytest.assert_eq(guild.features, tuple(new_features))
+    vampytest.assert_eq(guild.home_splash, new_home_splash)
     vampytest.assert_is(guild.hub_type, new_hub_type)
     vampytest.assert_eq(guild.icon, new_icon)
     vampytest.assert_eq(guild.incidents, new_incidents)
@@ -1373,7 +1419,6 @@ def test__Guild__difference_update_attributes():
     vampytest.assert_is(guild.nsfw_level, new_nsfw_level)
     vampytest.assert_eq(guild.owner_id, new_owner_id)
     vampytest.assert_is(guild.locale, new_locale)
-    vampytest.assert_eq(guild.premium_tier, new_premium_tier)
     vampytest.assert_eq(guild.public_updates_channel_id, new_public_updates_channel_id)
     vampytest.assert_eq(guild.rules_channel_id, new_rules_channel_id)
     vampytest.assert_eq(guild.safety_alerts_channel_id, new_safety_alerts_channel_id)
@@ -1394,11 +1439,13 @@ def test__Guild__difference_update_attributes():
             'available': old_available,
             'banner': old_banner,
             'boost_count': old_boost_count,
+            'boost_level': old_boost_level,
             'boost_progress_bar_enabled': old_boost_progress_bar_enabled,
             'explicit_content_filter_level': old_explicit_content_filter_level,
             'description': old_description,
             'discovery_splash': old_discovery_splash,
             'features': tuple(old_features),
+            'home_splash': old_home_splash,
             'hub_type': old_hub_type,
             'icon': old_icon,
             'incidents': old_incidents,
@@ -1414,7 +1461,6 @@ def test__Guild__difference_update_attributes():
             'nsfw_level': old_nsfw_level,
             'owner_id': old_owner_id,
             'locale': old_locale,
-            'premium_tier': old_premium_tier,
             'public_updates_channel_id': old_public_updates_channel_id,
             'rules_channel_id': old_rules_channel_id,
             'safety_alerts_channel_id': old_safety_alerts_channel_id,
@@ -1475,7 +1521,7 @@ def test__Guild__update_voice_state__leave_but_not_there():
     output = [*guild._update_voice_state(data, user)]
     
     vampytest.assert_eq(output, [])
-    vampytest.assert_eq(guild.voice_states, {})
+    vampytest.assert_eq(guild.voice_states, None)
     
 
 def test__Guild__update_voice_state__update():
@@ -1489,10 +1535,8 @@ def test__Guild__update_voice_state__update():
     channel_id = 202306230048
     
     user = User.precreate(user_id)
-    guild = Guild.precreate(guild_id)
-    
     voice_state = VoiceState(user_id = user_id, channel_id = channel_id, guild_id = guild_id)
-    guild.voice_states[user_id] = voice_state
+    guild = Guild.precreate(guild_id, voice_states = [voice_state])
     
     data = {
         'channel_id': str(channel_id),
@@ -1520,10 +1564,8 @@ def test__Guild__update_voice_state__leave():
     channel_id = 202306230051
     
     user = User.precreate(user_id)
-    guild = Guild.precreate(guild_id)
-    
     voice_state = VoiceState(user_id = user_id, channel_id = channel_id, guild_id = guild_id)
-    guild.voice_states[user_id] = voice_state
+    guild = Guild.precreate(guild_id, voice_states = [voice_state])
     
     data = {
         'channel_id': None,
@@ -1535,7 +1577,7 @@ def test__Guild__update_voice_state__leave():
     output = [*guild._update_voice_state(data, user)]
     
     vampytest.assert_eq(output, [(VOICE_STATE_EVENT_LEAVE, matching_voice_state, channel_id)])
-    vampytest.assert_eq(guild.voice_states, {})
+    vampytest.assert_eq(guild.voice_states, None)
     vampytest.assert_is(voice_state._cache_user, user)
 
 
@@ -1551,10 +1593,8 @@ def test__Guild__update_voice_state__move():
     channel_id_1 = 202306230055
     
     user = User.precreate(user_id)
-    guild = Guild.precreate(guild_id)
-    
     voice_state = VoiceState(user_id = user_id, channel_id = channel_id_0, guild_id = guild_id)
-    guild.voice_states[user_id] = voice_state
+    guild = Guild.precreate(guild_id, voice_states = [voice_state])
     
     data = {
         'channel_id': str(channel_id_1),
@@ -1581,10 +1621,8 @@ def test__Guild__update_voice_state__no_change():
     channel_id = 202306230058
     
     user = User.precreate(user_id)
-    guild = Guild.precreate(guild_id)
-    
     voice_state = VoiceState(user_id = user_id, channel_id = channel_id, guild_id = guild_id)
-    guild.voice_states[user_id] = voice_state
+    guild = Guild.precreate(guild_id, voice_states = [voice_state])
     
     data = {
         'channel_id': str(channel_id),
@@ -1620,7 +1658,10 @@ def test__Guild__update_voice_state_restricted__join():
     
     matching_voice_state = VoiceState(guild_id = guild_id, user_id = user_id, channel_id = channel_id)
     
-    guild._update_voice_state_restricted(data, user)
+    output = guild._update_voice_state_restricted(data, user)
+    
+    vampytest.assert_instance(output, VoiceState)
+    vampytest.assert_eq(output.user_id, user_id)
     
     vampytest.assert_eq(guild.voice_states, {user_id: matching_voice_state})
     vampytest.assert_is(guild.voice_states[user_id]._cache_user, user)
@@ -1645,7 +1686,7 @@ def test__Guild__update_voice_state_restricted__leave_but_not_there():
     
     guild._update_voice_state_restricted(data, user)
     
-    vampytest.assert_eq(guild.voice_states, {})
+    vampytest.assert_eq(guild.voice_states, None)
     
 
 def test__Guild__update_voice_state_restricted__update():
@@ -1659,10 +1700,9 @@ def test__Guild__update_voice_state_restricted__update():
     channel_id = 202306230066
     
     user = User.precreate(user_id)
-    guild = Guild.precreate(guild_id)
     
     voice_state = VoiceState(user_id = user_id, channel_id = channel_id, guild_id = guild_id)
-    guild.voice_states[user_id] = voice_state
+    guild = Guild.precreate(guild_id, voice_states = [voice_state])
     
     data = {
         'channel_id': str(channel_id),
@@ -1672,7 +1712,10 @@ def test__Guild__update_voice_state_restricted__update():
     
     matching_voice_state = VoiceState(guild_id = guild_id, user_id = user_id, channel_id = channel_id, mute = True)
     
-    guild._update_voice_state_restricted(data, user)
+    output = guild._update_voice_state_restricted(data, user)
+    
+    vampytest.assert_instance(output, VoiceState)
+    vampytest.assert_eq(output.user_id, user_id)
     
     vampytest.assert_eq(guild.voice_states, {user_id: matching_voice_state})
     vampytest.assert_is(voice_state._cache_user, user)
@@ -1689,19 +1732,20 @@ def test__Guild__update_voice_state_restricted__leave():
     channel_id = 202306230069
     
     user = User.precreate(user_id)
-    guild = Guild.precreate(guild_id)
-    
     voice_state = VoiceState(user_id = user_id, channel_id = channel_id, guild_id = guild_id)
-    guild.voice_states[user_id] = voice_state
+    guild = Guild.precreate(guild_id, voice_states = [voice_state])
     
     data = {
         'channel_id': None,
         'user_id': str(user_id),
     }
     
-    guild._update_voice_state_restricted(data, user)
+    output = guild._update_voice_state_restricted(data, user)
     
-    vampytest.assert_eq(guild.voice_states, {})
+    vampytest.assert_instance(output, VoiceState)
+    vampytest.assert_eq(output.user_id, user_id)
+    
+    vampytest.assert_eq(guild.voice_states, None)
     vampytest.assert_is(voice_state._cache_user, user)
 
 
@@ -1717,10 +1761,9 @@ def test__Guild__update_voice_state_restricted__move():
     channel_id_1 = 202306230073
     
     user = User.precreate(user_id)
-    guild = Guild.precreate(guild_id)
     
     voice_state = VoiceState(user_id = user_id, channel_id = channel_id_0, guild_id = guild_id)
-    guild.voice_states[user_id] = voice_state
+    guild = Guild.precreate(guild_id, voice_states = [voice_state])
     
     data = {
         'channel_id': str(channel_id_1),
@@ -1729,7 +1772,10 @@ def test__Guild__update_voice_state_restricted__move():
     
     matching_voice_state = VoiceState(guild_id = guild_id, user_id = user_id, channel_id = channel_id_1)
     
-    guild._update_voice_state_restricted(data, user)
+    output = guild._update_voice_state_restricted(data, user)
+    
+    vampytest.assert_instance(output, VoiceState)
+    vampytest.assert_eq(output.user_id, user_id)
     
     vampytest.assert_eq(guild.voice_states, {user_id: matching_voice_state})
     vampytest.assert_is(voice_state._cache_user, user)
@@ -1746,10 +1792,9 @@ def test__Guild__update_voice_state_restricted__no_change():
     channel_id = 202306230080
     
     user = User.precreate(user_id)
-    guild = Guild.precreate(guild_id)
-    
     voice_state = VoiceState(user_id = user_id, channel_id = channel_id, guild_id = guild_id)
-    guild.voice_states[user_id] = voice_state
+    guild = Guild.precreate(guild_id, voice_states = [voice_state])
+    
     
     data = {
         'channel_id': str(channel_id),
@@ -1758,7 +1803,10 @@ def test__Guild__update_voice_state_restricted__no_change():
     
     matching_voice_state = VoiceState(guild_id = guild_id, user_id = user_id, channel_id = channel_id)
     
-    guild._update_voice_state_restricted(data, user)
+    output = guild._update_voice_state_restricted(data, user)
+    
+    vampytest.assert_instance(output, VoiceState)
+    vampytest.assert_eq(output.user_id, user_id)
     
     vampytest.assert_eq(guild.voice_states, {user_id: matching_voice_state})
     vampytest.assert_is(voice_state._cache_user, user)
@@ -1777,14 +1825,16 @@ def test__Guild__sync__default():
     available = True
     banner = Icon(IconType.animated, 12)
     boost_count = 3
+    boost_level = 1
     boost_progress_bar_enabled = True
     explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     description = 'Koishi'
     discovery_splash = Icon(IconType.animated, 14)
-    features = [GuildFeature.animated_icon]
+    features = [GuildFeature.icon_animated]
+    home_splash = Icon(IconType.animated, 36)
     hub_type = HubType.college
     icon = Icon(IconType.animated, 16)
-    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14))
+    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     inventory_settings = GuildInventorySettings(emoji_pack_collectible = True)
     invite_splash = Icon(IconType.animated, 18)
     max_presences = 420
@@ -1797,7 +1847,6 @@ def test__Guild__sync__default():
     nsfw_level = NsfwLevel.explicit
     owner_id = 202306230083
     locale = Locale.finnish
-    premium_tier = 1
     public_updates_channel_id = 202306230084
     rules_channel_id = 202306230085
     safety_alerts_channel_id = 202306230086
@@ -1827,8 +1876,9 @@ def test__Guild__sync__default():
         'approximate_presence_count': approximate_online_count,
         'approximate_member_count': approximate_user_count,
         'unavailable': not available,
-        'premium_progress_bar_enabled': boost_progress_bar_enabled,
         'premium_subscription_count': boost_count,
+        'premium_tier': boost_level,
+        'premium_progress_bar_enabled': boost_progress_bar_enabled,
         'explicit_content_filter': explicit_content_filter_level.value,
         'description': description,
         'features': [feature.value for feature in features],
@@ -1845,7 +1895,6 @@ def test__Guild__sync__default():
         'nsfw_level': nsfw_level.value,
         'owner_id': str(owner_id),
         'preferred_locale': locale.value,
-        'premium_tier': premium_tier,
         'public_updates_channel_id': str(public_updates_channel_id),
         'rules_channel_id': str(rules_channel_id),
         'safety_alerts_channel_id': str(safety_alerts_channel_id),
@@ -1859,6 +1908,7 @@ def test__Guild__sync__default():
         'banner': banner.as_base_16_hash,
         'discovery_splash': discovery_splash.as_base_16_hash,
         'splash': invite_splash.as_base_16_hash,
+        'home_header': home_splash.as_base_16_hash,
         
         'emojis': [emoji.to_data(include_internals = True) for emoji in emojis],
         'roles': [role.to_data(include_internals = True) for role in roles],
@@ -1881,6 +1931,7 @@ def test__Guild__sync__default():
     vampytest.assert_eq(guild.discovery_splash, discovery_splash)
     vampytest.assert_eq(guild.emojis, {emoji.id: emoji for emoji in emojis})
     vampytest.assert_eq(guild.features, tuple(features))
+    vampytest.assert_eq(guild.home_splash, home_splash)
     vampytest.assert_is(guild.hub_type, hub_type)
     vampytest.assert_eq(guild.icon, icon)
     vampytest.assert_eq(guild.incidents, incidents)
@@ -1896,7 +1947,7 @@ def test__Guild__sync__default():
     vampytest.assert_is(guild.nsfw_level, nsfw_level)
     vampytest.assert_eq(guild.owner_id, owner_id)
     vampytest.assert_is(guild.locale, locale)
-    vampytest.assert_eq(guild.premium_tier, premium_tier)
+    vampytest.assert_eq(guild.boost_level, boost_level)
     vampytest.assert_eq(guild.public_updates_channel_id, public_updates_channel_id)
     vampytest.assert_eq(guild.roles, {role.id: role for role in roles})
     vampytest.assert_eq(guild.rules_channel_id, rules_channel_id)

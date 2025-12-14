@@ -1,13 +1,16 @@
 __all__ = ('GuildPreview', )
 
 from ...bases import DiscordEntity, IconSlot
-from ...http import urls as module_urls
+from ...http.urls import (
+    build_guild_discovery_splash_url, build_guild_discovery_splash_url_as,  build_guild_icon_url,
+    build_guild_icon_url_as, build_guild_invite_splash_url, build_guild_invite_splash_url_as
+)
 from ...utils import DATETIME_FORMAT_CODE
 
 from .fields import (
     parse_approximate_online_count, parse_approximate_user_count, parse_description, parse_emojis, parse_features,
-    parse_id, parse_name, parse_stickers, put_approximate_online_count_into, put_approximate_user_count_into,
-    put_description_into, put_emojis_into, put_features_into, put_id_into, put_name_into, put_stickers_into,
+    parse_id, parse_name, parse_stickers, put_approximate_online_count, put_approximate_user_count,
+    put_description, put_emojis, put_features, put_id, put_name, put_stickers,
     validate_approximate_online_count, validate_approximate_user_count, validate_description, validate_emojis,
     validate_features, validate_id, validate_name, validate_stickers
 )
@@ -43,7 +46,7 @@ class GuildPreview(DiscordEntity):
         The guild's invite splash's hash in `uint128`.
     invite_splash_type : ``IconType``
         the guild's invite splash's type.
-    stickers : `dict` of (`int`, ``Sticker``) items
+    stickers : ``dict<int, Sticker>``
         The stickers of the guild stored in `sticker_id` - `sticker` relation.
     name : `str`
         The name of the guild.
@@ -52,26 +55,9 @@ class GuildPreview(DiscordEntity):
         'approximate_online_count', 'approximate_user_count','description', 'emojis', 'features', 'name', 'stickers'
     )
     
-    icon = IconSlot(
-        'icon',
-        'icon',
-        module_urls.guild_icon_url,
-        module_urls.guild_icon_url_as,
-    )
-    
-    invite_splash = IconSlot(
-        'invite_splash',
-        'splash',
-        module_urls.guild_invite_splash_url,
-        module_urls.guild_invite_splash_url_as,
-    )
-    
-    discovery_splash = IconSlot(
-        'discovery_splash',
-        'discovery_splash',
-        module_urls.guild_discovery_splash_url,
-        module_urls.guild_discovery_splash_url_as,
-    )
+    icon = IconSlot('icon', 'icon')
+    invite_splash = IconSlot('invite_splash', 'splash')
+    discovery_splash = IconSlot('discovery_splash', 'discovery_splash')
     
     
     def __new__(
@@ -100,7 +86,7 @@ class GuildPreview(DiscordEntity):
             Approximate amount of users at the represented guild.
         description : `None`, `str`, Optional (Keyword only)
             Description of the guild.
-        discovery_splash : `None`, ``Icon``, `str`, Optional (Keyword only)
+        discovery_splash : ``None | str | Icon``, Optional (Keyword only)
             The guild's discovery splash.
         emojis : `None`, `iterable` of ``Emoji``, Optional (Keyword only)
             The emojis of the guild.
@@ -108,9 +94,9 @@ class GuildPreview(DiscordEntity):
             The guild's features.
         guild_id : `int`, ``Guild``, Optional (Keyword only)
             The represented guild's identifier.
-        icon : `None`, ``Icon``, `str`, Optional (Keyword only)
+        icon : ``None | str | Icon``, Optional (Keyword only)
             The guild's icon.
-        invite_splash : `None`, ``Icon``, `str`, Optional (Keyword only)
+        invite_splash : ``None | str | Icon``, Optional (Keyword only)
             The guild's invite splash.
         stickers : `None`, `iterable` of ``Sticker``, Optional (Keyword only)
             The stickers of the guild.
@@ -213,7 +199,7 @@ class GuildPreview(DiscordEntity):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Received guild preview data.
         
         Returns
@@ -248,20 +234,20 @@ class GuildPreview(DiscordEntity):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
-        put_approximate_online_count_into(self.approximate_online_count, data, defaults)
-        put_approximate_user_count_into(self.approximate_user_count, data, defaults)
-        put_description_into(self.description, data, defaults)
+        put_approximate_online_count(self.approximate_online_count, data, defaults)
+        put_approximate_user_count(self.approximate_user_count, data, defaults)
+        put_description(self.description, data, defaults)
         type(self).discovery_splash.put_into(self.discovery_splash, data, defaults)
-        put_emojis_into(self.emojis, data, defaults)
-        put_features_into(self.features, data, defaults)
+        put_emojis(self.emojis, data, defaults)
+        put_features(self.features, data, defaults)
         type(self).icon.put_into(self.icon, data, defaults)
-        put_id_into(self.id, data, defaults)
+        put_id(self.id, data, defaults)
         type(self).invite_splash.put_into(self.invite_splash, data, defaults)
-        put_stickers_into(self.stickers, data, defaults)
-        put_name_into(self.name, data, defaults)
+        put_stickers(self.stickers, data, defaults)
+        put_name(self.name, data, defaults)
         return data
     
     
@@ -526,7 +512,7 @@ class GuildPreview(DiscordEntity):
             Approximate amount of users at the represented guild.
         description : `None`, `str`, Optional (Keyword only)
             Description of the guild.
-        discovery_splash : `None`, ``Icon``, `str`, Optional (Keyword only)
+        discovery_splash : ``None | str | Icon``, Optional (Keyword only)
             The guild's discovery splash.
         emojis : `None`, `iterable` of ``Emoji``, Optional (Keyword only)
             The emojis of the guild.
@@ -534,9 +520,9 @@ class GuildPreview(DiscordEntity):
             The guild's features.
         guild_id : `int`, ``Guild``, Optional (Keyword only)
             The represented guild's identifier.
-        icon : `None`, ``Icon``, `str`, Optional (Keyword only)
+        icon : ``None | str | Icon``, Optional (Keyword only)
             The guild's icon.
-        invite_splash : `None`, ``Icon``, `str`, Optional (Keyword only)
+        invite_splash : ``None | str | Icon``, Optional (Keyword only)
             The guild's invite splash.
         stickers : `None`, `iterable` of ``Sticker``, Optional (Keyword only)
             The stickers of the guild.
@@ -671,3 +657,99 @@ class GuildPreview(DiscordEntity):
             return False
         
         return feature in features
+    
+    
+    @property
+    def discovery_splash_url(self):
+        """
+        Returns the guild's discovery splash's url. If the guild has no discovery_splash, then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_guild_discovery_splash_url(self.id, self.discovery_splash_type, self.discovery_splash_hash)
+    
+    
+    def discovery_splash_url_as(self, ext = None, size = None):
+        """
+        Returns the guild's discovery splash's url. If the guild has no discovery splash, then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the guild has animated discovery splash, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_guild_discovery_splash_url_as(self.id, self.discovery_splash_type, self.discovery_splash_hash, ext, size)
+    
+    
+    @property
+    def icon_url(self):
+        """
+        Returns the guild's icon's url. If the guild has no icon, then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_guild_icon_url(self.id, self.icon_type, self.icon_hash)
+    
+    
+    def icon_url_as(self, ext = None, size = None):
+        """
+        Returns the guild's icon's url. If the guild has no icon, then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the guild has animated icon, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_guild_icon_url_as(self.id, self.icon_type, self.icon_hash, ext, size)
+    
+    
+    @property
+    def invite_splash_url(self):
+        """
+        Returns the guild's invite splash's url. If the guild has no invite_splash, then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_guild_invite_splash_url(self.id, self.invite_splash_type, self.invite_splash_hash)
+    
+    
+    def invite_splash_url_as(self, ext = None, size = None):
+        """
+        Returns the guild's invite splash's url. If the guild has no invite splash, then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+            If the guild has animated invite splash, it can be `'gif'` as well.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_guild_invite_splash_url_as(self.id, self.invite_splash_type, self.invite_splash_hash, ext, size)

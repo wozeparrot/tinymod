@@ -1,7 +1,8 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
+from ....bases import Icon, IconType
 from ....client import Client
 from ....color import Color
 from ....core import BUILTIN_EMOJIS
@@ -259,60 +260,325 @@ def test__ClientUserBase__top_role_at():
     vampytest.assert_is(output, role)
 
 
-def test__ClientUserBase__can_use_emoji():
+def test__ClientUserBase__can_use_emoji__unicode():
     """
-    Tests whether ``ClientUserBase.top_role_at`` works as intended.
+    Tests whether ``ClientUserBase.can_use_emoji`` works as intended.
+    
+    Case: unicode.
     """
-    user_id = 202302060051
-    emoji_id = 202302060052
-    guild_id = 202302060053
-    role_id = 202302060054
+    user_id = 202510010090
+    
+    emoji = BUILTIN_EMOJIS['heart']
     
     user = ClientUserBase._create_empty(user_id)
-    guild = Guild.precreate(guild_id)
-    
-    # unicode
-    emoji = BUILTIN_EMOJIS['x']
     
     output = user.can_use_emoji(emoji)
     vampytest.assert_instance(output, bool)
-    vampytest.assert_true(output)
-    
-    # not in guild
-    emoji = Emoji.precreate(emoji_id)
-    
-    output = user.can_use_emoji(emoji)
-    vampytest.assert_instance(output, bool)
-    vampytest.assert_false(output)
-    
-    # owner
-    
-    emoji = Emoji.precreate(emoji_id, guild_id = guild_id)
-    user.guild_profiles[guild_id] = GuildProfile()
-    guild.owner_id = user_id
-    
-    output = user.can_use_emoji(emoji)
-    vampytest.assert_instance(output, bool)
-    vampytest.assert_true(output)
-    guild.owner_id = 0
+    vampytest.assert_eq(output, True)
 
-    # role locked
+
+def test__ClientUserBase__can_use_emoji__custom_allowed():
+    """
+    Tests whether ``ClientUserBase.can_use_emoji`` works as intended.
     
-    emoji = Emoji.precreate(emoji_id, guild_id = guild_id, role_ids = [role_id])
+    Case: custom & allowed.
+    """
+    user_id = 202510010100
+    guild_id = 202510010101
+    emoji_id = 202510010102
+    
+    emoji = Emoji.precreate(
+        emoji_id,
+        guild_id = guild_id,
+        name = 'hina',
+    )
+    
+    role = Role.precreate(
+        guild_id,
+        guild_id = guild_id,
+    )
+    
+    user = ClientUserBase._create_empty(user_id)
     user.guild_profiles[guild_id] = GuildProfile()
     
-    output = user.can_use_emoji(emoji)
-    vampytest.assert_instance(output, bool)
-    vampytest.assert_false(output)
-    
-    # role locked + has role
-    
-    emoji = Emoji.precreate(emoji_id, guild_id = guild_id, role_ids = [role_id])
-    user.guild_profiles[guild_id] = GuildProfile(role_ids = [role_id])
+    guild = Guild.precreate(
+        guild_id,
+        emojis = [emoji],
+        roles = [role],
+        users = [user],
+    )
     
     output = user.can_use_emoji(emoji)
     vampytest.assert_instance(output, bool)
-    vampytest.assert_true(output)
+    vampytest.assert_eq(output, True)
+
+
+def test__ClientUserBase__can_use_emoji__custom_emoji_deleted():
+    """
+    Tests whether ``ClientUserBase.can_use_emoji`` works as intended.
+    
+    Case: custom & emoji deleted.
+    """
+    user_id = 202511260010
+    guild_id = 202511260011
+    emoji_id = 202511260012
+    
+    emoji = Emoji.precreate(
+        emoji_id,
+        guild_id = guild_id,
+        name = 'hina',
+    )
+    
+    role = Role.precreate(
+        guild_id,
+        guild_id = guild_id,
+    )
+    
+    user = ClientUserBase._create_empty(user_id)
+    user.guild_profiles[guild_id] = GuildProfile()
+    
+    guild = Guild.precreate(
+        guild_id,
+        roles = [role],
+        users = [user],
+    )
+    
+    output = user.can_use_emoji(emoji)
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, False)
+
+
+def test__ClientUserBase__can_use_emoji__custom_not_available():
+    """
+    Tests whether ``ClientUserBase.can_use_emoji`` works as intended.
+    
+    Case: custom & not available.
+    """
+    user_id = 202510010110
+    guild_id = 202510010111
+    emoji_id = 202510010112
+    
+    emoji = Emoji.precreate(
+        emoji_id,
+        guild_id = guild_id,
+        name = 'hina',
+        available = False,
+    )
+    
+    role = Role.precreate(
+        guild_id,
+        guild_id = guild_id,
+    )
+    
+    user = ClientUserBase._create_empty(user_id)
+    user.guild_profiles[guild_id] = GuildProfile()
+    
+    guild = Guild.precreate(
+        guild_id,
+        emojis = [emoji],
+        roles = [role],
+        users = [user],
+    )
+    
+    output = user.can_use_emoji(emoji)
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, False)
+
+
+def test__ClientUserBase__can_use_emoji__custom_not_in_guild():
+    """
+    Tests whether ``ClientUserBase.can_use_emoji`` works as intended.
+    
+    Case: custom & not in guild.
+    """
+    user_id = 202510010120
+    guild_id = 202510010121
+    emoji_id = 202510010122
+    
+    emoji = Emoji.precreate(
+        emoji_id,
+        guild_id = guild_id,
+        name = 'hina',
+    )
+    
+    role = Role.precreate(
+        guild_id,
+        guild_id = guild_id,
+    )
+    
+    user = ClientUserBase._create_empty(user_id)
+    
+    guild = Guild.precreate(
+        guild_id,
+        emojis = [emoji],
+        roles = [role],
+    )
+    
+    output = user.can_use_emoji(emoji)
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, False)
+
+
+def test__ClientUserBase__can_use_emoji__custom_role_bound_guild_owner():
+    """
+    Tests whether ``ClientUserBase.can_use_emoji`` works as intended.
+    
+    Case: custom & role bound & guild owner.
+    """
+    user_id = 202510010130
+    guild_id = 202510010131
+    emoji_id = 202510010132
+    
+    role_id_bound = 202510010143
+    
+    emoji = Emoji.precreate(
+        emoji_id,
+        guild_id = guild_id,
+        name = 'hina',
+        roles = [role_id_bound],
+    )
+    
+    role = Role.precreate(
+        guild_id,
+        guild_id = guild_id,
+    )
+    
+    user = ClientUserBase._create_empty(user_id)
+    user.guild_profiles[guild_id] = GuildProfile()
+    
+    guild = Guild.precreate(
+        guild_id,
+        emojis = [emoji],
+        roles = [role],
+        users = [user],
+        owner_id = user_id,
+    )
+    
+    output = user.can_use_emoji(emoji)
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, False)
+
+
+def test__ClientUserBase__can_use_emoji__custom_role_bound_no_role():
+    """
+    Tests whether ``ClientUserBase.can_use_emoji`` works as intended.
+    
+    Case: custom & role bound & no role.
+    """
+    user_id = 202510010140
+    guild_id = 202510010141
+    emoji_id = 202510010142
+    
+    role_id_bound = 202510010143
+    
+    emoji = Emoji.precreate(
+        emoji_id,
+        guild_id = guild_id,
+        name = 'hina',
+        roles = [role_id_bound],
+    )
+    
+    role = Role.precreate(
+        guild_id,
+        guild_id = guild_id,
+    )
+    
+    user = ClientUserBase._create_empty(user_id)
+    user.guild_profiles[guild_id] = GuildProfile()
+    
+    guild = Guild.precreate(
+        guild_id,
+        emojis = [emoji],
+        roles = [role],
+        users = [user],
+    )
+    
+    output = user.can_use_emoji(emoji)
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, False)
+
+
+def test__ClientUserBase__can_use_emoji__custom_role_bound_no_role_intersection():
+    """
+    Tests whether ``ClientUserBase.can_use_emoji`` works as intended.
+    
+    Case: custom & role bound & no role intersection.
+    """
+    user_id = 202510010150
+    guild_id = 202510010151
+    emoji_id = 202510010152
+    
+    role_id_bound_0 = 202510010153
+    role_id_bound_1 = 202510010154
+    
+    emoji = Emoji.precreate(
+        emoji_id,
+        guild_id = guild_id,
+        name = 'hina',
+        roles = [role_id_bound_0],
+    )
+    
+    role = Role.precreate(
+        guild_id,
+        guild_id = guild_id,
+    )
+    
+    user = ClientUserBase._create_empty(user_id)
+    user.guild_profiles[guild_id] = GuildProfile(
+        role_ids = [role_id_bound_1,]
+    )
+    
+    guild = Guild.precreate(
+        guild_id,
+        emojis = [emoji],
+        roles = [role],
+        users = [user],
+    )
+    
+    output = user.can_use_emoji(emoji)
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, False)
+
+
+def test__ClientUserBase__can_use_emoji__custom_role_bound_with_role_intersection():
+    """
+    Tests whether ``ClientUserBase.can_use_emoji`` works as intended.
+    
+    Case: custom & role bound & no role intersection.
+    """
+    user_id = 202510010160
+    guild_id = 202510010161
+    emoji_id = 202510010162
+    
+    role_id_bound = 202510010163
+    
+    emoji = Emoji.precreate(
+        emoji_id,
+        guild_id = guild_id,
+        name = 'hina',
+        roles = [role_id_bound],
+    )
+    
+    role = Role.precreate(
+        guild_id,
+        guild_id = guild_id,
+    )
+    
+    user = ClientUserBase._create_empty(user_id)
+    user.guild_profiles[guild_id] = GuildProfile(
+        role_ids = [role_id_bound,]
+    )
+    
+    guild = Guild.precreate(
+        guild_id,
+        emojis = [emoji],
+        roles = [role],
+        users = [user],
+    )
+    
+    output = user.can_use_emoji(emoji)
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, True)
 
 
 def test__ClientUserBase__has_higher_role_than():
@@ -597,7 +863,7 @@ def test__ClientUserBase__is_boosting():
 
     # in guild -> but chad
     
-    user.guild_profiles[guild_id] = GuildProfile(boosts_since = DateTime(2015, 1, 1)) # Clearly chad
+    user.guild_profiles[guild_id] = GuildProfile(boosts_since = DateTime(2015, 1, 1, tzinfo = TimeZone.utc)) # Clearly chad
     output = user.is_boosting(guild_id)
     vampytest.assert_instance(output, bool)
     vampytest.assert_true(output)
@@ -644,3 +910,351 @@ def test__ClientUserBase__partial():
     finally:
         client._delete()
         client = None
+
+
+def _iter_options__avatar_url_for():
+    yield 202506020020, 0, None, False
+    yield 202506020021, 202506020022, None, False
+    yield 202506020023, 202506020024, Icon(IconType.animated, 3), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__avatar_url_for()).returning_last())
+def test__ClientUserBase__avatar_url_for(user_id, guild_id, icon):
+    """
+    Tests whether ``ClientUserBase.avatar_url_for`` works as intended.
+    
+    Parameters
+    ----------
+    user_id : `int`
+        Identifier to create user with.
+    
+    guild_id : `int`
+        Guild identifier to add guild profile for.
+    
+    icon : ``None | Icon``
+        Icon to create the user with.
+    
+    Returns
+    -------
+    has_avatar_url_for : `bool`
+    """
+    user = ClientUserBase()
+    user.id = user_id
+    
+    if guild_id:
+        user.guild_profiles[guild_id] = GuildProfile(avatar = icon)
+    
+    output = user.avatar_url_for(guild_id)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__avatar_url_for_as():
+    yield 202506020025, 0, None, {'ext': 'webp', 'size': 128}, False
+    yield 202506020026, 202506020027, None, {'ext': 'webp', 'size': 128}, False
+    yield 202506020028, 202506020029, Icon(IconType.animated, 3), {'ext': 'webp', 'size': 128}, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__avatar_url_for_as()).returning_last())
+def test__ClientUserBase__avatar_url_for_as(user_id, guild_id, icon, keyword_parameters):
+    """
+    Tests whether ``ClientUserBase.avatar_url_for_as`` works as intended.
+    
+    Parameters
+    ----------
+    user_id : `int`
+        Identifier to create user with.
+    
+    guild_id : `int`
+        Guild identifier to add guild profile for.
+    
+    icon : ``None | Icon``
+        Icon to create the user with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_avatar_url_for : `bool`
+    """
+    user = ClientUserBase()
+    user.id = user_id
+    
+    if guild_id:
+        user.guild_profiles[guild_id] = GuildProfile(avatar = icon)
+    
+    output = user.avatar_url_for_as(guild_id, **keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+def _iter_options__avatar_url_at():
+    yield 202506020030, None, 0, None, True
+    yield 202506020031, Icon(IconType.animated, 3), 0, None, True
+    yield 202506020033, None, 202506020034, None, True
+    yield 202506020035, None, 202506020036, Icon(IconType.static, 2), True
+    yield 202506020037, Icon(IconType.static, 3), 202506020038, Icon(IconType.static, 2), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__avatar_url_at()).returning_last())
+def test__ClientUserBase__avatar_url_at(user_id, global_icon, guild_id, local_icon):
+    """
+    Tests whether ``ClientUserBase.avatar_url_at`` works as intended.
+    
+    Parameters
+    ----------
+    user_id : `int`
+        Identifier to create user with.
+    
+    global_icon : ``None | Icon``
+        Icon to create the user with.
+    
+    guild_id : `int`
+        Guild identifier to add guild profile at.
+    
+    local_icon : ``None | Icon``
+        Icon to create the user with.
+    
+    Returns
+    -------
+    has_avatar_url_at : `bool`
+    """
+    user = ClientUserBase(
+        avatar = global_icon
+    )
+    user.id = user_id
+    
+    if guild_id:
+        user.guild_profiles[guild_id] = GuildProfile(avatar = local_icon)
+    
+    output = user.avatar_url_at(guild_id)
+    vampytest.assert_instance(output, str)
+    return True
+
+
+def _iter_options__avatar_url_at_as():
+    yield 202506020039, None, 0, None, {'ext': 'webp', 'size': 128}, True
+    yield 202506020040, Icon(IconType.animated, 3), 0, None, {'ext': 'webp', 'size': 128}, True
+    yield 202506020041, None, 202506020042, None, {'ext': 'webp', 'size': 128}, True
+    yield 202506020043, None, 202506020044, Icon(IconType.static, 2), {'ext': 'webp', 'size': 128}, True
+    yield (
+        202506020045,
+        Icon(IconType.static, 3),
+        202506020046,
+        Icon(IconType.static, 2),
+        {'ext': 'webp', 'size': 128},
+        True,
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__avatar_url_at_as()).returning_last())
+def test__ClientUserBase__avatar_url_at_as(user_id, global_icon, guild_id, local_icon, keyword_parameters):
+    """
+    Tests whether ``ClientUserBase.avatar_url_at_as`` works as intended.
+    
+    Parameters
+    ----------
+    user_id : `int`
+        Identifier to create user with.
+    
+    global_icon : ``None | Icon``
+        Icon to create the user with.
+    
+    guild_id : `int`
+        Guild identifier to add guild profile at.
+    
+    local_icon : ``None | Icon``
+        Icon to create the user with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_avatar_url_at : `bool`
+    """
+    user = ClientUserBase(
+        avatar = global_icon
+    )
+    user.id = user_id
+    
+    if guild_id:
+        user.guild_profiles[guild_id] = GuildProfile(avatar = local_icon)
+    
+    output = user.avatar_url_at_as(guild_id, **keyword_parameters)
+    vampytest.assert_instance(output, str)
+    return True
+
+
+def _iter_options__banner_url_for():
+    yield 202506020065, 0, None, False
+    yield 202506020066, 202506020067, None, False
+    yield 202506020068, 202506020069, Icon(IconType.animated, 3), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__banner_url_for()).returning_last())
+def test__ClientUserBase__banner_url_for(user_id, guild_id, icon):
+    """
+    Tests whether ``ClientUserBase.banner_url_for`` works as intended.
+    
+    Parameters
+    ----------
+    user_id : `int`
+        Identifier to create user with.
+    
+    guild_id : `int`
+        Guild identifier to add guild profile for.
+    
+    icon : ``None | Icon``
+        Icon to create the user with.
+    
+    Returns
+    -------
+    has_banner_url_for : `bool`
+    """
+    user = ClientUserBase()
+    user.id = user_id
+    
+    if guild_id:
+        user.guild_profiles[guild_id] = GuildProfile(banner = icon)
+    
+    output = user.banner_url_for(guild_id)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__banner_url_for_as():
+    yield 202506020070, 0, None, {'ext': 'webp', 'size': 128}, False
+    yield 202506020071, 202506020072, None, {'ext': 'webp', 'size': 128}, False
+    yield 202506020073, 202506020074, Icon(IconType.animated, 3), {'ext': 'webp', 'size': 128}, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__banner_url_for_as()).returning_last())
+def test__ClientUserBase__banner_url_for_as(user_id, guild_id, icon, keyword_parameters):
+    """
+    Tests whether ``ClientUserBase.banner_url_for_as`` works as intended.
+    
+    Parameters
+    ----------
+    user_id : `int`
+        Identifier to create user with.
+    
+    guild_id : `int`
+        Guild identifier to add guild profile for.
+    
+    icon : ``None | Icon``
+        Icon to create the user with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_banner_url_for : `bool`
+    """
+    user = ClientUserBase()
+    user.id = user_id
+    
+    if guild_id:
+        user.guild_profiles[guild_id] = GuildProfile(banner = icon)
+    
+    output = user.banner_url_for_as(guild_id, **keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+def _iter_options__banner_url_at():
+    yield 202506020075, None, 0, None, False
+    yield 202506020076, Icon(IconType.animated, 3), 0, None, True
+    yield 202506020077, None, 202506020079, None, False
+    yield 202506020078, None, 202506020080, Icon(IconType.static, 2), True
+    yield 202506020081, Icon(IconType.static, 3), 202506020082, Icon(IconType.static, 2), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__banner_url_at()).returning_last())
+def test__ClientUserBase__banner_url_at(user_id, global_icon, guild_id, local_icon):
+    """
+    Tests whether ``ClientUserBase.banner_url_at`` works as intended.
+    
+    Parameters
+    ----------
+    user_id : `int`
+        Identifier to create user with.
+    
+    global_icon : ``None | Icon``
+        Icon to create the user with.
+    
+    guild_id : `int`
+        Guild identifier to add guild profile at.
+    
+    local_icon : ``None | Icon``
+        Icon to create the user with.
+    
+    Returns
+    -------
+    has_banner_url_at : `bool`
+    """
+    user = ClientUserBase(
+        banner = global_icon
+    )
+    user.id = user_id
+    
+    if guild_id:
+        user.guild_profiles[guild_id] = GuildProfile(banner = local_icon)
+    
+    output = user.banner_url_at(guild_id)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__banner_url_at_as():
+    yield 202506020083, None, 0, None, {'ext': 'webp', 'size': 128}, False
+    yield 202506020084, Icon(IconType.animated, 3), 0, None, {'ext': 'webp', 'size': 128}, True
+    yield 202506020085, None, 202506020086, None, {'ext': 'webp', 'size': 128}, False
+    yield 202506020087, None, 202506020088, Icon(IconType.static, 2), {'ext': 'webp', 'size': 128}, True
+    yield (
+        202506020089,
+        Icon(IconType.static, 3),
+        202506020090,
+        Icon(IconType.static, 2),
+        {'ext': 'webp', 'size': 128},
+        True,
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__banner_url_at_as()).returning_last())
+def test__ClientUserBase__banner_url_at_as(user_id, global_icon, guild_id, local_icon, keyword_parameters):
+    """
+    Tests whether ``ClientUserBase.banner_url_at_as`` works as intended.
+    
+    Parameters
+    ----------
+    user_id : `int`
+        Identifier to create user with.
+    
+    global_icon : ``None | Icon``
+        Icon to create the user with.
+    
+    guild_id : `int`
+        Guild identifier to add guild profile at.
+    
+    local_icon : ``None | Icon``
+        Icon to create the user with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_banner_url_at : `bool`
+    """
+    user = ClientUserBase(
+        banner = global_icon
+    )
+    user.id = user_id
+    
+    if guild_id:
+        user.guild_profiles[guild_id] = GuildProfile(banner = local_icon)
+    
+    output = user.banner_url_at_as(guild_id, **keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)

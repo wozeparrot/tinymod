@@ -5,7 +5,7 @@ from scarletio import RichAttributeErrorBaseType
 from ...permission import Permission
 
 from .fields import (
-    parse_permissions, parse_scopes, put_permissions_into, put_scopes_into, validate_permissions, validate_scopes
+    parse_permissions, parse_scopes, put_permissions, put_scopes, validate_permissions, validate_scopes
 )
 
 
@@ -17,7 +17,7 @@ class ApplicationInstallParameters(RichAttributeErrorBaseType):
     ----------
     permissions : ``Permission``
         The permissions to invite the bot with.
-    scopes : `None`, `tuple` of `str`
+    scopes : `None | tuple<str>`
         Oauth2 scopes to invite the bot with.
     """
     __slots__ = ('permissions', 'scopes')
@@ -91,8 +91,8 @@ class ApplicationInstallParameters(RichAttributeErrorBaseType):
         data : `dict<str, object>`
         """
         data = {}
-        put_permissions_into(self.permissions, data, defaults)
-        put_scopes_into(self.scopes, data, defaults)
+        put_permissions(self.permissions, data, defaults)
+        put_scopes(self.scopes, data, defaults)
         return data
     
     

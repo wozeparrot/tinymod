@@ -3,7 +3,7 @@ __all__ = ('ComponentMetadataChannelSelect', )
 from scarletio import copy_docs
 
 from .entity_select_base import ComponentMetadataEntitySelectBase
-from .fields import parse_channel_types, put_channel_types_into, validate_channel_types
+from .fields import parse_channel_types, put_channel_types, validate_channel_types
 
 
 class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
@@ -12,13 +12,13 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
     
     Attributes
     ----------
-    channel_types : `None`, `tuple` of ``ChannelType``
+    channel_types : ``None | tuple<ChannelType>``
         The allowed channel types by the select.
     
-    custom_id : `None`, `str`
+    custom_id : `None | str`
         Custom identifier to detect which component was used by the user.
     
-    default_values : `None`, `tuple` of ``EntitySelectDefaultValue``
+    default_values : ``None | tuple<EntitySelectDefaultValue>``
         Entities presented in the select by default.
     
     enabled : `bool`
@@ -30,8 +30,11 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
     min_values : `int`
         The minimal amount of options to select.
     
-    placeholder : `None`, `str`
+    placeholder : `None | str`
         Placeholder text of the select.
+    
+    required : `bool`
+        Whether the field is required to be fulfilled.
     """
     __slots__ = ('channel_types',)
     
@@ -46,19 +49,20 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
         max_values = ...,
         min_values = ...,
         placeholder = ...,
+        required = ...,
     ):
         """
         Creates a new channel select component metadata with the given parameters.
         
         Parameters
         ----------
-        channel_types : `None`, `iterable` of (``ChannelType``, `int`), Optional (Keyword only)
+        channel_types : ``None | iterable<int> | iterable<ChannelType>``, Optional (Keyword only)
             The allowed channel types by the select.
         
-        custom_id : `None`, `str`, Optional (Keyword only)
+        custom_id : `None | str`, Optional (Keyword only)
             Custom identifier to detect which component was used by the user.
         
-        default_values : `None | iterable<Channel | Role | ClientUserBase | EntitySelectDefaultValue | tuple>` \
+        default_values : ``None | iterable<Channel> | iterable<Role> | iterable<ClientUserBase> | iterable<EntitySelectDefaultValue> | iterable<(str | EntitySelectDefaultValueTyp, int | str)>>`` \
                 , Optional (Keyword only)
             Entities presented in the select by default.
         
@@ -71,8 +75,11 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
         min_values : `int`, Optional (Keyword only)
             The minimal amount of options to select.
         
-        placeholder : `None`, `str`, Optional (Keyword only)
+        placeholder : `None | str`, Optional (Keyword only)
             Placeholder text of the select.
+        
+        required : `None | bool`, Optional (Keyword only)
+            Whether the field is required to be fulfilled.
         
         Raises
         ------
@@ -96,6 +103,7 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
             max_values = max_values,
             min_values = min_values,
             placeholder = placeholder,
+            required = required,
         )
         self.channel_types = channel_types
         
@@ -113,6 +121,7 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
             max_values = keyword_parameters.pop('max_values', ...),
             min_values = keyword_parameters.pop('min_values', ...),
             placeholder = keyword_parameters.pop('placeholder', ...),
+            required = keyword_parameters.pop('required', ...),
         )
     
     
@@ -179,12 +188,27 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
     
     
     @copy_docs(ComponentMetadataEntitySelectBase.to_data)
-    def to_data(self, *, defaults = False):
-        data = ComponentMetadataEntitySelectBase.to_data(self)
+    def to_data(self, *, defaults = False, include_internals = False):
+        data = ComponentMetadataEntitySelectBase.to_data(
+            self, defaults = defaults, include_internals = include_internals
+        )
         
-        put_channel_types_into(self.channel_types, data, defaults)
+        put_channel_types(self.channel_types, data, defaults)
         
         return data
+    
+    
+    @copy_docs(ComponentMetadataEntitySelectBase.clean_copy)
+    def clean_copy(self, guild = None):
+        new = ComponentMetadataEntitySelectBase.clean_copy(self, guild)
+        
+        # channel_types
+        channel_types = self.channel_types
+        if (channel_types is not None):
+            channel_types = (*channel_types,)
+        new.channel_types = channel_types
+        
+        return new
     
     
     @copy_docs(ComponentMetadataEntitySelectBase.copy)
@@ -210,19 +234,20 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
         max_values = ...,
         min_values = ...,
         placeholder = ...,
+        required = ...,
     ):
         """
         Copies the channel select component metadata with the given fields.
         
         Parameters
         ----------
-        channel_types : `None`, `iterable` of (``ChannelType``, `int`), Optional (Keyword only)
+        channel_types : ``None | iterable<int> | iterable<ChannelType>``, Optional (Keyword only)
             The allowed channel types by the select.
         
-        custom_id : `None`, `str`, Optional (Keyword only)
+        custom_id : `None | str`, Optional (Keyword only)
             Custom identifier to detect which component was used by the user.
         
-        default_values : `None | iterable<Channel | Role | ClientUserBase | EntitySelectDefaultValue | tuple>` \
+        default_values : ``None | iterable<Channel> | iterable<Role> | iterable<ClientUserBase> | iterable<EntitySelectDefaultValue> | iterable<(str | EntitySelectDefaultValueTyp, int | str)>>`` \
                 , Optional (Keyword only)
             Entities presented in the select by default.
         
@@ -235,8 +260,11 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
         min_values : `int`, Optional (Keyword only)
             The minimal amount of options to select.
         
-        placeholder : `None`, `str`, Optional (Keyword only)
+        placeholder : `None | str`, Optional (Keyword only)
             Placeholder text of the select.
+        
+        required : `None | bool`, Optional (Keyword only)
+            Whether the field is required to be fulfilled.
         
         Returns
         -------
@@ -267,6 +295,7 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
             max_values = max_values,
             min_values = min_values,
             placeholder = placeholder,
+            required = required,
         )
         new.channel_types = channel_types
         return new
@@ -282,4 +311,5 @@ class ComponentMetadataChannelSelect(ComponentMetadataEntitySelectBase):
             max_values = keyword_parameters.pop('max_values', ...),
             min_values = keyword_parameters.pop('min_values', ...),
             placeholder = keyword_parameters.pop('placeholder', ...),
+            required = keyword_parameters.pop('required', ...),
         )

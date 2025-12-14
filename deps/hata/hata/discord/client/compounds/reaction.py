@@ -192,14 +192,14 @@ class ClientCompoundReactionEndpoints(Compound):
             The message, what's reactions will be requested.
         reaction : ``Reaction``, ``Emoji``, `str`
             The emoji, what's reactors will be requested.
-        limit : `None`, `int` = `None`, Optional (Keyword only)
+        limit : `None | int` = `None`, Optional (Keyword only)
             The amount of users to request. Can be in range [1:100]. Defaults to 100 by Discord.
-        after : `None`, `int`, ``DiscordEntity``, `datetime` = `None`, Optional (Keyword only)
+        after : ``None | int | DiscordEntity | DateTime`` = `None`, Optional (Keyword only)
             The timestamp after the message's reactors were created.
         
         Returns
         -------
-        users : `list` of ``ClientUserBase``
+        users : ``list<ClientUserBase>``
         
         Raises
         ------
@@ -227,7 +227,7 @@ class ClientCompoundReactionEndpoints(Compound):
         
         else:
             raise TypeError(
-                f'`limit` can be `None`, `int`, got {limit.__class__.__name__}; {limit!r}.'
+                f'`limit` can be `None | int`, got {type(limit).__name__}; {limit!r}.'
             )
         
         channel_id, message_id = get_channel_id_and_message_id(message)
@@ -296,7 +296,7 @@ class ClientCompoundReactionEndpoints(Compound):
         
         Returns
         -------
-        users : `list` of ``ClientUserBase``
+        users : ``list<ClientUserBase>``
         
         Raises
         ------

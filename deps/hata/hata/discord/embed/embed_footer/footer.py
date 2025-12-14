@@ -1,15 +1,13 @@
 __all__ = ('EmbedFooter',)
 
-import warnings
-
 from scarletio import copy_docs
 
-from ...utils import sanitize_mentions, url_cutter
+from ...utils import sanitize_mentions
 
 from ..embed_field_base import EmbedFieldBase
 
 from .fields import (
-    parse_icon_proxy_url, parse_icon_url, parse_text, put_icon_proxy_url_into, put_icon_url_into, put_text_into,
+    parse_icon_proxy_url, parse_icon_url, parse_text, put_icon_proxy_url, put_icon_url, put_text,
     validate_icon_url, validate_text
 )
 
@@ -107,7 +105,7 @@ class EmbedFooter(EmbedFieldBase):
                 repr_parts.append(',')
             
             repr_parts.append(' icon_url = ')
-            repr_parts.append(repr(url_cutter(icon_url)))
+            repr_parts.append(repr(icon_url))
     
     
     @copy_docs(EmbedFieldBase.__hash__)
@@ -154,11 +152,11 @@ class EmbedFooter(EmbedFieldBase):
     def to_data(self, *, defaults = False, include_internals = False):
         data = {}
         
-        put_icon_url_into(self.icon_url, data, defaults)
-        put_text_into(self.text, data, defaults)
+        put_icon_url(self.icon_url, data, defaults)
+        put_text(self.text, data, defaults)
         
         if include_internals:
-            put_icon_proxy_url_into(self.icon_proxy_url, data, defaults)
+            put_icon_proxy_url(self.icon_proxy_url, data, defaults)
         
         return data
     
@@ -229,20 +227,3 @@ class EmbedFooter(EmbedFieldBase):
         text = self.text
         if (text is not None):
             yield text
-    
-    
-    @property
-    def proxy_icon_url(self):
-        """
-        Deprecated and will be removed in 2023 august. Please use ``.icon_proxy_url``.
-        """
-        warnings.warn(
-            (
-                f'`{type(self).__name__}.proxy_icon_url` is deprecated and will be removed in 2023 august. '
-                f'Please use `.icon_proxy_url` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-    
-        return self.icon_proxy_url

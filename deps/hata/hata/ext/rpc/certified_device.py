@@ -73,7 +73,7 @@ class CertifiedDevice:
             The hardware's vendor.
         model : ``Model``
             Model of the product.
-        related : `None`, `str`, ``UUID``, `iterable` of ``UUID``
+        related : `None | str | UUID | iterable<str> | iterable<UUID>`
             UUID-s of related devices.
         echo_cancellation : `bool` = `False`, Optional (Keyword only)
             Whether the device's native echo cancellation is enabled. Defaults to `False`.
@@ -157,8 +157,8 @@ class CertifiedDevice:
             iterator = getattr(type(related), '__iter__', None)
             if iterator is None:
                 raise TypeError(
-                    f'`related` can be `None`, `str`, `{UUID.__name__}`, `iterable` of '
-                    f'`str`, `{UUID.__name__}`, got {related.__class__.__name__}; {related!r}.'
+                    f'`related` can be `None | str | {UUID.__name__} | iterable<str> | iterable<{UUID.__name__}>`, '
+                    f'got {type(related).__name__}; {related!r}.'
                 )
             
             related_device_uuids = set()
@@ -175,7 +175,7 @@ class CertifiedDevice:
                 else:
                     raise TypeError(
                         f'`related` can contain `{UUID.__name__}`, `str` elements, got '
-                        f'{related_element.__class__.__name__}; {related_element!r}; related={related!r}.'
+                        f'{type(related_element).__name__}; {related_element!r}; related = {related!r}.'
                     )
             
                 related_device_uuids.add(related_element)
@@ -188,7 +188,7 @@ class CertifiedDevice:
         if __debug__:
             if not isinstance(echo_cancellation, bool):
                 raise AssertionError(
-                    f'`echo_cancellation` can be `bool`, got {echo_cancellation.__class__.__name__}; '
+                    f'`echo_cancellation` can be `bool`, got {type(echo_cancellation).__name__}; '
                     f'{echo_cancellation!r}.'
                 )
             
@@ -234,7 +234,7 @@ class CertifiedDevice:
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {
             'id': str(self.id),
@@ -269,7 +269,7 @@ class CertifiedDevice:
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Device data.
         
         Returns
@@ -359,7 +359,7 @@ class Vendor:
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         return {
             'name': self.name,
@@ -374,7 +374,7 @@ class Vendor:
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Vendor data.
         
         Returns
@@ -448,7 +448,7 @@ class Model:
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         return {
             'name': self.name,
@@ -463,7 +463,7 @@ class Model:
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Model data.
         
         Returns

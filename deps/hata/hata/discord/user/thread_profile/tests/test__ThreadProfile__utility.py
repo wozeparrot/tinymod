@@ -1,11 +1,11 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
 from ..flags import ThreadProfileFlag
 from ..thread_profile import ThreadProfile
 
-from .test__ThreadProfile__constructor import _check_is_all_fields_set
+from .test__ThreadProfile__constructor import _assert_fields_set
 
 
 def test__ThreadProfile__copy():
@@ -13,7 +13,7 @@ def test__ThreadProfile__copy():
     Tests whether ``ThreadProfile.copy`` works as intended.
     """
     flags = ThreadProfileFlag(2)
-    joined_at = DateTime(2016, 5, 15)
+    joined_at = DateTime(2016, 5, 15, tzinfo = TimeZone.utc)
     
     
     thread_profile = ThreadProfile(
@@ -22,7 +22,7 @@ def test__ThreadProfile__copy():
     )
     copy = thread_profile.copy()
     
-    _check_is_all_fields_set(copy)
+    _assert_fields_set(copy)
     vampytest.assert_not_is(thread_profile, copy)
     vampytest.assert_eq(thread_profile, copy)
 
@@ -34,7 +34,7 @@ def test__ThreadProfile__copy_with__0():
     Case: No fields given.
     """
     flags = ThreadProfileFlag(2)
-    joined_at = DateTime(2016, 5, 15)
+    joined_at = DateTime(2016, 5, 15, tzinfo = TimeZone.utc)
     
     
     thread_profile = ThreadProfile(
@@ -44,7 +44,7 @@ def test__ThreadProfile__copy_with__0():
 
     copy = thread_profile.copy_with()
     
-    _check_is_all_fields_set(copy)
+    _assert_fields_set(copy)
     vampytest.assert_not_is(thread_profile, copy)
     vampytest.assert_eq(thread_profile, copy)
 
@@ -57,8 +57,8 @@ def test__ThreadProfile__copy_with__1():
     """
     old_flags = ThreadProfileFlag(2)
     new_flags = ThreadProfileFlag(4)
-    old_joined_at = DateTime(2016, 5, 15)
-    new_joined_at = DateTime(2017, 5, 15)
+    old_joined_at = DateTime(2016, 5, 15, tzinfo = TimeZone.utc)
+    new_joined_at = DateTime(2017, 5, 15, tzinfo = TimeZone.utc)
 
     
     thread_profile = ThreadProfile(
@@ -70,7 +70,7 @@ def test__ThreadProfile__copy_with__1():
         joined_at = new_joined_at,
     )
     
-    _check_is_all_fields_set(copy)
+    _assert_fields_set(copy)
     vampytest.assert_not_is(thread_profile, copy)
 
     vampytest.assert_eq(copy.flags, new_flags)
@@ -83,6 +83,6 @@ def test__ThreadProfile__created_at():
     
     Case: no roles cached.
     """
-    joined_at = DateTime(2020, 5, 14)
+    joined_at = DateTime(2020, 5, 14, tzinfo = TimeZone.utc)
     thread_profile = ThreadProfile(joined_at = joined_at)
     vampytest.assert_eq(thread_profile.created_at, joined_at)

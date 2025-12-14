@@ -1,11 +1,13 @@
 __all__ = ('DiscordApiClient',)
 
+from warnings import warn
+
 from scarletio import (
     CauseGroup, Future, IgnoreCaseMultiValueDictionary, LOOP_TIME, RichAttributeErrorBaseType, WeakMap, from_json,
     sleep, to_json
 )
 from scarletio.http_client import HTTPClient, RequestContextManager
-from scarletio.web_common import FormData, quote
+from scarletio.web_common import FormData, PayloadError, quote
 from scarletio.web_common.headers import CONTENT_TYPE, METHOD_DELETE, METHOD_GET, METHOD_PATCH, METHOD_POST, METHOD_PUT
 
 from ..core import KOKORO
@@ -37,14 +39,14 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         The used http client.
     global_rate_limit_expires_at : `float`
         The time when global rate limit will expire in monotonic time.
-    handlers : `WeakMap<RateLimitHandler>`
+    handlers : ``WeakMap<RateLimitHandler>``
         Rate limit handlers of the Discord requests.
     headers : ``IgnoreCaseMultiValueDictionary``
         Headers used by every every Discord request.
     """
     __slots__ = ('debug_options', 'http', 'global_rate_limit_expires_at', 'handlers', 'headers')
     
-    def __new__(cls, bot, token, *, debug_options = None, http = None, proxy_url = None, proxy_auth = None):
+    def __new__(cls, bot, token, *, debug_options = None, http = None):
         """
         Creates a new Discord api client.
         
@@ -54,20 +56,18 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             Whether the respective client is a bot.
         token : `str`
             The client's token.
+        
         debug_options: `None | set<str>` = `None`, Optional (Keyword only)
             Http debug options, like `'canary'` (I don't know more either).
-        proxy_auth :  `None | str` = `None`, Optional (Keyword only)
-            Proxy authorization for the session's requests.
+        
         http : `None | HTTPClient`` = `None`, Optional (Keyword only)
             The http client to use instead of creating a new one.
-        proxy_url : `None | str` = `None`, Optional (Keyword only)
-            Proxy url for the session's requests.
         """
         connector = get_connector()
         headers = build_headers(bot, token, debug_options)
         
         if http is None:
-            http = HTTPClient(KOKORO, proxy_url, proxy_auth, connector = connector)
+            http = HTTPClient(KOKORO, connector = connector)
         
         self = object.__new__(cls)
         self.debug_options = debug_options
@@ -78,7 +78,9 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         return self
     
     
-    async def discord_request(self, handler, method, url, data = None, params = None, headers = None, reason = None):
+    async def discord_request(
+        self, handler, method, url, data = None, query = None, headers = None, reason = None, *, params = ...
+    ):
         """
         Does a request towards Discord.
         
@@ -88,16 +90,22 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         ----------
         handler : ``RateLimitHandler``, ``StackedStaticRateLimitHandler``
             Rate limit handler for the request.
+        
         method : `str`
             The method of the request.
+        
         url : `str`
             The url to request.
-        data : `None`, `object` = `None`, Optional
+        
+        data : `None | object` = `None`, Optional
             Payload to request with.
-        params : `None`, `object` = `None`, Optional
-            Query parameters.
+        
+        query : `None | object` = `None`, Optional
+            Query string parameters.
+        
         headers : `None`, ``IgnoreCaseMultiValueDictionary`` = `None`, Optional
             Headers to do the request with. If passed then the session's own headers wont be used.
+        
         reason : `None`, `str` = `None`, Optional
             Shows up at the request's respective guild if applicable.
         
@@ -108,12 +116,26 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         Raises
         ------
         TypeError
-            `data`, `params` type is bad, or they contain object(s) with bad type.
+            `data`'s or `query`'s type is bad, or they contain object(s) with bad type.
         ConnectionError
             No internet connection.
         DiscordException
             Any exception raised by the Discord API.
         """
+        # Deprecations
+        if (params is not ...):
+            warn(
+                (
+                    f'`{type(self).__name__}.discord_request`\'s `params` parameter is deprecated '
+                    f'and will be removed at 2026 January. '
+                    'Please use `query` instead.'
+                ),
+                FutureWarning,
+                stacklevel = 3,
+            )
+            query = params
+        
+        
         if headers is None:
             # normal request
             headers = self.headers.copy()
@@ -123,7 +145,7 @@ class DiscordApiClient(RichAttributeErrorBaseType):
                 data = to_json(data)
             
             if (reason is not None):
-                headers[AUDIT_LOG_REASON] = quote(reason, safe = '\ ')
+                headers[AUDIT_LOG_REASON] = quote(reason, safe = '\\ ')
         else:
             # bearer or webhook request
             if (CONTENT_TYPE not in headers) and (not isinstance(data, NON_JSON_TYPES)):
@@ -146,14 +168,14 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             with handler.ctx() as lock:
                 try:
                     async with RequestContextManager(
-                        self.http._request(method, url, headers, data, params)
+                        self.http._request(method, url, headers, data = data, query = query)
                     ) as response:
                         response_data = await response.text(encoding = 'utf-8')
-                except OSError as err:
+                except (OSError, PayloadError) as exception:
                     if causes is None:
                         causes = []
                     
-                    causes.append(err)
+                    causes.append(exception)
                     
                     if len(causes) >= REQUEST_RETRY_LIMIT:
                         try:
@@ -280,12 +302,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def guild_get_chunk(self, data):
+    async def guild_get_chunk(self, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.guild_get_chunk, NO_SPECIFIC_RATE_LIMITER),
             METHOD_GET,
             f'{API_ENDPOINT}/users/@me/guilds',
-            params = data,
+            query = query,
         )
     
     
@@ -569,12 +591,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def message_get_chunk(self, channel_id, data):
+    async def message_get_chunk(self, channel_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.message_get_chunk, channel_id),
             METHOD_GET,
             f'{API_ENDPOINT}/channels/{channel_id}/messages',
-            params = data,
+            query = query,
         )
     
     
@@ -640,28 +662,14 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             f'{API_ENDPOINT}/channels/{channel_id}/messages/{message_id}/crosspost',
         )
     
+    # pin
     
-    async def message_pin(self, channel_id, message_id):
+    async def channel_pin_get_chunk(self, channel_id, query):
         return await self.discord_request(
-            RateLimitHandler(RATE_LIMIT_GROUPS.message_pin, channel_id),
-            METHOD_PUT,
-            f'{API_ENDPOINT}/channels/{channel_id}/pins/{message_id}',
-        )
-    
-    
-    async def message_unpin(self, channel_id, message_id):
-        return await self.discord_request(
-            RateLimitHandler(RATE_LIMIT_GROUPS.message_unpin, channel_id),
-            METHOD_DELETE,
-            f'{API_ENDPOINT}/channels/{channel_id}/pins/{message_id}',
-        )
-    
-    
-    async def channel_pin_get_all(self, channel_id):
-        return await self.discord_request(
-            RateLimitHandler(RATE_LIMIT_GROUPS.channel_pin_get_all, channel_id),
+            RateLimitHandler(RATE_LIMIT_GROUPS.channel_pin_get_chunk, channel_id),
             METHOD_GET,
-            f'{API_ENDPOINT}/channels/{channel_id}/pins',
+            f'{API_ENDPOINT}/channels/{channel_id}/messages/pins',
+            query = query,
         )
     
     # hooman only
@@ -669,8 +677,26 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.channel_pin_ack, channel_id),
             METHOD_POST,
-            f'{API_ENDPOINT}/channels/{channel_id}/pins/ack',
+            f'{API_ENDPOINT}/channels/{channel_id}/messages/pins/ack',
         )
+    
+    async def message_pin(self, channel_id, message_id, reason):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.message_pin, channel_id),
+            METHOD_PUT,
+            f'{API_ENDPOINT}/channels/{channel_id}/messages/pins/{message_id}',
+            reason = reason,
+        )
+    
+    
+    async def message_unpin(self, channel_id, message_id, reason):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.message_unpin, channel_id),
+            METHOD_DELETE,
+            f'{API_ENDPOINT}/channels/{channel_id}/messages/pins/{message_id}',
+            reason = reason,
+        )
+    
     
     # poll
     
@@ -681,12 +707,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             f'{API_ENDPOINT}/channels/{channel_id}/polls/{message_id}/expire',
         )
     
-    async def poll_result_user_get_chunk(self, channel_id, message_id, answer_id, query_parameters):
+    async def poll_result_user_get_chunk(self, channel_id, message_id, answer_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.poll_result_user_get_chunk, message_id),
             METHOD_GET,
             f'{API_ENDPOINT}/channels/{channel_id}/polls/{message_id}/answers/{answer_id}',
-            params = query_parameters,
+            query = query,
         )
     
     # channel directory
@@ -756,12 +782,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
     
     # reactions
     
-    async def reaction_add(self, channel_id, message_id, reaction, query_parameters):
+    async def reaction_add(self, channel_id, message_id, reaction, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.reaction_add, channel_id),
             METHOD_PUT,
             f'{API_ENDPOINT}/channels/{channel_id}/messages/{message_id}/reactions/{reaction}/@me',
-            params = query_parameters,
+            query = query,
         )
     
     
@@ -797,22 +823,22 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def reaction_user_get_chunk(self, channel_id, message_id, reaction, query_parameters):
+    async def reaction_user_get_chunk(self, channel_id, message_id, reaction, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.reaction_user_get_chunk, channel_id),
             METHOD_GET,
             f'{API_ENDPOINT}/channels/{channel_id}/messages/{message_id}/reactions/{reaction}',
-            params = query_parameters,
+            query = query,
         )
     
     # guild
     
-    async def guild_get(self, guild_id, params):
+    async def guild_get(self, guild_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.guild_get, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}',
-            params = params,
+            query = query,
         )
     
     
@@ -821,6 +847,24 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             RateLimitHandler(RATE_LIMIT_GROUPS.guild_preview_get, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/preview',
+        )
+    
+    
+    async def guild_activity_overview_get(self, guild_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.guild_activity_overview_get, guild_id),
+            METHOD_GET,
+            f'{API_ENDPOINT}/guilds/{guild_id}/profile',
+        )
+    
+    
+    async def guild_activity_overview_edit(self, guild_id, data, reason):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.guild_activity_overview_get, guild_id),
+            METHOD_PATCH,
+            f'{API_ENDPOINT}/guilds/{guild_id}/profile',
+            data,
+            reason = reason,
         )
     
     
@@ -939,21 +983,22 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def guild_prune(self, guild_id, data, reason):
+    async def guild_prune(self, guild_id, query, reason):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.guild_prune, guild_id),
             METHOD_POST,
-            f'{API_ENDPOINT}/guilds/{guild_id}/prune', params = data,
+            f'{API_ENDPOINT}/guilds/{guild_id}/prune',
+            query = query,
             reason = reason,
         )
     
     
-    async def guild_prune_estimate(self, guild_id, data):
+    async def guild_prune_estimate(self, guild_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.guild_prune_estimate, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/prune',
-            params = data,
+            query = query,
         )
     
     
@@ -967,12 +1012,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def guild_ban_get_chunk(self, guild_id, query_parameters):
+    async def guild_ban_get_chunk(self, guild_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.guild_ban_get_chunk, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/bans',
-            params = query_parameters,
+            query = query,
         )
     
     
@@ -1002,12 +1047,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def audit_log_get_chunk(self, guild_id, data):
+    async def audit_log_get_chunk(self, guild_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.audit_log_get_chunk, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/audit-logs',
-            params = data,
+            query = query,
         )
     
     
@@ -1048,12 +1093,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def integration_get_all(self, guild_id, data):
+    async def integration_get_all(self, guild_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.integration_get_all, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/integrations',
-            params = data,
+            query = query,
         )
     
     
@@ -1127,12 +1172,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def guild_user_get_chunk(self, guild_id, data):
+    async def guild_user_get_chunk(self, guild_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.guild_user_get_chunk, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/members',
-            params = data,
+            query = query,
         )
     
     
@@ -1211,22 +1256,39 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             reason = reason,
         )
     
+    # Voice
     
-    async def voice_state_client_edit(self, guild_id, data):
+    async def voice_state_edit_own(self, guild_id, data):
         return await self.discord_request(
-            RateLimitHandler(RATE_LIMIT_GROUPS.voice_state_client_edit, NO_SPECIFIC_RATE_LIMITER),
+            RateLimitHandler(RATE_LIMIT_GROUPS.voice_state_edit_own, NO_SPECIFIC_RATE_LIMITER),
             METHOD_PATCH,
             f'{API_ENDPOINT}/guilds/{guild_id}/voice-states/@me',
             data,
         )
     
     
-    async def voice_state_user_edit(self, guild_id, user_id, data):
+    async def voice_state_edit(self, guild_id, user_id, data):
         return await self.discord_request(
-            RateLimitHandler(RATE_LIMIT_GROUPS.voice_state_user_edit, NO_SPECIFIC_RATE_LIMITER),
+            RateLimitHandler(RATE_LIMIT_GROUPS.voice_state_edit, NO_SPECIFIC_RATE_LIMITER),
             METHOD_PATCH,
             f'{API_ENDPOINT}/guilds/{guild_id}/voice-states/{user_id}',
             data,
+        )
+    
+    
+    async def voice_state_get(self, guild_id, user_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.voice_state_get, NO_SPECIFIC_RATE_LIMITER),
+            METHOD_GET,
+            f'{API_ENDPOINT}/guilds/{guild_id}/voice-states/{user_id}',
+        )
+    
+    
+    async def voice_state_get_own(self, guild_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.voice_state_get_own, NO_SPECIFIC_RATE_LIMITER),
+            METHOD_GET,
+            f'{API_ENDPOINT}/guilds/{guild_id}/voice-states/@me',
         )
     
     # Invite
@@ -1240,12 +1302,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def invite_get(self,invite_code, data):
+    async def invite_get(self,invite_code, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.invite_get, NO_SPECIFIC_RATE_LIMITER),
             METHOD_GET,
             f'{API_ENDPOINT}/invites/{invite_code}',
-            params = data,
+            query = query,
         )
     
     
@@ -1275,6 +1337,14 @@ class DiscordApiClient(RichAttributeErrorBaseType):
     
     
     # role
+    
+    async def role_get(self, guild_id, role_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.role_get, guild_id),
+            METHOD_GET,
+            f'{API_ENDPOINT}/guilds/{guild_id}/roles/{role_id}',
+        )
+    
     
     async def role_edit(self, guild_id, role_id, data, reason):
         return await self.discord_request(
@@ -1314,27 +1384,28 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             reason = reason,
         )
     
-    # emoji
     
-    async def emoji_get(self, guild_id, emoji_id):
+    # emoji guild
+    
+    async def emoji_get_guild(self, guild_id, emoji_id):
         return await self.discord_request(
-            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_get, guild_id),
+            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_get_guild, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/emojis/{emoji_id}',
         )
     
     
-    async def emoji_guild_get_all(self, guild_id):
+    async def emoji_get_all_guild(self, guild_id):
         return await self.discord_request(
-            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_guild_get_all, guild_id),
+            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_get_all_guild, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/emojis'
         )
     
     
-    async def emoji_edit(self, guild_id, emoji_id, data, reason):
+    async def emoji_edit_guild(self, guild_id, emoji_id, data, reason):
         return await self.discord_request(
-            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_edit, guild_id),
+            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_edit_guild, guild_id),
             METHOD_PATCH,
             f'{API_ENDPOINT}/guilds/{guild_id}/emojis/{emoji_id}',
             data,
@@ -1342,9 +1413,9 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def emoji_create(self, guild_id, data, reason):
+    async def emoji_create_guild(self, guild_id, data, reason):
         return await self.discord_request(
-            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_create, guild_id),
+            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_create_guild, guild_id),
             METHOD_POST,
             f'{API_ENDPOINT}/guilds/{guild_id}/emojis',
             data,
@@ -1352,13 +1423,59 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def emoji_delete(self, guild_id, emoji_id, reason):
+    async def emoji_delete_guild(self, guild_id, emoji_id, reason):
         return await self.discord_request(
-            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_delete, guild_id),
+            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_delete_guild, guild_id),
             METHOD_DELETE,
             f'{API_ENDPOINT}/guilds/{guild_id}/emojis/{emoji_id}',
             reason = reason,
         )
+    
+    
+    # emoji / application
+    
+    
+    async def emoji_get_application(self, application_id, emoji_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_get_application, application_id),
+            METHOD_GET,
+            f'{API_ENDPOINT}/applications/{application_id}/emojis/{emoji_id}',
+        )
+    
+    
+    async def emoji_get_all_application(self, application_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_get_all_application, application_id),
+            METHOD_GET,
+            f'{API_ENDPOINT}/applications/{application_id}/emojis'
+        )
+    
+    
+    async def emoji_edit_application(self, application_id, emoji_id, data):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_edit_application, application_id),
+            METHOD_PATCH,
+            f'{API_ENDPOINT}/applications/{application_id}/emojis/{emoji_id}',
+            data,
+        )
+    
+    
+    async def emoji_create_application(self, application_id, data):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_create_application, application_id),
+            METHOD_POST,
+            f'{API_ENDPOINT}/applications/{application_id}/emojis',
+            data,
+        )
+    
+    
+    async def emoji_delete_application(self, application_id, emoji_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.emoji_delete_application, application_id),
+            METHOD_DELETE,
+            f'{API_ENDPOINT}/applications/{application_id}/emojis/{emoji_id}',
+        )
+    
     
     # relations
     
@@ -1467,23 +1584,25 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def webhook_message_create(self, webhook_id, webhook_token, data, query_parameters):
+    async def webhook_message_create(self, webhook_id, webhook_token, data, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.webhook_message_create, webhook_id),
             METHOD_POST,
             f'{API_ENDPOINT}/webhooks/{webhook_id}/{webhook_token}',
-            data, headers = IgnoreCaseMultiValueDictionary(),
-            params = query_parameters,
+            data,
+            query,
+            IgnoreCaseMultiValueDictionary(),
         )
     
     
-    async def webhook_message_edit(self, webhook_id, webhook_token, message_id, data):
+    async def webhook_message_edit(self, webhook_id, webhook_token, message_id, data, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.webhook_message_edit, webhook_id),
             METHOD_PATCH,
             f'{API_ENDPOINT}/webhooks/{webhook_id}/{webhook_token}/messages/{message_id}',
             data,
-            headers = IgnoreCaseMultiValueDictionary(),
+            query,
+            IgnoreCaseMultiValueDictionary(),
         )
     
     
@@ -1522,12 +1641,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def guild_user_search(self, guild_id, data):
+    async def guild_user_search(self, guild_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.guild_user_search, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/members/search',
-            params = data,
+            query = query,
         )
     
     # hooman only
@@ -1635,6 +1754,14 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             data,
         )
     
+    
+    async def application_role_connection_metadata_delete_all(self, application_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.application_role_connection_metadata_delete_all, NO_SPECIFIC_RATE_LIMITER),
+            METHOD_DELETE,
+            f'{API_ENDPOINT}/applications/{application_id}/role-connections/metadata',
+        )
+    
     # random
     
     # hooman only sadly, but this would be nice to be allowed, to get name and icon at least
@@ -1662,21 +1789,21 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def discovery_category_get_all(self, params):
+    async def discovery_category_get_all(self, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.discovery_category_get_all, NO_SPECIFIC_RATE_LIMITER),
             METHOD_GET,
             f'{API_ENDPOINT}/discovery/categories',
-            params = params,
+            query = query,
         )
     
     
-    async def discovery_validate_term(self, data):
+    async def discovery_validate_term(self, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.discovery_validate_term, NO_SPECIFIC_RATE_LIMITER),
             METHOD_GET,
             f'{API_ENDPOINT}/discovery/valid-term',
-            params = data,
+            query = query,
         )
     
     
@@ -1772,31 +1899,63 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def scheduled_event_get(self, guild_id, scheduled_event_id, params):
+    async def scheduled_event_get(self, guild_id, scheduled_event_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.scheduled_event_get, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/scheduled-events/{scheduled_event_id}',
-            params = params,
+            query = query,
         )
     
     
-    async def scheduled_event_get_all_guild(self, guild_id, params):
+    async def scheduled_event_get_all_guild(self, guild_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.scheduled_event_get_all_guild, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/scheduled-events',
-            params = params,
+            query = query,
         )
     
     
-    async def scheduled_event_user_get_chunk(self, guild_id, scheduled_event_id, params):
+    async def scheduled_event_user_get_chunk(self, guild_id, scheduled_event_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.scheduled_event_user_get_chunk, guild_id),
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/scheduled-events/{scheduled_event_id}/users',
-            params = params,
+            query = query,
         )
+    
+    
+    async def scheduled_event_occasion_overwrite_create(self, guild_id, scheduled_event_id, data, reason):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.scheduled_event_occasion_overwrite_create, guild_id),
+            METHOD_POST,
+            f'{API_ENDPOINT}/guilds/{guild_id}/scheduled-events/{scheduled_event_id}/exceptions',
+            data,
+            reason = reason,
+        )
+    
+    
+    async def scheduled_event_occasion_overwrite_delete(self, guild_id, scheduled_event_id, timestamp_as_id, reason):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.scheduled_event_occasion_overwrite_delete, guild_id),
+            METHOD_DELETE,
+            f'{API_ENDPOINT}/guilds/{guild_id}/scheduled-events/{scheduled_event_id}/exceptions/{timestamp_as_id}',
+            reason = reason,
+        )
+    
+    
+    async def scheduled_event_occasion_overwrite_edit(
+        self, guild_id, scheduled_event_id, timestamp_as_id, data, reason
+    ):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.scheduled_event_occasion_overwrite_edit, guild_id),
+            METHOD_PATCH,
+            f'{API_ENDPOINT}/guilds/{guild_id}/scheduled-events/{scheduled_event_id}/exceptions/{timestamp_as_id}',
+            data,
+            reason = reason,
+        )
+    
     
     # DiscordException Forbidden (403), code = 20001: Bots cannot use this endpoint
     # data structure: {'sticker_ids': [sticker_id_1, ...]}
@@ -1807,6 +1966,7 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             f'{API_ENDPOINT}/channels/{channel_id}/greet',
             data,
         )
+    
     
     # hooman only
     async def bulk_ack(self):
@@ -1824,6 +1984,17 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             f'{API_ENDPOINT}/voice/regions',
         )
     
+    
+    # channel
+    
+    async def channel_get(self, channel_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.channel_get, channel_id),
+            METHOD_GET,
+            f'{API_ENDPOINT}/channels/{channel_id}',
+        )
+    
+    
     # thread
     
     async def guild_thread_get_all_active(self, guild_id):
@@ -1832,6 +2003,7 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             METHOD_GET,
             f'{API_ENDPOINT}/guilds/{guild_id}/threads/active',
         )
+    
     
     # DiscordException Bad Request (400), code = 50001: Missing Access
     async def thread_create(self, channel_id, data):
@@ -1852,12 +2024,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def thread_user_get_chunk(self, channel_id, query_parameters):
+    async def thread_user_get_chunk(self, channel_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.thread_user_get_chunk, channel_id),
             METHOD_GET,
             f'{API_ENDPOINT}/channels/{channel_id}/thread-members',
-            params = query_parameters,
+            query = query,
         )
     
     
@@ -1877,12 +2049,12 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def thread_user_get(self, channel_id, user_id, query_parameters):
+    async def thread_user_get(self, channel_id, user_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.thread_user_get, channel_id),
             METHOD_GET,
             f'{API_ENDPOINT}/channels/{channel_id}/thread-members/{user_id}',
-            params = query_parameters,
+            query = query,
         )
     
     
@@ -1910,58 +2082,58 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     # Removed in V10
-    async def channel_thread_get_chunk_active(self, channel_id, data):
+    async def channel_thread_get_chunk_active(self, channel_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.channel_thread_get_chunk_active, channel_id),
             METHOD_GET,
             f'{API_ENDPOINT}/channels/{channel_id}/threads/active',
-            params = data,
+            query = query,
         )
     
     
-    async def channel_thread_get_chunk_archived_private(self, channel_id, query_parameters):
+    async def channel_thread_get_chunk_archived_private(self, channel_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.channel_thread_get_chunk_archived_private, channel_id),
             METHOD_GET,
             f'{API_ENDPOINT}/channels/{channel_id}/threads/archived/private',
-            params = query_parameters,
+            query = query,
         )
     
     
-    async def channel_thread_get_chunk_archived_public(self, channel_id, query_parameters):
+    async def channel_thread_get_chunk_archived_public(self, channel_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.channel_thread_get_chunk_archived_public, channel_id),
             METHOD_GET,
             f'{API_ENDPOINT}/channels/{channel_id}/threads/archived/public',
-            params = query_parameters,
+            query = query,
         )
     
     
-    async def channel_thread_get_chunk_self_archived(self, channel_id, query_parameters):
+    async def channel_thread_get_chunk_self_archived(self, channel_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.channel_thread_get_chunk_self_archived, channel_id),
             METHOD_GET,
             f'{API_ENDPOINT}/channels/{channel_id}/users/@me/threads/archived/private',
-            params = query_parameters,
+            query = query,
         )
     
     # application command & interaction
     
-    async def application_command_global_get(self, application_id, application_command_id, query_parameters):
+    async def application_command_global_get(self, application_id, application_command_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.application_command_global_get, NO_SPECIFIC_RATE_LIMITER),
             METHOD_GET,
             f'{API_ENDPOINT}/applications/{application_id}/commands/{application_command_id}',
-            params = query_parameters,
+            query = query,
         )
     
     
-    async def application_command_global_get_all(self, application_id, query_parameters):
+    async def application_command_global_get_all(self, application_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.application_command_global_get_all, NO_SPECIFIC_RATE_LIMITER),
             METHOD_GET,
             f'{API_ENDPOINT}/applications/{application_id}/commands',
-            params = query_parameters,
+            query = query,
         )
     
     
@@ -2000,21 +2172,21 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def application_command_guild_get(self, application_id, guild_id, application_command_id, query_parameters):
+    async def application_command_guild_get(self, application_id, guild_id, application_command_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.application_command_guild_get, NO_SPECIFIC_RATE_LIMITER),
             METHOD_GET,
             f'{API_ENDPOINT}/applications/{application_id}/guilds/{guild_id}/commands/{application_command_id}',
-            params = query_parameters,
+            query = query,
         )
     
     
-    async def application_command_guild_get_all(self, application_id, guild_id, query_parameters):
+    async def application_command_guild_get_all(self, application_id, guild_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.application_command_guild_get_all, NO_SPECIFIC_RATE_LIMITER),
             METHOD_GET,
             f'{API_ENDPOINT}/applications/{application_id}/guilds/{guild_id}/commands',
-            params = query_parameters,
+            query = query,
         )
     
     
@@ -2083,12 +2255,15 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def interaction_response_message_create(self, interaction_id, interaction_token, data):
+    async def interaction_response_message_create(
+        self, interaction_id, interaction_token, data, query_string_parameters
+    ):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.interaction_response_message_create, NO_SPECIFIC_RATE_LIMITER),
             METHOD_POST,
             f'{API_ENDPOINT}/interactions/{interaction_id}/{interaction_token}/callback',
             data,
+            query_string_parameters,
         )
     
     
@@ -2158,6 +2333,15 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             RateLimitHandler(RATE_LIMIT_GROUPS.message_interaction, channel_id),
             METHOD_GET,
             f'{API_ENDPOINT}/channels/{channel_id}/messages/{message_id}/interaction-data',
+        )
+    
+    # Embedded activity
+    
+    async def embedded_activity_get(self, application_id, embedded_activity_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.embedded_activity_get, NO_SPECIFIC_RATE_LIMITER),
+            METHOD_GET,
+            f'{API_ENDPOINT}/applications/{application_id}/activity-instances/{embedded_activity_id}'
         )
     
     # Soundboard
@@ -2341,7 +2525,7 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             reason = reason,
         )
     
-    # sku & entitlements
+    # sku & entitlement & subscription
     
     async def sku_get_all(self, application_id):
         return await self.discord_request(
@@ -2351,12 +2535,20 @@ class DiscordApiClient(RichAttributeErrorBaseType):
         )
     
     
-    async def entitlement_get_chunk(self, application_id, query_parameters):
+    async def entitlement_get(self, application_id, entitlement_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.entitlement_get, NO_SPECIFIC_RATE_LIMITER),
+            METHOD_GET,
+            f'{API_ENDPOINT}/applications/{application_id}/entitlements/{entitlement_id}',
+        )
+    
+    
+    async def entitlement_get_chunk(self, application_id, query):
         return await self.discord_request(
             RateLimitHandler(RATE_LIMIT_GROUPS.entitlement_get_chunk, NO_SPECIFIC_RATE_LIMITER),
             METHOD_GET,
             f'{API_ENDPOINT}/applications/{application_id}/entitlements',
-            params = query_parameters,
+            query = query,
         )
     
     
@@ -2382,4 +2574,21 @@ class DiscordApiClient(RichAttributeErrorBaseType):
             RateLimitHandler(RATE_LIMIT_GROUPS.entitlement_consume, NO_SPECIFIC_RATE_LIMITER),
             METHOD_POST,
             f'{API_ENDPOINT}/applications/{application_id}/entitlements/{entitlement_id}/consume',
+        )
+    
+    
+    async def subscription_get_sku(self, sku_id, subscription_id):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.subscription_get_sku, NO_SPECIFIC_RATE_LIMITER),
+            METHOD_GET,
+            f'{API_ENDPOINT}/skus/{sku_id}/subscriptions/{subscription_id}',
+        )
+    
+    
+    async def subscription_get_chunk_sku_user(self, sku_id, query):
+        return await self.discord_request(
+            RateLimitHandler(RATE_LIMIT_GROUPS.subscription_get_chunk_sku_user, NO_SPECIFIC_RATE_LIMITER),
+            METHOD_GET,
+            f'{API_ENDPOINT}/skus/{sku_id}/subscriptions',
+            query = query,
         )

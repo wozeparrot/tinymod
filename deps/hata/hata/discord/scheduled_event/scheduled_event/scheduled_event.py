@@ -1,9 +1,10 @@
 __all__ = ('ScheduledEvent', )
 
+
 from ...bases import DiscordEntity, ICON_TYPE_NONE, IconSlot
 from ...channel import ChannelType, create_partial_channel_from_id
 from ...core import GUILDS, SCHEDULED_EVENTS
-from ...http import urls as module_urls
+from ...http.urls import build_scheduled_event_image_url, build_scheduled_event_image_url_as, build_scheduled_event_url
 from ...precreate_helpers import process_precreate_parameters
 from ...user import ZEROUSER
 
@@ -11,24 +12,20 @@ from ..scheduled_event_entity_metadata import ScheduledEventEntityMetadataBase
 
 from .fields import (
     parse_channel_id, parse_creator, parse_description, parse_end, parse_entity_id, parse_entity_metadata,
-    parse_entity_type, parse_guild_id, parse_id, parse_name, parse_privacy_level, parse_sku_ids, parse_start,
-    parse_status, parse_user_count, put_channel_id_into, put_creator_into, put_description_into, put_end_into,
-    put_entity_id_into, put_entity_metadata_into, put_entity_type_into, put_guild_id_into, put_id_into, put_name_into,
-    put_privacy_level_into, put_sku_ids_into, put_start_into, put_status_into, put_user_count_into, validate_channel_id,
-    validate_creator, validate_description, validate_end, validate_entity_id, validate_entity_type, validate_guild_id,
-    validate_id, validate_name, validate_privacy_level, validate_sku_ids, validate_start, validate_status,
-    validate_user_count
+    parse_entity_type, parse_guild_id, parse_id, parse_name, parse_privacy_level, parse_schedule, parse_sku_ids,
+    parse_start, parse_status, parse_user_count, put_channel_id, put_creator, put_description,
+    put_end, put_entity_id, put_entity_metadata, put_entity_type, put_guild_id, put_id,
+    put_name, put_privacy_level, put_schedule, put_sku_ids, put_start, put_status,
+    put_user_count, validate_channel_id, validate_creator, validate_description, validate_end, validate_entity_id,
+    validate_entity_type, validate_guild_id, validate_id, validate_name, validate_privacy_level, validate_schedule,
+    validate_sku_ids, validate_start, validate_status, validate_user_count, parse_occasion_overwrites, validate_occasion_overwrites,
+    put_occasion_overwrites
 )
 from .helpers import guess_scheduled_event_entity_type_from_keyword_parameters
 from .preinstanced import PrivacyLevel, ScheduledEventEntityType, ScheduledEventStatus
 
 
-SCHEDULED_EVENT_IMAGE = IconSlot(
-    'image',
-    'image',
-    module_urls.scheduled_event_image_url,
-    module_urls.scheduled_event_image_url_as,
-)
+SCHEDULED_EVENT_IMAGE = IconSlot('image', 'image')
 
 
 PRECREATE_FIELDS = {
@@ -42,7 +39,9 @@ PRECREATE_FIELDS = {
     'guild_id': ('guild_id', validate_guild_id),
     'image': ('image', SCHEDULED_EVENT_IMAGE.validate_icon),
     'name': ('name', validate_name),
+    'occasion_overwrites': ('occasion_overwrites', validate_occasion_overwrites),
     'privacy_level': ('privacy_level', validate_privacy_level),
+    'schedule': ('schedule', validate_schedule),
     'start': ('start', validate_start),
     'sku_ids': ('sku_ids', validate_sku_ids),
     'status': ('status', validate_status),
@@ -56,36 +55,58 @@ class ScheduledEvent(DiscordEntity):
     ----------
     channel_id : `int`
         The event's stage's channel identifier.
+    
     creator : ``ClientUserBase``
         The event's creator.
-    description : `None`, `str`
+    
+    description : `None | str`
         Description of the event.
-    end : `None`, `datetime`
+    
+    end : `None | DateTime`
         The scheduled end time of the event.
+    
     entity_id : `int`
         The event's entity's identifier.
+    
     entity_metadata : ``ScheduledEventEntityMetadataBase``
         Metadata about the target entity.
+    
     entity_type : ``ScheduledEventEntityType``
         To which type of entity the event is bound to.
+    
     guild_id : `int`
         The respective event's identifier.
+    
     id : `int`
         The scheduled event's identifier number.
+    
     image_type : ``IconType``
         The event's image's type.
+    
     image_hash : `int`
         The event's image hash.
+    
     name : `str`
         The event's name.
+    
+    occasion_overwrites : ``None | tuple<ScheduledEventOccasionOverwrite>``
+        Overwritten fields for specific occasions.
+    
     privacy_level : ``PrivacyLevel``
         The privacy level of the event.
-    start : `None`, `datetime`
+    
+    schedule : ``None | Schedule``
+        How the scheduled event should re-occur.
+    
+    start : `None | DateTime`
         The scheduled start time of the event.
-    sku_ids : `None`, `tuple` of `int`
+    
+    sku_ids : `None | tuple<int>`
         Stock keeping unit identifiers used at the event.
+    
     status : ``ScheduledEventStatus``
         The status of the event.
+    
     user_count : `int`
         Users subscribed to the event.
     
@@ -95,7 +116,8 @@ class ScheduledEvent(DiscordEntity):
     """
     __slots__ = (
         '__weakref__', 'channel_id', 'creator', 'description', 'end', 'entity_id', 'entity_metadata', 'entity_type',
-        'guild_id', 'name', 'privacy_level', 'sku_ids', 'start', 'status', 'user_count'
+        'guild_id', 'name', 'occasion_overwrites', 'privacy_level', 'schedule', 'sku_ids', 'start', 'status',
+        'user_count'
     )
     
     image = SCHEDULED_EVENT_IMAGE
@@ -110,6 +132,7 @@ class ScheduledEvent(DiscordEntity):
         image = ...,
         name = ...,
         privacy_level = ...,
+        schedule = ...,
         start = ...,
         status = ...,
         **keyword_parameters,
@@ -119,32 +142,45 @@ class ScheduledEvent(DiscordEntity):
         
         Parameters
         ----------
-        channel_id : `int`, ``Channel``, Optional (Keyword only)
+        channel_id : ``None | int | Channel``, Optional (Keyword only)
             The event's stage's channel or its identifier.
-        description : `None`, `str`, Optional (Keyword only)
+        
+        description : `None | str`, Optional (Keyword only)
             Description of the event.
-        end : `None`, `datetime`, Optional (Keyword only)
+        
+        end : `None | DateTime`, Optional (Keyword only)
             The scheduled end time of the event.
-        entity_type : ``ScheduledEventEntityType``, `int`, Optional (Keyword only)
+        
+        entity_type : ``None | int | ScheduledEventEntityType``, Optional (Keyword only)
             To which type of entity the event is bound to.
-        image : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        
+        image : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The schedule event's image.
+        
         name : `str`
             The event's name.
-        privacy_level : ``PrivacyLevel``, `int`, Optional (Keyword only)
+        
+        privacy_level : ``None | int | PrivacyLevel``, Optional (Keyword only)
             The privacy level of the event.
-        start : `None`, `datetime`, Optional (Keyword only)
+        
+        schedule : ``None | Schedule``, Optional (Keyword only)
+            How the scheduled event should re-occur.
+        
+        start : `None | DateTime`, Optional (Keyword only)
             The scheduled start time of the event.
+        
         status : ``ScheduledEventStatus``, Optional (Keyword only)
             The status of the event.
+        
         **keyword_parameters : Keyword parameters
             Additional keyword parameters passed to the entity metadata.
         
         Other Parameters
         ----------------
-        location : `None`, `str`, Optional (Keyword only)
+        location : `None | str`, Optional (Keyword only)
             The place where the event will take place.
-        speaker_ids : `None`, `iterable` of (`int`, `ClientUserBase`), Optional (Keyword only)
+        
+        speaker_ids : ``None | iterable<int> | iterable<ClientUserBase>``, Optional (Keyword only)
             The speakers' identifier of the stage channel.
         
         Raises
@@ -197,6 +233,12 @@ class ScheduledEvent(DiscordEntity):
         else:
             privacy_level = validate_privacy_level(privacy_level)
         
+        # schedule
+        if schedule is ...:
+            schedule = None
+        else:
+            schedule = validate_schedule(schedule)
+        
         # start
         if start is ...:
             start = None
@@ -230,7 +272,9 @@ class ScheduledEvent(DiscordEntity):
         self.id = 0
         self.image = image
         self.name = name
+        self.occasion_overwrites = None
         self.privacy_level = privacy_level
+        self.schedule = schedule
         self.start = start
         self.sku_ids = None
         self.status = status
@@ -247,8 +291,9 @@ class ScheduledEvent(DiscordEntity):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Guild scheduled event data.
+        
         strong_cache : `bool` = `True`, Optional (Keyword only)
             Whether the instance should be put into its strong cache.
         
@@ -278,7 +323,12 @@ class ScheduledEvent(DiscordEntity):
             except KeyError:
                 pass
             else:
-                guild.scheduled_events[scheduled_event_id] = self
+                scheduled_events = guild.scheduled_events
+                if (scheduled_events is None):
+                    scheduled_events = {}
+                    guild.scheduled_events = scheduled_events
+                
+                scheduled_events[scheduled_event_id] = self
         
         return self
     
@@ -292,7 +342,7 @@ class ScheduledEvent(DiscordEntity):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Guild scheduled event data.
         
         Returns
@@ -321,7 +371,12 @@ class ScheduledEvent(DiscordEntity):
         except KeyError:
             pass
         else:
-            guild.scheduled_events[scheduled_event_id] = self
+            scheduled_events = guild.scheduled_events
+            if (scheduled_events is None):
+                scheduled_events = {}
+                guild.scheduled_events = scheduled_events
+            
+            scheduled_events[scheduled_event_id] = self
         
         return self, True
     
@@ -335,7 +390,7 @@ class ScheduledEvent(DiscordEntity):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Guild event data.
         
         Returns
@@ -372,11 +427,18 @@ class ScheduledEvent(DiscordEntity):
             guild = GUILDS[self.guild_id]
         except KeyError:
             return False
-            
+        
+        scheduled_events = guild.scheduled_events
+        if scheduled_events is None:
+            return False
+        
         try:
-            del guild.scheduled_events[self.id]
+            del scheduled_events[self.id]
         except KeyError:
             return False
+        
+        if not scheduled_events:
+            guild.scheduled_events = None
         
         return True
     
@@ -389,33 +451,36 @@ class ScheduledEvent(DiscordEntity):
         ----------
         defaults : `bool` = `False`, Optional (Keyword only)
             Whether fields with their default value should be included as well.
+        
         include_internals : `bool` = `False`, Optional (Keyword only)
             Whether internal fields should be included as well.
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
         
-        put_channel_id_into(self.channel_id, data, defaults)
-        put_description_into(self.description, data, defaults)
-        put_end_into(self.end, data, defaults)
-        put_entity_metadata_into(self.entity_metadata, data, defaults)
-        put_entity_type_into(self.entity_type, data, defaults)
+        put_channel_id(self.channel_id, data, defaults)
+        put_description(self.description, data, defaults)
+        put_end(self.end, data, defaults)
+        put_entity_metadata(self.entity_metadata, data, defaults)
+        put_entity_type(self.entity_type, data, defaults)
         type(self).image.put_into(self.image, data, defaults, as_data = not include_internals)
-        put_name_into(self.name, data, defaults)
-        put_privacy_level_into(self.privacy_level, data, defaults)
-        put_start_into(self.start, data, defaults)
-        put_status_into(self.status, data, defaults)
+        put_name(self.name, data, defaults)
+        put_privacy_level(self.privacy_level, data, defaults)
+        put_schedule(self.schedule, data, defaults, start = self.start)
+        put_start(self.start, data, defaults)
+        put_status(self.status, data, defaults)
         
         if include_internals:
-            put_creator_into(self.creator, data, defaults, include_internals = include_internals)
-            put_entity_id_into(self.entity_id, data, defaults)
-            put_guild_id_into(self.guild_id, data, defaults)
-            put_id_into(self.id, data, defaults)
-            put_sku_ids_into(self.sku_ids, data, defaults)
-            put_user_count_into(self.user_count, data, defaults)
+            put_creator(self.creator, data, defaults)
+            put_entity_id(self.entity_id, data, defaults)
+            put_guild_id(self.guild_id, data, defaults)
+            put_id(self.id, data, defaults)
+            put_occasion_overwrites(self.occasion_overwrites, data, defaults, scheduled_event_id = self.id)
+            put_sku_ids(self.sku_ids, data, defaults)
+            put_user_count(self.user_count, data, defaults)
         
         return data
     
@@ -426,11 +491,12 @@ class ScheduledEvent(DiscordEntity):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Scheduled event data.
         """
         self.creator = parse_creator(data)
         self.guild_id = parse_guild_id(data)
+        self.occasion_overwrites = parse_occasion_overwrites(data)
         self.user_count = parse_user_count(data)
         
         self._update_attributes(data)
@@ -442,7 +508,7 @@ class ScheduledEvent(DiscordEntity):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Scheduled event data.
         """
         self._set_image(data)
@@ -453,6 +519,7 @@ class ScheduledEvent(DiscordEntity):
         self.entity_id = parse_entity_id(data)
         self.name = parse_name(data)
         self.privacy_level = parse_privacy_level(data)
+        self.schedule = parse_schedule(data)
         self.sku_ids = parse_sku_ids(data)
         self.start = parse_start(data)
         self.status = parse_status(data)
@@ -468,12 +535,12 @@ class ScheduledEvent(DiscordEntity):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Scheduled event data.
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             The updated attributes.
             
             The returned dictionary might contain the following items:
@@ -483,9 +550,9 @@ class ScheduledEvent(DiscordEntity):
             +===========================+===============================================+
             | channel_id                | `int`                                         |
             +---------------------------+-----------------------------------------------+
-            | description               | `None`, `str`                                 |
+            | description               | `None | str`                                 |
             +---------------------------+-----------------------------------------------+
-            | end                       | `None`, `datetime`                            |
+            | end                       | `None | DateTime`                             |
             +---------------------------+-----------------------------------------------+
             | entity_id                 | `int`                                         |
             +---------------------------+-----------------------------------------------+
@@ -499,9 +566,11 @@ class ScheduledEvent(DiscordEntity):
             +---------------------------+-----------------------------------------------+
             | privacy_level             | ``PrivacyLevel``                              |
             +---------------------------+-----------------------------------------------+
-            | sku_ids                   | `None`, `tuple` of `int`                      |
+            | schedule                  | ``None | Schedule``                           |
             +---------------------------+-----------------------------------------------+
-            | start                     | `None`, `datetime`                            |
+            | sku_ids                   | `None | tuple<int>`                           |
+            +---------------------------+-----------------------------------------------+
+            | start                     | `None | DateTime`                             |
             +---------------------------+-----------------------------------------------+
             | status                    | ``ScheduledEventStatus``                      |
             +---------------------------+-----------------------------------------------+
@@ -510,26 +579,31 @@ class ScheduledEvent(DiscordEntity):
         
         self._update_image(data, old_attributes)
         
+        # channel_id
         channel_id = parse_channel_id(data)
         if self.channel_id != channel_id:
             old_attributes['channel_id'] = self.channel_id
             self.channel_id = channel_id
         
+        # description
         description = parse_description(data)
         if self.description != description:
             old_attributes['description'] = self.description
             self.description = description
         
+        # end
         end = parse_end(data)
         if self.end != end:
             old_attributes['end'] = self.end
             self.end = end
         
+        # entity_id
         entity_id = parse_entity_id(data)
         if self.entity_id != entity_id:
             old_attributes['entity_id'] = self.entity_id
             self.entity_id = entity_id
         
+        # name
         name = parse_name(data)
         if self.name != name:
             old_attributes['name'] = self.name
@@ -540,27 +614,37 @@ class ScheduledEvent(DiscordEntity):
             old_attributes['privacy_level'] = self.privacy_level
             self.privacy_level = privacy_level
         
+        # schedule
+        schedule = parse_schedule(data)
+        if self.schedule != schedule:
+            old_attributes['schedule'] = self.schedule
+            self.schedule = schedule
+        
+        # sku_ids
         sku_ids = parse_sku_ids(data)
         if self.sku_ids != sku_ids:
             old_attributes['sku_ids'] = self.sku_ids
             self.sku_ids = sku_ids
         
+        # start
         start = parse_start(data)
         if self.start != start:
             old_attributes['start'] = self.start
             self.start = start
         
+        # status
         status =  parse_status(data)
         if self.status is not status:
             old_attributes['status'] = self.status
             self.status = status
         
-        
+        # entity_type
         entity_type = parse_entity_type(data)
         if self.entity_type is not entity_type:
             old_attributes['entity_type'] = self.entity_type
             self.entity_type = entity_type
         
+        # entity_metadata
         entity_metadata = parse_entity_metadata(data, entity_type)
         if self.entity_metadata != entity_metadata:
             old_attributes['entity_metadata'] = self.entity_metadata
@@ -575,7 +659,7 @@ class ScheduledEvent(DiscordEntity):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Scheduled event data.
         """
         try:
@@ -653,6 +737,8 @@ class ScheduledEvent(DiscordEntity):
         # entity_type
         hash_value ^= hash(self.entity_type)
         
+        # id | internal
+        
         # image
         hash_value ^ hash(self.image)
         
@@ -661,8 +747,13 @@ class ScheduledEvent(DiscordEntity):
         if (name != description):
             hash_value ^= hash(name)
         
+        # privacy_level
         hash_value ^= hash(self.privacy_level) << 4
-        # scheduled_event_id | internal
+        
+        # schedule
+        schedule = self.schedule
+        if (schedule is not None):
+            hash_value ^= hash(schedule)
         
         # start
         start = self.start
@@ -739,6 +830,10 @@ class ScheduledEvent(DiscordEntity):
         if self.privacy_level is not other.privacy_level:
             return False
         
+        # schedule
+        if self.schedule != other.schedule:
+            return False
+        
         # start
         if self.start != other.start:
             return False
@@ -777,7 +872,9 @@ class ScheduledEvent(DiscordEntity):
         self.image_hash = 0
         self.image_type = ICON_TYPE_NONE
         self.name = ''
+        self.occasion_overwrites = None
         self.privacy_level = PrivacyLevel.guild_only
+        self.schedule = None
         self.start = None
         self.sku_ids = None
         self.status = ScheduledEventStatus.none
@@ -796,47 +893,69 @@ class ScheduledEvent(DiscordEntity):
         ----------
         scheduled_event_id : `int`
             The scheduled event's identifier.
-        entity_type : ``ScheduledEventEntityType``, `int`, Optional (Keyword only)
+        
+        entity_type : ``None | int | ScheduledEventEntityType``, Optional (Keyword only)
             To which type of entity the event is bound to.
+        
         **keyword_parameters : keyword parameters
             Additional predefined attributes for the scheduled event.
         
         Other Parameters
         ----------------
-        channel_id : `int`, ``Channel``, Optional (Keyword only)
+        channel_id : ``None | int | Channel``, Optional (Keyword only)
             Alternative for `channel`.
-        channel_id : `int`, ``Channel``, Optional (Keyword only)
+        
+        channel_id : ``None | int | Channel``, Optional (Keyword only)
             The event's stage's channel or its identifier.
+        
         creator : ``ClientUserBase``, Optional (Keyword only)
             The event's creator.
-        description : `None`, `str`, Optional (Keyword only)
+        
+        description : `None | str`, Optional (Keyword only)
             Description of the event.
-        end : `None`, `datetime`, Optional (Keyword only)
+        
+        end : `None | DateTime`, Optional (Keyword only)
             The scheduled end time of the event.
+        
         entity_id : `int`, Optional (Keyword only)
             The event's entity's identifier.
-        entity_type : ``ScheduledEventEntityType``, `int`, Optional (Keyword only)
-            To which type of entity the event is bound to.
-        guild : `int`, ``Guild``, Optional (Keyword only)
+        
+        guild : ``None | int | Guild``, Optional (Keyword only)
             Alternative for `guild_id`.
-        guild_id : `int`, ``Guild``, Optional (Keyword only)
+        
+        guild_id : ``None | int | Guild``, Optional (Keyword only)
             The scheduled event's guild or its identifier.
-        image : `None`, ``Icon``, `str`, Optional (Keyword only)
+        
+        image : ``None | str | Icon``, Optional (Keyword only)
             The schedule event's image.
-        location : `None`, `str`, Optional (Keyword only)
+        
+        location : `None | str`, Optional (Keyword only)
             The place where the event will take place.
+        
         name : `str`
             The event's name.
-        privacy_level : ``PrivacyLevel``, `int`, Optional (Keyword only)
+        
+        occasion_overwrites : ``None | iterable<ScheduledEventOccasionOverwrite>``, Optional (Keyword only
+            Overwritten fields for specific occasions.
+        
+        privacy_level : ``None | int | PrivacyLevel``, Optional (Keyword only)
             The privacy level of the event.
-        sku_ids : `None`, `iterable` of `int`, Optional (Keyword only)
+        
+        schedule : ``None | Schedule``, Optional (Keyword only)
+            How the scheduled event should re-occur.
+        
+        sku_ids : ``None | iterable<int> | iterable<SKU>``, Optional (Keyword only)
             Stock keeping unit identifiers used at the event.
-        speaker_ids : `None`, `iterable` of (`int`, `ClientUserBase`), Optional (Keyword only)
+        
+        speaker_ids : ``None | iterable<int> | iterable<ClientUserBase>``, Optional (Keyword only)
             The speakers' identifier of the stage channel.
-        start : `None`, `datetime`, Optional (Keyword only)
+        
+        start : `None | DateTime`, Optional (Keyword only)
             The scheduled start time of the event.
+        
         status : ``ScheduledEventStatus``, Optional (Keyword only)
             The status of the event.
+        
         user_count : `int`, Optional (Keyword only)
             Users subscribed to the event.
         
@@ -920,7 +1039,14 @@ class ScheduledEvent(DiscordEntity):
         new.id = 0
         new.image = self.image
         new.name = self.name
+        new.occasion_overwrites = None
         new.privacy_level = self.privacy_level
+        
+        schedule = self.schedule
+        if (schedule is not None):
+            schedule = schedule.copy()
+        new.schedule = schedule 
+        
         new.start = self.start
         new.sku_ids = None
         new.status = self.status
@@ -937,6 +1063,7 @@ class ScheduledEvent(DiscordEntity):
         image = ...,
         name = ...,
         privacy_level = ...,
+        schedule = ...,
         start = ...,
         status = ...,
         **keyword_parameters,
@@ -946,32 +1073,45 @@ class ScheduledEvent(DiscordEntity):
         
         Parameters
         ----------
-        channel_id : `int`, ``Channel``, Optional (Keyword only)
+        channel_id : ``None | int | Channel``, Optional (Keyword only)
             The event's stage's channel or its identifier.
-        description : `None`, `str`, Optional (Keyword only)
+        
+        description : `None | str`, Optional (Keyword only)
             Description of the event.
-        end : `None`, `datetime`, Optional (Keyword only)
+        
+        end : `None | DateTime`, Optional (Keyword only)
             The scheduled end time of the event.
-        entity_type : ``ScheduledEventEntityType``, `int`, Optional (Keyword only)
+        
+        entity_type : ``None | int | ScheduledEventEntityType``, Optional (Keyword only)
             To which type of entity the event is bound to.
-        image : `None`, ``Icon``, `str`, `bytes-like`, Optional (Keyword only)
+        
+        image : ``None | str | bytes-like | Icon``, Optional (Keyword only)
             The schedule event's image.
+        
         name : `str`
             The event's name.
-        privacy_level : ``PrivacyLevel``, `int`, Optional (Keyword only)
+        
+        privacy_level : ``None | int | PrivacyLevel``, Optional (Keyword only)
             The privacy level of the event.
-        start : `None`, `datetime`, Optional (Keyword only)
+        
+        schedule : ``None | Schedule``, Optional (Keyword only)
+            How the scheduled event should re-occur.
+        
+        start : `None | DateTime`, Optional (Keyword only)
             The scheduled start time of the event.
+        
         status : ``ScheduledEventStatus``, Optional (Keyword only)
             The status of the event.
+        
         **keyword_parameters : Keyword parameters
             Additional keyword parameters passed to the entity metadata.
         
         Other Parameters
         ----------------
-        location : `None`, `str`, Optional (Keyword only)
+        location : `None | str`, Optional (Keyword only)
             The place where the event will take place.
-        speaker_ids : `None`, `iterable` of (`int`, `ClientUserBase`), Optional (Keyword only)
+        
+        speaker_ids : ``None | iterable<int> | iterable<ClientUserBase>``, Optional (Keyword only)
             The speakers' identifier of the stage channel.
         
         Returns
@@ -1030,6 +1170,14 @@ class ScheduledEvent(DiscordEntity):
         else:
             privacy_level = validate_privacy_level(privacy_level)
         
+        # schedule
+        if schedule is ...:
+            schedule = self.schedule
+            if (schedule is not None):
+                schedule = schedule.copy()
+        else:
+            schedule = validate_schedule(schedule)
+        
         # start
         if start is ...:
             start = self.start
@@ -1067,15 +1215,14 @@ class ScheduledEvent(DiscordEntity):
         new.id = 0
         new.image = image
         new.name = name
+        new.occasion_overwrites = None
         new.privacy_level = privacy_level
+        new.schedule = schedule
         new.start = start
         new.sku_ids = None
         new.status = status
         new.user_count = 0
         return new
-    
-    
-    url = property(module_urls.scheduled_event_url)
     
     
     @property
@@ -1088,17 +1235,25 @@ class ScheduledEvent(DiscordEntity):
         partial : `bool`
         """
         guild_id = self.guild_id
-        if guild_id:
-            try:
-                guild = GUILDS[guild_id]
-            except KeyError:
-                pass
-            else:
-                if not guild.partial:
-                    if self.id in guild.scheduled_events.keys():
-                        return False
+        if not guild_id:
+            return True
         
-        return True
+        try:
+            guild = GUILDS[guild_id]
+        except KeyError:
+            return True
+        
+        if guild.partial:
+            return True
+        
+        scheduled_events = guild.scheduled_events
+        if (scheduled_events is None):
+            return True
+        
+        if self.id not in scheduled_events.keys():
+            return True
+        
+        return False
     
     
     @property
@@ -1108,7 +1263,7 @@ class ScheduledEvent(DiscordEntity):
         
         Returns
         -------
-        entity : `None`, ``Channel``
+        entity : ``None | Channel``
         """
         entity_id = self.entity_id
         if entity_id:
@@ -1134,7 +1289,7 @@ class ScheduledEvent(DiscordEntity):
         
         Returns
         -------
-        channel : `None`, ``Channel``
+        channel : ``None | Channel``
         """
         channel_id = self.channel_id
         if channel_id:
@@ -1148,7 +1303,7 @@ class ScheduledEvent(DiscordEntity):
         
         Returns
         -------
-        guild : `None`, ``Guild``
+        guild : ``None | Guild``
         """
         guild_id = self.guild_id
         if guild_id:
@@ -1180,3 +1335,61 @@ class ScheduledEvent(DiscordEntity):
         sku_ids = self.sku_ids
         if (sku_ids is not None):
             yield from sku_ids
+    
+    
+    @property
+    def url(self):
+        """
+        Returns the scheduled event's url.
+        
+        Returns
+        -------
+        url : `str`
+        """
+        return build_scheduled_event_url(self.guild_id, self.id)
+
+    
+    @property
+    def image_url(self):
+        """
+        Returns the scheduled event's image's url. If the scheduled event has no image, then returns `None`.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_scheduled_event_image_url(self.id, self.image_type, self.image_hash)
+    
+    
+    def image_url_as(self, ext = None, size = None):
+        """
+        Returns the scheduled event's image's url. If the scheduled event has no image, then returns `None`.
+        
+        Parameters
+        ----------
+        ext : `None | str` = `None`, Optional
+            The extension of the image's url. Can be any of: `'jpg'`, `'jpeg'`, `'png'`, `'webp'`.
+        
+        size : `None | int` = `None`, Optional
+            The preferred minimal size of the image's url.
+        
+        Returns
+        -------
+        url : `None | str`
+        """
+        return build_scheduled_event_image_url_as(self.id, self.image_type, self.image_hash, ext, size)
+    
+    
+    def iter_occasion_overwrites(self):
+        """
+        Iterates over the occasion_overwrites of the scheduled event.
+        
+        This method is an iterable generator.
+        
+        Yields
+        ------
+        occasion_overwrite : ``ScheduledEventOccasionOverwrite``
+        """
+        occasion_overwrites = self.occasion_overwrites
+        if (occasion_overwrites is not None):
+            yield from occasion_overwrites

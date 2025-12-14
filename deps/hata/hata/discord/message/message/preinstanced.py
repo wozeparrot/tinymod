@@ -1,12 +1,12 @@
 __all__ = ('MessageType', )
 
-import warnings
-
-from scarletio import class_property, include
+from scarletio import copy_docs, include
 
 from ...activity import ActivityType
 from ...bases import Preinstance as P, PreinstancedBase
 from ...embed import EmbedType
+from ...emoji import parse_emoji
+from ...emoji.emoji.utils import _create_partial_emoji_from_fields
 from ...utils import DATETIME_FORMAT_CODE, elapsed_time, sanitize_mentions, timestamp_to_datetime
 
 
@@ -288,15 +288,27 @@ def convert_invite_reminder(self):
 
 
 def convert_stage_start(self):
-    return f'{self.author.name_at(self.guild_id)!s} started {self.content!s}.'
+    content = self.content
+    if content is None:
+        return
+    
+    return f'{self.author.name_at(self.guild_id)!s} started {content!s}.'
 
 
 def convert_stage_end(self):
-    return f'{self.author.name_at(self.guild_id)!s} ended {self.content!s}.'
+    content = self.content
+    if content is None:
+        return
+    
+    return f'{self.author.name_at(self.guild_id)!s} ended {content!s}.'
 
 
 def convert_stage_topic_change(self):
-    return f'{self.author.name_at(self.guild_id)!s} changed the Stage topic: {self.content!s}'
+    content = self.content
+    if content is None:
+        return
+    
+    return f'{self.author.name_at(self.guild_id)!s} changed the Stage topic: {content!s}'
 
 
 def convert_stage_speaker(self):
@@ -366,35 +378,160 @@ def convert_purchase_notification(self):
     return f'Thank you,\n {self.author.name_at(self.guild_id)!s}'
 
 
-class MessageType(PreinstancedBase):
+def convert_poll_result(self):
+    embed = self.embed
+    if embed is None or embed.type is not EmbedType.poll_result:
+        return None
+    
+    content_parts = []
+    should_add_next = ''
+    
+    description = embed.description
+    if description is not None:
+        content_parts.append(description)
+        should_add_next = '\n'
+    
+    
+    for field in embed.iter_fields():
+        if field.name == 'poll_question_text':
+            content_parts.append(should_add_next)
+            content_parts.append('The poll ')
+            content_parts.append(field.value)
+            content_parts.append(' has closed.')
+            should_add_next = '\n'
+            break
+    
+    for field in embed.iter_fields():
+        if field.name == 'victor_answer_text':
+            answer_text = field.value
+            break
+    else:
+        answer_text = None
+    
+    for field in embed.iter_fields():
+        if field.name == 'victor_answer_emoji_id':
+            answer_emoji_id = field.value
+            break
+    else:
+        answer_emoji_id = None
+    
+    for field in embed.iter_fields():
+        if field.name == 'victor_answer_emoji_name':
+            answer_emoji_name = field.value
+            break
+    else:
+        answer_emoji_name = ''
+    
+    for field in embed.iter_fields():
+        if field.name == 'victor_answer_emoji_animated':
+            answer_emoji_animated = field.value == 'true'
+            break
+    else:
+        answer_emoji_animated = False
+    
+    if answer_emoji_id or answer_emoji_name:
+        emoji = _create_partial_emoji_from_fields(answer_emoji_name, answer_emoji_id, answer_emoji_animated)
+    else:
+        emoji = None
+    
+    text_flag = ((answer_text is not None) << 1) | (emoji is not None)
+    if text_flag:
+        content_parts.append(should_add_next)
+        should_add_next = '\n'
+        
+        if text_flag & 0b01:
+            content_parts.append(emoji.as_emoji)
+        
+        if text_flag == 0b11:
+            content_parts.append(' ')
+        
+        if text_flag & 0b10:
+            content_parts.append(answer_text)
+    
+    
+    for field in embed.iter_fields():
+        if field.name == 'victor_answer_votes':
+            try:
+                winning_answer_votes = int(field.value)
+            except ValueError:
+                winning_answer_votes = -1
+            break
+    else:
+        winning_answer_votes = -1
+    
+    total_votes = -1
+    
+    for field in embed.iter_fields():
+        if field.name == 'total_votes':
+            try:
+                total_votes = int(field.value)
+            except ValueError:
+                pass
+            break
+    
+    if (winning_answer_votes != -1) and (total_votes != -1):
+        content_parts.append(should_add_next)
+        
+        if (winning_answer_votes == 0) and (total_votes == 0):
+            content_parts.append('There was no winner')
+        
+        else:
+            content_parts.append('Winning answer • ')
+            content_parts.append(format(winning_answer_votes * 100 / total_votes, '.0f'))
+            content_parts.append('%')
+    
+    
+    if content_parts:
+        return ''.join(content_parts)
+
+
+def convert_emoji_added_notification(self):
+    content = self.content
+    if content is None:
+        return
+    
+    # Parse and get the emoji, since the content is not updated when the emoji is, but the displayed content is.
+    emoji = parse_emoji(content)
+    if emoji is None:
+        return
+    
+    emoji_name_encapsulator = ':' if emoji.require_colons else ''
+    
+    user_name = self.author.name_at(self.guild_id)
+    if not self.author.can_use_emoji(emoji):
+        return f'{user_name!s} added a new emoji.'
+    
+    return (
+        f'{user_name!s} added a new emoji, {emoji.as_emoji!s} '
+        f'{emoji_name_encapsulator!s}{emoji.name!s}{emoji_name_encapsulator!s}'
+    )
+
+
+class MessageType(PreinstancedBase, value_type = int):
     """
     Represents a ``Message``'s type.
     
     Attributes
     ----------
-    name : `str`
-        The default name of the message type.
-    value : `int`
-        The Discord side identifier value of the message type.
     converter : `FunctionType`
         The converter function of the message type, what tries to convert the message's content to it's Discord side
         representation.
+    
     deletable : `bool`
         Whether the message with this type can be deleted.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`int`, ``MessageType``) items
-        Stores the predefined ``MessageType``-s. These can be accessed with their `value` as key.
-    VALUE_TYPE : `type` = `int`
-        The message types' values' type.
-    DEFAULT_NAME : `str` = `'Undefined'`
-        The default name of the message types.
+    name : `str`
+        The default name of the message type.
     
-    Every predefined message type can be accessed as class attribute as well:
+    value : `int`
+        The Discord side identifier value of the message type.
+    
+    Type Attributes
+    ---------------
+    Every predefined message type can be accessed as type attribute as well:
     
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
-    | Class attribute name                      | Name                                      | Value | Converter                                         | Deletable |
+    | Type attribute name                       | Name                                      | Value | Converter                                         | Deletable |
     +===========================================+===========================================+=======+===================================================+===========+
     | default                                   | default                                   | 0     | MESSAGE_DEFAULT_CONVERTER                         | true      |
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
@@ -468,15 +605,15 @@ class MessageType(PreinstancedBase):
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
     | premium_referral                          | premium referral                          | 35    | MESSAGE_DEFAULT_CONVERTER                         | true      |
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
-    | guild_incidents_enable                    | guild incidents enable                    | 36    | convert_guild_incidents_enable                    | false     |
+    | guild_incidents_enable                    | guild incidents enable                    | 36    | convert_guild_incidents_enable                    | true      |
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
-    | guild_incidents_disable                   | guild incidents disable                   | 37    | convert_guild_incidents_disable                   | false     |
+    | guild_incidents_disable                   | guild incidents disable                   | 37    | convert_guild_incidents_disable                   | true      |
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
-    | guild_incidents_report_raid               | guild incidents report raid               | 38    | MESSAGE_DEFAULT_CONVERTER                         | false     |
+    | guild_incidents_report_raid               | guild incidents report raid               | 38    | MESSAGE_DEFAULT_CONVERTER                         | true      |
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
-    | guild_incidents_report_false_alarm        | guild incidents report false alarm        | 39    | MESSAGE_DEFAULT_CONVERTER                         | false     |
+    | guild_incidents_report_false_alarm        | guild incidents report false alarm        | 39    | MESSAGE_DEFAULT_CONVERTER                         | true      |
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
-    | guild_chat_revive                         | guild chat revive                         | 40    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    | guild_channel_revive                      | guild channel revive                      | 40    | MESSAGE_DEFAULT_CONVERTER                         | true      |
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
     | custom_gift                               | custom gift                               | 41    | MESSAGE_DEFAULT_CONVERTER                         | true      |
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
@@ -486,77 +623,83 @@ class MessageType(PreinstancedBase):
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
     | purchase_notification                     | purchase notification                     | 44    | MESSAGE_DEFAULT_CONVERTER                         | false     |
     +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | voice_hangout_invite                      | voice hangout invite                      | 45    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | poll_result                               | poll result                               | 46    | convert_poll_result                               | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | changelog                                 | changelog                                 | 47    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | nitro_notification                        | nitro notification                        | 48    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | channel_linked_to_lobby                   | channel linked to lobby                   | 49    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | gifting_prompt                            | gifting prompt                            | 50    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | in_activity_message                       | in activity message                       | 51    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | guild_join_request_accept                 | guild join request accept                 | 52    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | guild_join_request_reject                 | guild join request reject                 | 53    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | guild_join_request_withdraw               | guild join request withdraw               | 54    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | streaming_quality_upgraded                | streaming quality upgraded                | 55    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | channel_wallpaper_set                     | channel wallpaper set                     | 56    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | channel_wallpaper_removed                 | channel wallpaper removed                 | 57    | MESSAGE_DEFAULT_CONVERTER                         | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | ???                                       | ???                                       | 58    | ???                                               | ???       |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | ???                                       | ???                                       | 59    | ???                                               | ???       |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | ???                                       | ???                                       | 60    | ???                                               | ???       |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | ???                                       | ???                                       | 61    | ???                                               | ???       |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | ???                                       | ???                                       | 62    | ???                                               | ???       |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
+    | emoji_added_notification                  | emoji added notification                  | 63    | convert_emoji_added_notification                  | true      |
+    +-------------------------------------------+-------------------------------------------+-------+---------------------------------------------------+-----------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    
     __slots__ = ('converter', 'deletable',)
     
-    @classmethod
-    def _from_value(cls, value):
+    def __new__(cls, value, name = None, converter = None, deletable = True):
         """
-        Creates a new message type with the given value.
-        
-        Parameters
-        ----------
-        value : `int`
-            The message type's identifier value.
-        
-        Returns
-        -------
-        self : ``MessageType``
-            The created instance.
-        """
-        self = object.__new__(cls)
-        self.name = cls.DEFAULT_NAME
-        self.value = value
-        self.converter = MESSAGE_DEFAULT_CONVERTER
-        self.deletable = True
-        
-        return self
-    
-    
-    def __init__(self, value, name, converter, deletable):
-        """
-        Creates an ``MessageType`` and stores it at the class's `.INSTANCES` class attribute as well.
+        Creates a new message type.
         
         Parameters
         ----------
         value : `int`
             The Discord side identifier value of the message type.
-        name : `str`
+        
+        name : `None | str` = `None`, Optional
             The default name of the message type.
-        converter : `FunctionType`
+        
+        converter : `None | FunctionType` = `None`, Optional
             The converter function of the message type.
-        deletable : `bool`
+        
+        deletable : `bool` = `True`, Optional
             Whether the message with this type can be deleted.
         """
-        self.value = value
-        self.name = name
+        if converter is None:
+            converter = MESSAGE_DEFAULT_CONVERTER
+        
+        self = PreinstancedBase.__new__(cls, value, name)
         self.converter = converter
         self.deletable = deletable
-        
-        self.INSTANCES[value] = self
+        return self
     
     
-    def __repr__(self):
-        """Returns the representation of the message type."""
-        repr_parts = ['<', self.__class__.__name__]
-        
-        repr_parts.append(' name = ')
-        repr_parts.append(repr(self.name))
-        
-        repr_parts.append(', value = ')
-        repr_parts.append(repr(self.value))
-        
+    @copy_docs(PreinstancedBase._put_repr_parts_into)
+    def _put_repr_parts_into(self, repr_parts):
+        # converter
         repr_parts.append(', converter = ')
         repr_parts.append(repr(self.converter))
         
+        # deletable
         repr_parts.append(', deletable = ')
         repr_parts.append(repr(self.deletable))
-        
-        repr_parts.append('>')
-        return ''.join(repr_parts)
     
     
     # predefined
@@ -610,62 +753,30 @@ class MessageType(PreinstancedBase):
     guild_incidents_disable = P(37, 'guild incidents disable', convert_guild_incidents_disable, False)
     guild_incidents_report_raid = P(38, 'guild incidents report raid', MESSAGE_DEFAULT_CONVERTER, False)
     guild_incidents_report_false_alarm = P(39, 'guild incidents report false alarm', MESSAGE_DEFAULT_CONVERTER, False)
-    guild_chat_revive = P(40, 'guild chat revive', MESSAGE_DEFAULT_CONVERTER, True)
+    guild_channel_revive = P(40, 'guild channel revive', MESSAGE_DEFAULT_CONVERTER, True)
     custom_gift = P(41, 'custom gif', MESSAGE_DEFAULT_CONVERTER, True)
     guild_gaming_stats = P(42, 'guild gaming stats', MESSAGE_DEFAULT_CONVERTER, True)
     poll = P(43, 'poll', MESSAGE_DEFAULT_CONVERTER, True)
     purchase_notification = P(44, 'purchase notification', convert_purchase_notification, False)
-
-
-    @class_property
-    def add_user(cls):
-        """
-        Deprecated and will be removed in 2023 November. Please use `.user_add` instead.
-        """
-        warnings.warn(
-            (
-                f'`{cls.__name__}.add_user` is deprecated and will be removed in 2023 November. '
-                f'Please use `.user_add` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return cls.user_add
-
-
-    @class_property
-    def remove_user(cls):
-        """
-        Deprecated and will be removed in 2023 November. Please use `.user_remove` instead.
-        """
-        warnings.warn(
-            (
-                f'`{cls.__name__}.remove_user` is deprecated and will be removed in 2023 November. '
-                f'Please use `.user_remove` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return cls.user_remove
-
-
-    @class_property
-    def application_subscription(cls):
-        """
-        Deprecated and will be removed in 2023 November. Please use `.application_guild_subscription` instead.
-        """
-        warnings.warn(
-            (
-                f'`{cls.__name__}.application_subscription` is deprecated and will be removed in 2023 November. '
-                f'Please use `.application_guild_subscription` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return cls.application_guild_subscription
+    voice_hangout_invite = P(45, 'voice hangout invite', MESSAGE_DEFAULT_CONVERTER, True)
+    poll_result = P(46, 'poll result', convert_poll_result, True)
+    changelog = P(47, 'changelog', MESSAGE_DEFAULT_CONVERTER, True)
+    nitro_notification = P(48, 'nitro notification', MESSAGE_DEFAULT_CONVERTER, True)
+    channel_linked_to_lobby = P(49, 'channel linked to lobby', MESSAGE_DEFAULT_CONVERTER, True)
+    gifting_prompt = P(50, 'gifting prompt', MESSAGE_DEFAULT_CONVERTER, True)
+    in_activity_message = P(51, 'in activity message', MESSAGE_DEFAULT_CONVERTER, True)
+    guild_join_request_accept = P(52, 'guild join request accept', MESSAGE_DEFAULT_CONVERTER, True)
+    guild_join_request_reject = P(53, 'guild join request reject', MESSAGE_DEFAULT_CONVERTER, True)
+    guild_join_request_withdraw = P(54, 'guild join request withdraw', MESSAGE_DEFAULT_CONVERTER, True)
+    streaming_quality_upgraded = P(55, 'streaming quality upgraded', MESSAGE_DEFAULT_CONVERTER, True)
+    channel_wallpaper_set = P(56, 'channel wallpaper set', MESSAGE_DEFAULT_CONVERTER, True)
+    channel_wallpaper_removed = P(57, 'channel wallpaper removed', MESSAGE_DEFAULT_CONVERTER, True)
+    # 58 ???
+    # 59 ???
+    # 60 ???
+    # 61 ???
+    # 62 ???
+    emoji_added_notification = P(63, 'emoji added notification', convert_emoji_added_notification)
 
 
 GENERIC_MESSAGE_TYPES = frozenset((
@@ -674,4 +785,6 @@ GENERIC_MESSAGE_TYPES = frozenset((
     MessageType.slash_command,
     MessageType.thread_started,
     MessageType.context_command,
+    MessageType.changelog,
+    MessageType.in_activity_message,
 ))

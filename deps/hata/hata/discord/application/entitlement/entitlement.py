@@ -1,18 +1,23 @@
 __all__ = ('Entitlement',)
 
+from scarletio import export
+
 from ...bases import DiscordEntity
-from ...core import ENTITLEMENTS
+from ...core import ENTITLEMENTS, SKUS
 from ...precreate_helpers import process_precreate_parameters_and_raise_extra
 
 from .fields import (
-    parse_application_id, parse_consumed, parse_deleted, parse_ends_at, parse_guild_id, parse_id, parse_sku_id,
-    parse_starts_at, parse_subscription_id, parse_type, parse_user_id, put_application_id_into, put_consumed_into,
-    put_deleted_into, put_ends_at_into, put_guild_id_into, put_id_into, put_owner_id_into, put_owner_type_into,
-    put_sku_id_into, put_starts_at_into, put_subscription_id_into, put_type_into, put_user_id_into,
-    validate_application_id, validate_consumed, validate_deleted, validate_ends_at, validate_guild_id, validate_id,
-    validate_sku_id, validate_starts_at, validate_subscription_id, validate_type, validate_user_id
+    parse_application_id, parse_consumed, parse_deleted, parse_ends_at, parse_gift_code_flags, parse_guild_id, parse_id,
+    parse_promotion_id, parse_sku, parse_sku_id, parse_source_type, parse_starts_at, parse_subscription_id, parse_type,
+    parse_user_id, put_application_id, put_consumed, put_deleted, put_ends_at, put_gift_code_flags, put_guild_id,
+    put_id, put_owner_id, put_owner_type, put_promotion_id, put_sku, put_sku_id, put_source_type, put_starts_at,
+    put_subscription_id, put_type, put_user_id, validate_application_id, validate_consumed, validate_deleted,
+    validate_ends_at, validate_gift_code_flags, validate_guild_id, validate_id, validate_promotion_id, validate_sku,
+    validate_sku_id, validate_source_type, validate_starts_at, validate_subscription_id, validate_type,
+    validate_user_id
 )
-from .preinstanced import EntitlementOwnerType, EntitlementType
+from .flags import GiftCodeFlag
+from .preinstanced import EntitlementOwnerType, EntitlementSourceType, EntitlementType
 
 
 PRECREATE_FIELDS = {
@@ -22,9 +27,12 @@ PRECREATE_FIELDS = {
     'deleted': ('deleted', validate_deleted),
     'ends_at': ('ends_at', validate_ends_at),
     'entitlement_type': ('type', validate_type),
+    'gift_code_flags': ('gift_code_flags', validate_gift_code_flags),
     'guild': ('guild_id', validate_guild_id),
     'guild_id': ('guild_id', validate_guild_id),
-    'sku': ('sku_id', validate_sku_id),
+    'promotion_id': ('promotion_id', validate_promotion_id),
+    'source_type': ('source_type', validate_source_type),
+    'sku': ('sku', validate_sku),
     'sku_id': ('sku_id', validate_sku_id),
     'starts_at': ('starts_at', validate_starts_at),
     'subscription': ('subscription_id', validate_subscription_id),
@@ -34,12 +42,16 @@ PRECREATE_FIELDS = {
 }
 
 
+@export
 class Entitlement(DiscordEntity):
     """
     Represent that a user or guild has access to a premium offer.
     
     Attributes
     ----------
+    _sku : ``None | SKU``
+        The stock keeping unit the entitlement grants access to.
+    
     application_id : `int`
         The entitlement's owner application's identifier.
     
@@ -53,11 +65,20 @@ class Entitlement(DiscordEntity):
     ends_at : `None | DateTime`
         When the entitlement ends.
     
+    gift_code_flags : ``GiftCodeFlag``
+        The flags of the gift code the entitlement is created from.
+    
     guild_id : `int`
         The guild's identifier that was granted access to the stock keeping unit.
     
     id : `int`
         The unique identifier number of the entitlement.
+    
+    promotion_id : `int`
+        The identifier of the promotion the entitlement is from.
+    
+    source_type : ``EntitlementSourceType``
+        Where the entitlement is from.
     
     sku_id : `int`
         The stock keeping unit's identifier the this entitlement grants access to.
@@ -79,8 +100,8 @@ class Entitlement(DiscordEntity):
     Entitlement instances are weakreferable.
     """
     __slots__ = (
-        '__weakref__', 'application_id', 'consumed', 'deleted', 'ends_at', 'guild_id', 'sku_id', 'starts_at',
-        'subscription_id', 'type', 'user_id'
+        '__weakref__', '_sku', 'application_id', 'consumed', 'deleted', 'ends_at', 'guild_id', 'gift_code_flags',
+        'promotion_id', 'source_type', 'sku_id', 'starts_at', 'subscription_id', 'type', 'user_id'
     )
     
     def __new__(cls, *, guild_id = ..., sku_id = ..., user_id = ...):
@@ -89,13 +110,13 @@ class Entitlement(DiscordEntity):
         
         Parameters
         ----------
-        guild_id : `int`, ``Guild``, Optional (Keyword only)
+        guild_id : ``None | int | Guild``, Optional (Keyword only)
             The guild's identifier that was granted access to the stock keeping unit.
     
-        sku_id : `int`, ``SKU``, Optional (Keyword only)
+        sku_id : ``None | int | SKU``, Optional (Keyword only)
             The stock keeping unit's identifier the this entitlement grants access to.
         
-        user_id : `int`, ``ClientUserBase``, Optional (Keyword only)
+        user_id : ``None | int | ClientUserBase``, Optional (Keyword only)
             The user's identifier that was granted access to the stock keeping unit.
         
         Raises
@@ -125,12 +146,16 @@ class Entitlement(DiscordEntity):
         
         # Construct
         self = object.__new__(cls)
+        self._sku = None
         self.application_id = 0
         self.consumed = False
         self.deleted = False
         self.ends_at = None
+        self.gift_code_flags = GiftCodeFlag()
         self.guild_id = guild_id
         self.id = 0
+        self.promotion_id = 0
+        self.source_type = EntitlementSourceType.none
         self.sku_id = sku_id
         self.starts_at = None
         self.subscription_id = 0
@@ -142,7 +167,7 @@ class Entitlement(DiscordEntity):
     @classmethod
     def from_data(cls, data):
         """
-        Creates a new entitlement.
+        Creates a new entitlement from the given data.
         
         Parameters
         ----------
@@ -181,7 +206,7 @@ class Entitlement(DiscordEntity):
         Returns
         -------
         new : `instance<cls>`
-        is_created : `bool`
+        created : `bool`
         """
         entitlement_id = parse_id(data)
         
@@ -192,12 +217,12 @@ class Entitlement(DiscordEntity):
             self.id = entitlement_id
             self._set_attributes(data)
             ENTITLEMENTS[entitlement_id] = self
-            is_created = True
+            created = True
         else:
             self._set_attributes(data)
-            is_created = False
+            created = False
         
-        return self, is_created
+        return self, created
     
     
     def _set_attributes(self, data):
@@ -209,8 +234,12 @@ class Entitlement(DiscordEntity):
         data : `dict<str, object>`
             Entitlement data.
         """
+        self._sku = parse_sku(data)
         self.application_id = parse_application_id(data)
+        self.gift_code_flags = parse_gift_code_flags(data)
         self.guild_id = parse_guild_id(data)
+        self.promotion_id = parse_promotion_id(data)
+        self.source_type = parse_source_type(data)
         self.sku_id = parse_sku_id(data)
         self.subscription_id = parse_subscription_id(data)
         self.type = parse_type(data)
@@ -246,7 +275,7 @@ class Entitlement(DiscordEntity):
         
         Returns
         -------
-        old_attributes : `dict` of (`str`, `object`) items
+        old_attributes : `dict<str, object>`
             The updated attributes.
             
             The returned dictionary might contain the following items:
@@ -258,9 +287,9 @@ class Entitlement(DiscordEntity):
             +---------------------------+-----------------------------------------------+
             | deleted                   | `bool`                                        |
             +---------------------------+-----------------------------------------------+
-            | ends_at                   | `None`, `DateTime`                            |
+            | ends_at                   | `None | DateTime`                             |
             +---------------------------+-----------------------------------------------+
-            | starts_at                 | `None`, `DateTime`                            |
+            | starts_at                 | `None | DateTime`                             |
             +---------------------------+-----------------------------------------------+
         """
         old_attributes = {}
@@ -306,26 +335,30 @@ class Entitlement(DiscordEntity):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
         
-        put_sku_id_into(self.sku_id, data, defaults)
+        put_sku_id(self.sku_id, data, defaults)
         
         if include_internals:
-            put_application_id_into(self.application_id, data, defaults)
-            put_consumed_into(self.consumed, data, defaults)
-            put_deleted_into(self.deleted, data, defaults)
-            put_ends_at_into(self.ends_at, data, defaults)
-            put_guild_id_into(self.guild_id, data, defaults)
-            put_id_into(self.id, data, defaults)
-            put_starts_at_into(self.starts_at, data, defaults)
-            put_subscription_id_into(self.subscription_id, data, defaults)
-            put_type_into(self.type, data, defaults)
-            put_user_id_into(self.user_id, data, defaults)
+            put_application_id(self.application_id, data, defaults)
+            put_consumed(self.consumed, data, defaults)
+            put_deleted(self.deleted, data, defaults)
+            put_ends_at(self.ends_at, data, defaults)
+            put_gift_code_flags(self.gift_code_flags, data, defaults)
+            put_guild_id(self.guild_id, data, defaults)
+            put_id(self.id, data, defaults)
+            put_promotion_id(self.promotion_id, data, defaults)
+            put_sku(self._sku, data, defaults)
+            put_source_type(self.source_type, data, defaults)
+            put_starts_at(self.starts_at, data, defaults)
+            put_subscription_id(self.subscription_id, data, defaults)
+            put_type(self.type, data, defaults)
+            put_user_id(self.user_id, data, defaults)
         else:
-            put_owner_id_into(self.owner_id, data, defaults)
-            put_owner_type_into(self.owner_type, data, defaults)
+            put_owner_id(self.owner_id, data, defaults)
+            put_owner_type(self.owner_type, data, defaults)
         
         return data
     
@@ -345,12 +378,16 @@ class Entitlement(DiscordEntity):
         self : `instance<cls>`
         """
         self = object.__new__(cls)
+        self._sku = None
         self.application_id = 0
         self.consumed = False
         self.deleted = False
         self.ends_at = None
+        self.gift_code_flags = GiftCodeFlag()
         self.guild_id = 0
         self.id = entitlement_id
+        self.promotion_id = 0
+        self.source_type = EntitlementSourceType.none
         self.sku_id = 0
         self.starts_at = None
         self.subscription_id = 0
@@ -374,49 +411,58 @@ class Entitlement(DiscordEntity):
         
         Other Parameters
         ----------------
-        application : `int`, ``Application``, Optional (Keyword only)
+        application : ``None | int | Application``, Optional (Keyword only)
             Alternative for `application_id`.
         
-        application_id : `int`, ``Application``, Optional (Keyword only)
+        application_id : ``None | int | Application``, Optional (Keyword only)
             The entitlement's owner application's identifier.
         
-        consumed : `bool`, Optional (Keyword only)
+        consumed : `None | bool`, Optional (Keyword only)
             Whether the entitlement is already consumed.
         
-        deleted : `bool`, Optional (Keyword only)
+        deleted : `None | bool`, Optional (Keyword only)
             Whether the entitlement is deleted.
         
-        ends_at : `None`, `DateTime`, Optional (Keyword only)
+        ends_at : `None | DateTime`, Optional (Keyword only)
             When the entitlement ends.
         
-        entitlement_type : ``EntitlementType``, `int`, Optional (Keyword only)
+        entitlement_type : ``None | int | EntitlementType``, Optional (Keyword only)
             The entitlement's type.
         
-        guild : `int`, ``Guild``, Optional (Keyword only)
+        gift_code_flags : ``None | int | GiftCodeFlag``, Optional (Keyword only)
+            The flags of the gift code the entitlement is created from.
+        
+        guild : ``None | int | Guild``, Optional (Keyword only)
             Alternative for `guild_id`.
         
-        guild_id : `int`, ``Guild``, Optional (Keyword only)
+        guild_id : ``None | int | Guild``, Optional (Keyword only)
             The guild's identifier that was granted access to the stock keeping unit.
         
-        sku : `int`, ``SKU``, Optional (Keyword only)
-            Alternative for `sku_id`.
+        promotion_id : `int`, Optional (Keyword only)
+            The identifier of the promotion the entitlement is from.
         
-        sku_id : `int`, ``SKU``, Optional (Keyword only)
+        source_type : ``None | int | EntitlementSourceType``, Optional (Keyword only)
+            Where the entitlement is from.
+        
+        sku : ``None | SKU``, Optional (Keyword only)
+            The stock keeping unit the entitlement grants access to.
+        
+        sku_id : ``None | int | SKU``, Optional (Keyword only)
             The stock keeping unit's identifier the this entitlement grants access to.
     
-        starts_at : `None`, `DateTime`, Optional (Keyword only)
+        starts_at : `None | DateTime`, Optional (Keyword only)
             When the entitlement starts.
         
-        subscription : `int`, Optional (Keyword only)
+        subscription : `None | int`, Optional (Keyword only)
             Alternative for `subscription_id`.
         
-        subscription_id : `int`, Optional (Keyword only)
+        subscription_id : `None | int`, Optional (Keyword only)
             The subscription's identifier the entitlement is part of.
         
-        user : `int`, ``ClientUserBase``, Optional (Keyword only)
+        user : ``None | int | ClientUserBase``, Optional (Keyword only)
             Alternative for `user_id`.
         
-        user_id : `int`, ``ClientUserBase``, Optional (Keyword only)
+        user_id : ``None | int | ClientUserBase``, Optional (Keyword only)
             The user's identifier that was granted access to the stock keeping unit.
         
         Returns
@@ -452,7 +498,7 @@ class Entitlement(DiscordEntity):
     
     def __repr__(self):
         """Returns the entitlement's representation."""
-        repr_parts = ['<', self.__class__.__name__]
+        repr_parts = ['<', type(self).__name__]
         
         entitlement_id = self.id
         if entitlement_id:
@@ -502,14 +548,19 @@ class Entitlement(DiscordEntity):
             if self.id != other.id:
                 return False
         
+        # _sku -> ignore, internal
         # application_id -> ignore, internal
         # consumed -> ignore, internal
         # deleted -> ignore, internal
         # ends_at -> ignore, internal
+        # gift_code_flags -> ignore, internal
         
         # guild_id
         if self.guild_id != other.guild_id:
             return False
+        
+        # promotion_id -> ignore, internal
+        # source_type -> ignore, internal
         
         # sku_id
         if self.sku_id != other.sku_id:
@@ -547,15 +598,19 @@ class Entitlement(DiscordEntity):
         """
         hash_value = 0
         
+        # _sku -> ignore, internal
         # application_id -> ignore, internal
         # consumed -> ignore, internal
         # deleted -> ignore, internal
         # ends_at -> ignore, internal
+        # gift_code_flags -> ignore, internal
         
         # guild_id
         hash_value ^= self.guild_id
         
         # id -> ignore, internal
+        # promotion_id -> ignore, internal
+        # source_type -> ignore, internal
         
         # sku_id
         hash_value ^= self.sku_id
@@ -579,12 +634,16 @@ class Entitlement(DiscordEntity):
         new : `instance<type<self>>`
         """
         new = object.__new__(type(self))
+        new._sku = None
         new.application_id = 0
         new.consumed = False
         new.deleted = False
         new.ends_at = None
+        new.gift_code_flags = GiftCodeFlag()
         new.guild_id = self.guild_id
         new.id = 0
+        new.promotion_id = 0
+        new.source_type = EntitlementSourceType.none
         new.sku_id = self.sku_id
         new.starts_at = None
         new.subscription_id = 0
@@ -599,13 +658,13 @@ class Entitlement(DiscordEntity):
         
         Parameters
         ----------
-        guild_id : `int`, ``Guild``, Optional (Keyword only)
+        guild_id : ``None | int | Guild``, Optional (Keyword only)
             The guild's identifier that was granted access to the stock keeping unit.
     
-        sku_id : `int`, ``SKU``, Optional (Keyword only)
+        sku_id : ``None | int | SKU``, Optional (Keyword only)
             The stock keeping unit's identifier the this entitlement grants access to.
         
-        user_id : `int`, ``ClientUserBase``, Optional (Keyword only)
+        user_id : ``None | int | ClientUserBase``, Optional (Keyword only)
             The user's identifier that was granted access to the stock keeping unit.
         
         Returns
@@ -639,12 +698,16 @@ class Entitlement(DiscordEntity):
         
         # Construct
         new = object.__new__(type(self))
+        new._sku = None
         new.application_id = 0
         new.consumed = False
         new.deleted = False
         new.ends_at = None
+        new.gift_code_flags = GiftCodeFlag()
         new.guild_id = guild_id
         new.id = 0
+        new.promotion_id = 0
+        new.source_type = EntitlementSourceType.none
         new.sku_id = sku_id
         new.starts_at = None
         new.subscription_id = 0
@@ -695,10 +758,34 @@ class Entitlement(DiscordEntity):
         -------
         owner_type : ``EntitlementOwnerType``
         """
-        if  self.guild_id:
+        if self.guild_id:
             return EntitlementOwnerType.guild
         
         if self.user_id:
             return EntitlementOwnerType.user
         
         return EntitlementOwnerType.none
+    
+    
+    @property
+    def sku(self):
+        sku = self._sku
+        if (sku is not None):
+            return sku
+        
+        sku_id = self.sku_id
+        if not sku_id:
+            return None
+        
+        try:
+            sku = SKUS[sku_id]
+        except KeyError:
+            return None
+        
+        self._sku = sku
+        return sku
+    
+    @sku.setter
+    def sku(self, sku):
+        self._sku = sku
+        self.sku_id = 0 if (sku is None) else sku.id 

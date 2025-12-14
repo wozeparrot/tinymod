@@ -1,13 +1,10 @@
 __all__ = ('SlashParameter', )
 
-import reprlib
 from enum import Enum
 
-from scarletio import CallableAnalyzer, RichAttributeErrorBaseType, copy_docs, include, un_map_pack
+from scarletio import CallableAnalyzer, RichAttributeErrorBaseType
 
-from ...discord.application_command import (
-    ApplicationCommandOption, ApplicationCommandOptionChoice, ApplicationCommandOptionType
-)
+from ...discord.application_command import ApplicationCommandOptionType
 from ...discord.application_command.application_command.constants import (
     DESCRIPTION_LENGTH_MAX as APPLICATION_COMMAND_DESCRIPTION_LENGTH_MAX,
     DESCRIPTION_LENGTH_MIN as APPLICATION_COMMAND_DESCRIPTION_LENGTH_MIN,
@@ -20,29 +17,31 @@ from ...discord.application_command.application_command_option_metadata.constant
 from ...discord.application_command.application_command_option_metadata.fields import (
     validate_max_length, validate_min_length
 )
-from ...discord.channel import Channel, ChannelType
+from ...discord.channel import ChannelType
 from ...discord.client import Client
 from ...discord.core import CHANNELS, ROLES
 from ...discord.exceptions import DiscordException, ERROR_CODES
 from ...discord.interaction import InteractionEvent, InteractionType
 from ...discord.message import Attachment
-from ...discord.role import Role
-from ...discord.user import ClientUserBase, User, UserBase
 
-from .exceptions import SlashCommandParameterConversionError
+from .converter_constants import (
+    ANNOTATION_NAMES_CLIENT, ANNOTATION_NAMES_INTERACTION_EVENT, ANNOTATION_TYPE_ATTACHMENT, ANNOTATION_TYPE_BOOL,
+    ANNOTATION_TYPE_CHANNEL, ANNOTATION_TYPE_CHANNEL_ID, ANNOTATION_TYPE_EXPRESSION, ANNOTATION_TYPE_FLOAT,
+    ANNOTATION_TYPE_INT, ANNOTATION_TYPE_MENTIONABLE, ANNOTATION_TYPE_MENTIONABLE_ID, ANNOTATION_TYPE_NUMBER,
+    ANNOTATION_TYPE_ROLE, ANNOTATION_TYPE_ROLE_ID, ANNOTATION_TYPE_SELF_CLIENT, ANNOTATION_TYPE_SELF_INTERACTION_EVENT,
+    ANNOTATION_TYPE_SELF_TARGET, ANNOTATION_TYPE_SELF_VALUE, ANNOTATION_TYPE_STR, ANNOTATION_TYPE_TO_OPTION_TYPE,
+    ANNOTATION_TYPE_TO_REPRESENTATION, ANNOTATION_TYPE_TO_STR_ANNOTATION, ANNOTATION_TYPE_USER, ANNOTATION_TYPE_USER_ID,
+    INTERNAL_ANNOTATION_TYPES, STR_ANNOTATION_TO_ANNOTATION_TYPE, TYPE_ANNOTATION_TO_ANNOTATION_TYPE
+)
 from .expression_parser import evaluate_text
+from .parameter_converters.form_field_keyword import ParameterConverterFormFieldKeyword
+from .parameter_converters.form_field_multi import ParameterConverterFormFieldMulti
+from .parameter_converters.internal import ParameterConverterInternal
+from .parameter_converters.message_component_keyword import ParameterConverterMessageComponentKeyword
+from .parameter_converters.regex import ParameterConverterRegex
+from .parameter_converters.slash_command import ParameterConverterSlashCommand
 from .utils import normalize_description, raw_name_to_display
 
-
-try:
-    # CPython
-    from re import Pattern
-except ImportError:
-    # ChadPython (PyPy)
-    from re import _pattern_type as Pattern
-
-SlashCommandParameterAutoCompleter = include('SlashCommandParameterAutoCompleter')
-APPLICATION_COMMAND_FUNCTION_DEEPNESS = include('APPLICATION_COMMAND_FUNCTION_DEEPNESS')
 
 INTERACTION_TYPE_APPLICATION_COMMAND = InteractionType.application_command
 INTERACTION_TYPE_APPLICATION_COMMAND_AUTOCOMPLETE = InteractionType.application_command_autocomplete
@@ -156,7 +155,7 @@ async def converter_int(client, interaction_event, value):
     
     Returns
     -------
-    value : `None`, `int`
+    value : `None | int`
         If conversion fails, then returns `None`.
     """
     if not isinstance(value, int):
@@ -323,7 +322,7 @@ async def converter_user(client, interaction_event, value):
     
     Returns
     -------
-    user : `None`, ``ClientUserBase``
+    user : ``None | ClientUserBase``
         If conversion fails, then returns `None`.
     """
     user_id = await converter_snowflake(client, interaction_event, value)
@@ -389,7 +388,7 @@ async def converter_channel(client, interaction_event, value):
     
     Returns
     -------
-    value : `None`, ``Channel``
+    value : ``None | Channel``
         If conversion fails, then returns `None`.
     """
     channel_id = await converter_snowflake(client, interaction_event, value)
@@ -453,265 +452,6 @@ async def converter_expression(client, interaction_event, value):
     return evaluate_text(value)
 
 
-ANNOTATION_TYPE_STR = 1
-ANNOTATION_TYPE_INT = 2
-ANNOTATION_TYPE_BOOL = 3
-ANNOTATION_TYPE_USER = 4
-ANNOTATION_TYPE_USER_ID = 5
-ANNOTATION_TYPE_ROLE = 6
-ANNOTATION_TYPE_ROLE_ID = 7
-ANNOTATION_TYPE_CHANNEL = 8
-ANNOTATION_TYPE_CHANNEL_ID = 9
-ANNOTATION_TYPE_NUMBER = 10
-ANNOTATION_TYPE_MENTIONABLE = 11
-ANNOTATION_TYPE_MENTIONABLE_ID = 12
-ANNOTATION_TYPE_SELF_CLIENT = 13
-ANNOTATION_TYPE_SELF_INTERACTION_EVENT = 14
-ANNOTATION_TYPE_EXPRESSION = 15
-ANNOTATION_TYPE_FLOAT = 16
-ANNOTATION_TYPE_SELF_TARGET = 17
-ANNOTATION_TYPE_SELF_VALUE = 18
-ANNOTATION_TYPE_ATTACHMENT = 19
-
-ANNOTATION_NAMES_CLIENT = frozenset((
-    'c',
-    'client',
-))
-
-ANNOTATION_NAMES_INTERACTION_EVENT = frozenset((
-    'e',
-    'event',
-    'interaction_event',
-))
-
-ANNOTATION_NAMES_TARGET = frozenset((
-    't',
-    'target',
-))
-
-
-ANNOTATION_NAMES_VALUE = frozenset((
-    'v',
-    'val',
-    'value',
-))
-
-CHANNEL_TYPES_FORBIDDEN = (
-    ChannelType.unknown,
-    ChannelType.thread,
-)
-
-CHANNEL_TYPES_GROUP_GUILD = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.guild
-)
-CHANNEL_TYPES_GUILD_CATEGORY = (ChannelType.guild_category, )
-CHANNEL_TYPES_GUILD_DIRECTORY = (ChannelType.guild_directory, )
-CHANNEL_TYPES_GUILD_STORE = (ChannelType.guild_store, )
-CHANNEL_TYPES_GUILD_SYSTEM = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.guild_system
-)
-CHANNEL_TYPES_GUILD_TEXT = (ChannelType.guild_text, )
-CHANNEL_TYPES_GUILD_ANNOUNCEMENTS = (ChannelType.guild_announcements, )
-CHANNEL_TYPES_GUILD_CONNECTABLE = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.guild and channel_type.flags.connectable
-)
-CHANNEL_TYPES_GUILD_VOICE = (ChannelType.guild_voice, )
-CHANNEL_TYPES_GUILD_STAGE = (ChannelType.guild_stage, )
-CHANNEL_TYPES_GROUP_PRIVATE = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.private
-)
-CHANNEL_TYPES_PRIVATE = (ChannelType.private, )
-CHANNEL_TYPES_PRIVATE_GROUP = (ChannelType.private_group, )
-CHANNEL_TYPES_GROUP_THREAD = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.thread
-)
-CHANNEL_TYPES_THREAD_ANNOUNCEMENTS = (ChannelType.guild_thread_announcements, )
-CHANNEL_TYPES_THREAD_PUBLIC = (ChannelType.guild_thread_public, )
-CHANNEL_TYPES_THREAD_PRIVATE = (ChannelType.guild_thread_private, )
-CHANNEL_TYPES_GROUP_TEXTUAL = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.textual
-)
-CHANNEL_TYPES_GROUP_GUILD_TEXTUAL = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.guild and channel_type.flags.textual
-)
-CHANNEL_TYPES_GROUP_CONNECTABLE = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.connectable
-)
-CHANNEL_TYPES_GROUP_THREADABLE = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.threadable
-)
-CHANNEL_TYPES_GUILD_FORUM = (ChannelType.guild_forum, )
-CHANNEL_TYPES_GUILD_MEDIA = (ChannelType.guild_media, )
-
-CHANNEL_TYPES_GROUP_FORUM = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.forum
-)
-
-CHANNEL_TYPES_GROUP_INVITABLE = tuple(
-    channel_type for channel_type in ChannelType.INSTANCES.values()
-    if (channel_type not in CHANNEL_TYPES_FORBIDDEN) and channel_type.flags.invitable
-)
-
-STR_ANNOTATION_TO_ANNOTATION_TYPE = {
-    # Generic
-    'str': (ANNOTATION_TYPE_STR, None),
-    'int': (ANNOTATION_TYPE_INT, None),
-    'bool': (ANNOTATION_TYPE_BOOL, None),
-    'user': (ANNOTATION_TYPE_USER, None),
-    'user_id': (ANNOTATION_TYPE_USER_ID, None),
-    'role': (ANNOTATION_TYPE_ROLE, None),
-    'role_id': (ANNOTATION_TYPE_ROLE_ID, None),
-    'channel': (ANNOTATION_TYPE_CHANNEL, None),
-    'channel_id': (ANNOTATION_TYPE_CHANNEL_ID, None),
-    'number': (ANNOTATION_TYPE_NUMBER, None),
-    'mentionable': (ANNOTATION_TYPE_MENTIONABLE, None),
-    'mentionable_id': (ANNOTATION_TYPE_MENTIONABLE_ID, None),
-    'expression': (ANNOTATION_TYPE_EXPRESSION, None),
-    'float': (ANNOTATION_TYPE_FLOAT, None),
-    'attachment': (ANNOTATION_TYPE_ATTACHMENT, None),
-    
-    # Channel type specific
-    # - by channel name
-    f'{"channel"}{"guild"}{"base"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_GUILD),
-    f'{"channel"}{"guild"}{"main"}{"base"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_GUILD),
-    f'{"channel"}{"category"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_CATEGORY),
-    f'{"channel"}{"directory"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_DIRECTORY),
-    f'{"channel"}{"store"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_STORE),
-    f'{"channel"}{"text"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_SYSTEM),
-    f'{"channel"}{"voice"}{"base"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_CONNECTABLE),
-    f'{"channel"}{"voice"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_VOICE),
-    f'{"channel"}{"stage"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_STAGE),
-    f'{"channel"}{"private"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_PRIVATE),
-    f'{"channel"}{"group"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_PRIVATE_GROUP),
-    f'{"channel"}{"thread"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_THREAD),
-    f'{"channel"}{"text"}{"base"}': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_GUILD_TEXTUAL),
-    f'{"channel"}{"forum"}':(ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_FORUM),
-    f'{"channel"}{"media"}':(ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_MEDIA),
-    f'{"channel"}{"forum"}{"base"}':(ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_FORUM),
-    # - by generic name
-    'channel_guild_text': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_TEXT),
-    'channel_private': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_PRIVATE),
-    'channel_guild_voice': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_VOICE),
-    'channel_private_group': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_PRIVATE_GROUP),
-    'channel_guild_category': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_CATEGORY),
-    'channel_guild_announcements': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_ANNOUNCEMENTS),
-    'channel_guild_store': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_STORE),
-    'channel_guild_thread_announcements': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_THREAD_ANNOUNCEMENTS),
-    'channel_guild_thread_public': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_THREAD_PUBLIC),
-    'channel_guild_thread_private': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_THREAD_PRIVATE),
-    'channel_guild_stage': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_STAGE),
-    'channel_guild_directory': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_DIRECTORY),
-    'channel_group_messageable': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_TEXTUAL),
-    'channel_group_guild_messageable': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_GUILD_TEXTUAL),
-    'channel_group_guild_main_text': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_SYSTEM),
-    'channel_group_connectable': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_CONNECTABLE),
-    'channel_group_private': (ANNOTATION_TYPE_CHANNEL, ),
-    'channel_group_guild_connectable': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_CONNECTABLE),
-    'channel_group_guild': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_GUILD),
-    'channel_group_thread': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_THREAD),
-    'channel_group_can_contain_threads': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_THREADABLE),
-    'channel_guild_forum': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_FORUM),
-    'channel_guild_media': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GUILD_MEDIA),
-    'channel_group_forum': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_FORUM),
-    'channel_group_invitable': (ANNOTATION_TYPE_CHANNEL, CHANNEL_TYPES_GROUP_INVITABLE),
-    # - id + by generic name
-    'channel_id_guild_text': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_TEXT),
-    'channel_id_private': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_PRIVATE),
-    'channel_id_guild_voice': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_VOICE),
-    'channel_id_private_group': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_PRIVATE_GROUP),
-    'channel_id_guild_category': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_CATEGORY),
-    'channel_id_guild_announcements': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_ANNOUNCEMENTS),
-    'channel_id_guild_store': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_STORE),
-    'channel_id_guild_thread_announcements': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_THREAD_ANNOUNCEMENTS),
-    'channel_id_guild_thread_public': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_THREAD_PUBLIC),
-    'channel_id_guild_thread_private': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_THREAD_PRIVATE),
-    'channel_id_guild_stage': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_STAGE),
-    'channel_id_guild_directory': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_DIRECTORY),
-    'channel_id_group_messageable': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GROUP_TEXTUAL),
-    'channel_id_group_guild_messageable': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GROUP_GUILD_TEXTUAL),
-    'channel_id_group_guild_main_text': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_SYSTEM),
-    'channel_id_group_connectable': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GROUP_CONNECTABLE),
-    'channel_id_group_private': (ANNOTATION_TYPE_CHANNEL_ID, ),
-    'channel_id_group_guild_connectable': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_CONNECTABLE),
-    'channel_id_group_guild': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GROUP_GUILD),
-    'channel_id_group_thread': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GROUP_THREAD),
-    'channel_id_group_can_contain_threads': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GROUP_THREADABLE),
-    'channel_id_guild_forum': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_FORUM),
-    'channel_id_guild_media': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GUILD_MEDIA),
-    'channel_id_group_forum': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GROUP_FORUM),
-    'channel_id_group_invitable': (ANNOTATION_TYPE_CHANNEL_ID, CHANNEL_TYPES_GROUP_INVITABLE),
-    
-    # Internal
-    **un_map_pack((
-        (name, (ANNOTATION_TYPE_SELF_CLIENT, None))
-        for name in ANNOTATION_NAMES_CLIENT
-    )),
-    **un_map_pack((
-        (name, (ANNOTATION_TYPE_SELF_INTERACTION_EVENT, None))
-        for name in ANNOTATION_NAMES_INTERACTION_EVENT
-    )),
-    **un_map_pack((
-        (name, (ANNOTATION_TYPE_SELF_TARGET, None))
-        for name in ANNOTATION_NAMES_TARGET
-    )),
-    **un_map_pack((
-        (name, (ANNOTATION_TYPE_SELF_VALUE, None))
-        for name in ANNOTATION_NAMES_VALUE
-    )),
-}
-
-# Used at repr
-ANNOTATION_TYPE_TO_STR_ANNOTATION = {
-    ANNOTATION_TYPE_STR: 'str',
-    ANNOTATION_TYPE_INT: 'int',
-    ANNOTATION_TYPE_BOOL: 'bool',
-    ANNOTATION_TYPE_USER: 'user',
-    ANNOTATION_TYPE_USER_ID: 'user_id',
-    ANNOTATION_TYPE_ROLE: 'role',
-    ANNOTATION_TYPE_ROLE_ID: 'role_id',
-    ANNOTATION_TYPE_CHANNEL: 'channel',
-    ANNOTATION_TYPE_CHANNEL_ID: 'channel_id',
-    ANNOTATION_TYPE_NUMBER: 'number',
-    ANNOTATION_TYPE_MENTIONABLE: 'mentionable',
-    ANNOTATION_TYPE_MENTIONABLE_ID : 'mentionable_id',
-    ANNOTATION_TYPE_EXPRESSION: 'expression',
-    ANNOTATION_TYPE_FLOAT: 'float',
-    ANNOTATION_TYPE_ATTACHMENT : 'attachment',
-    
-    ANNOTATION_TYPE_SELF_CLIENT: 'client',
-    ANNOTATION_TYPE_SELF_INTERACTION_EVENT: 'interaction_event',
-    ANNOTATION_TYPE_SELF_TARGET: 'target',
-    ANNOTATION_TYPE_SELF_VALUE: 'value',
-}
-
-TYPE_ANNOTATION_TO_ANNOTATION_TYPE = {
-    # Generic
-    str: (ANNOTATION_TYPE_STR, None),
-    int: (ANNOTATION_TYPE_INT, None),
-    bool: (ANNOTATION_TYPE_BOOL, None),
-    ClientUserBase: (ANNOTATION_TYPE_USER, None),
-    UserBase: (ANNOTATION_TYPE_USER, None),
-    User: (ANNOTATION_TYPE_USER, None),
-    Role: (ANNOTATION_TYPE_ROLE, None),
-    Channel: (ANNOTATION_TYPE_CHANNEL, None),
-    float: (ANNOTATION_TYPE_FLOAT, None),
-    Attachment: (ANNOTATION_TYPE_ATTACHMENT, None),
-    
-    # Internal
-    Client: (ANNOTATION_TYPE_SELF_CLIENT, None),
-    InteractionEvent: (ANNOTATION_TYPE_SELF_INTERACTION_EVENT, None),
-}
-
 ANNOTATION_TYPE_TO_CONVERTER = {
     ANNOTATION_TYPE_STR: (converter_str, False),
     ANNOTATION_TYPE_INT: (converter_int, False),
@@ -735,62 +475,36 @@ ANNOTATION_TYPE_TO_CONVERTER = {
     ANNOTATION_TYPE_SELF_VALUE: (converter_self_interaction_value, True)
 }
 
-INTERNAL_ANNOTATION_TYPES = frozenset((
-    ANNOTATION_TYPE_SELF_CLIENT,
-    ANNOTATION_TYPE_SELF_INTERACTION_EVENT,
-))
-
-# `int` Discord fields are broken and they are refusing to fix it, use string instead.
-# Reference: https://github.com/discord/discord-api-docs/issues/2448
-ANNOTATION_TYPE_TO_OPTION_TYPE = {
-    ANNOTATION_TYPE_STR: ApplicationCommandOptionType.string,
-    ANNOTATION_TYPE_INT: ApplicationCommandOptionType.string,
-    ANNOTATION_TYPE_BOOL: ApplicationCommandOptionType.boolean,
-    ANNOTATION_TYPE_USER: ApplicationCommandOptionType.user,
-    ANNOTATION_TYPE_USER_ID: ApplicationCommandOptionType.user,
-    ANNOTATION_TYPE_ROLE: ApplicationCommandOptionType.role,
-    ANNOTATION_TYPE_ROLE_ID: ApplicationCommandOptionType.role,
-    ANNOTATION_TYPE_CHANNEL: ApplicationCommandOptionType.channel,
-    ANNOTATION_TYPE_CHANNEL_ID: ApplicationCommandOptionType.channel,
-    ANNOTATION_TYPE_NUMBER: ApplicationCommandOptionType.integer,
-    ANNOTATION_TYPE_MENTIONABLE: ApplicationCommandOptionType.mentionable,
-    ANNOTATION_TYPE_MENTIONABLE_ID: ApplicationCommandOptionType.mentionable,
-    ANNOTATION_TYPE_EXPRESSION: ApplicationCommandOptionType.string,
-    ANNOTATION_TYPE_FLOAT: ApplicationCommandOptionType.float,
-    ANNOTATION_TYPE_ATTACHMENT: ApplicationCommandOptionType.attachment,
+def _get_is_group_dict_pattern(regex_pattern):
+    """
+    Returns whether the given pattern is a `group dict` pattern.
     
-    ANNOTATION_TYPE_SELF_CLIENT: ApplicationCommandOptionType.none,
-    ANNOTATION_TYPE_SELF_INTERACTION_EVENT: ApplicationCommandOptionType.none,
-    ANNOTATION_TYPE_SELF_TARGET: ApplicationCommandOptionType.none,
-    ANNOTATION_TYPE_SELF_VALUE: ApplicationCommandOptionType.none,
-}
+    Parameters
+    ----------
+    regex_pattern : `re.Pattern`
+        Regex pattern to get details of.
+    
+    Raises
+    ------
+    ValueError
+        Regex pattern with mixed dict groups and non-dict groups are disallowed.
+    """
+    group_count = regex_pattern.groups
+    group_dict = regex_pattern.groupindex
+    group_dict_length = len(group_dict)
+    
+    if group_dict_length and (group_dict_length != group_count):
+        raise ValueError(
+            f'Regex patterns with mixed dict groups and non-dict groups are disallowed, got '
+            f'{regex_pattern!r}.'
+        )
 
-ANNOTATION_TYPE_TO_REPRESENTATION = {
-    ANNOTATION_TYPE_STR: 'string',
-    ANNOTATION_TYPE_INT: 'integer',
-    ANNOTATION_TYPE_BOOL: 'bool',
-    ANNOTATION_TYPE_USER: 'user',
-    ANNOTATION_TYPE_USER_ID: 'user',
-    ANNOTATION_TYPE_ROLE: 'role',
-    ANNOTATION_TYPE_ROLE_ID: 'role',
-    ANNOTATION_TYPE_CHANNEL: 'channel',
-    ANNOTATION_TYPE_CHANNEL_ID: 'channel',
-    ANNOTATION_TYPE_NUMBER: 'integer',
-    ANNOTATION_TYPE_MENTIONABLE: 'mentionable',
-    ANNOTATION_TYPE_MENTIONABLE_ID : 'mentionable',
-    ANNOTATION_TYPE_EXPRESSION: 'expression',
-    ANNOTATION_TYPE_FLOAT: 'float',
-    ANNOTATION_TYPE_ATTACHMENT: 'attachment',
-}
-
-
-ANNOTATION_AUTO_COMPLETE_AVAILABILITY = frozenset((
-    ANNOTATION_TYPE_STR,
-    ANNOTATION_TYPE_INT,
-    ANNOTATION_TYPE_EXPRESSION,
-    ANNOTATION_TYPE_NUMBER,
-    ANNOTATION_TYPE_FLOAT,
-))
+    if group_dict_length:
+        group_dict_pattern = True
+    else:
+        group_dict_pattern = False
+    
+    return group_dict_pattern
 
 
 class RegexMatcher(RichAttributeErrorBaseType):
@@ -799,45 +513,33 @@ class RegexMatcher(RichAttributeErrorBaseType):
     
     Attributes
     ----------
-    pattern : `Re.Pattern`
-        The used regex pattern.
-    is_group_dict_pattern : `bool`
+    group_dict_pattern : `bool`
         Whether the regex pattern is group dict based.
+    
+    regex_pattern : `re.Pattern`
+        The used regex pattern.
     """
-    __slots__ = ('pattern', 'is_group_dict_pattern')
+    __slots__ = ('group_dict_pattern', 'regex_pattern')
     
     def __new__(cls, regex_pattern):
         """
-        Creates a ``RegexMatcher`` from the given parameters.
+        Creates a regex matcher from the given parameters.
         
         Parameters
         ----------
         regex_pattern : `re.Pattern`
-            Regex pattern to get details of.
+            Regex pattern to create matcher for.
         
         Raises
         ------
         ValueError
             Regex pattern with mixed dict groups and non-dict groups are disallowed.
         """
-        group_count = regex_pattern.groups
-        group_dict = regex_pattern.groupindex
-        group_dict_length = len(group_dict)
-        
-        if group_dict_length and (group_dict_length != group_count):
-            raise ValueError(
-                f'Regex patterns with mixed dict groups and non-dict groups are disallowed, got '
-                f'{regex_pattern!r}.'
-            )
-        
-        if group_dict_length:
-            is_group_dict_pattern = True
-        else:
-            is_group_dict_pattern = False
+        group_dict_pattern = _get_is_group_dict_pattern(regex_pattern)
         
         self = object.__new__(cls)
-        self.pattern = regex_pattern
-        self.is_group_dict_pattern = is_group_dict_pattern
+        self.group_dict_pattern = group_dict_pattern
+        self.regex_pattern = regex_pattern
         return self
     
     
@@ -852,30 +554,44 @@ class RegexMatcher(RichAttributeErrorBaseType):
         
         Returns
         -------
-        regex_match : `None`, ``RegexMatch``
+        regex_match : `None | RegexMatch`
             The matched regex if any.
         """
-        matched = self.pattern.fullmatch(string)
+        matched = self.regex_pattern.fullmatch(string)
         if matched is None:
             return None
         
-        is_group_dict_pattern = self.is_group_dict_pattern
-        if is_group_dict_pattern:
+        group_dict_pattern = self.group_dict_pattern
+        if group_dict_pattern:
             groups = matched.groupdict()
         else:
             groups = matched.groups()
         
-        return RegexMatch(groups, is_group_dict_pattern)
+        return RegexMatch(group_dict_pattern, groups)
     
     
     def __repr__(self):
-        """Returns the pattern's representation."""
-        return f'<{self.__class__.__name__} pattern={self.pattern.pattern}>'
+        """Returns the regex matcher's representation."""
+        repr_parts = ['<', type(self).__name__]
+        
+        # pattern
+        regex_pattern = self.regex_pattern
+        repr_parts.append(' pattern = ')
+        repr_parts.append(repr(regex_pattern.pattern))
+        
+        # flags
+        flags = regex_pattern.flags
+        if flags:
+            repr_parts.append(', flags = ')
+            repr_parts.append(repr(flags))
+        
+        repr_parts.append('>')
+        return ''.join(repr_parts)
     
     
     def __hash__(self):
         """Returns the regex matcher's hash value."""
-        return hash(self.pattern)
+        return hash(self.regex_pattern)
     
     
     def __eq__(self, other):
@@ -883,10 +599,30 @@ class RegexMatcher(RichAttributeErrorBaseType):
         if type(self) is not type(other):
             return NotImplemented
         
-        if self.pattern == other.pattern:
+        if self.regex_pattern != other.regex_pattern:
+            return False
+        
+        return True
+    
+    
+    def __gt__(self, other):
+        """Returns whether self >= other"""
+        if type(self) is not type(other):
+            return NotImplemented
+        
+        self_regex_pattern = self.regex_pattern
+        other_regex_pattern = other.regex_pattern
+        
+        self_regex_pattern_string = self_regex_pattern.pattern
+        other_regex_pattern_string = other_regex_pattern.pattern
+        
+        if self_regex_pattern_string > other_regex_pattern_string:
             return True
         
-        return False
+        if self_regex_pattern_string < other_regex_pattern_string:
+            return False
+        
+        return self_regex_pattern.flags > other_regex_pattern.flags
 
 
 def check_component_converters_satisfy_string(parameter_converters):
@@ -895,7 +631,7 @@ def check_component_converters_satisfy_string(parameter_converters):
     
     Parameters
     ----------
-    parameter_converters : `tuple` of ``ParameterConverter``
+    parameter_converters : ``tuple<ParameterConverterBase>``
         Parameter converters to check.
     
     Raises
@@ -904,7 +640,7 @@ def check_component_converters_satisfy_string(parameter_converters):
         If a converter is not satisfied.
     """
     for parameter_converter in parameter_converters:
-        if isinstance(parameter_converter, InternalParameterConverter):
+        if isinstance(parameter_converter, ParameterConverterInternal):
             continue
         
         if not parameter_converter.required:
@@ -923,7 +659,7 @@ def check_component_converters_satisfy_regex(parameter_converters, regex_matcher
     
     Parameters
     ----------
-    parameter_converters : `tuple` of ``ParameterConverter``
+    parameter_converters : ``tuple<ParameterConverterBase>``
         Parameter converters to check.
     regex_matcher : ``RegexMatcher``
         The matcher to check whether is satisfied.
@@ -933,10 +669,10 @@ def check_component_converters_satisfy_regex(parameter_converters, regex_matcher
     ValueError
         If a converter is not satisfied.
     """
-    if regex_matcher.is_group_dict_pattern:
-        required_parameters = set(regex_matcher.pattern.groupindex)
+    if regex_matcher.group_dict_pattern:
+        required_parameters = set(regex_matcher.regex_pattern.groupindex)
         for parameter_converter in parameter_converters:
-            if isinstance(parameter_converter, InternalParameterConverter):
+            if isinstance(parameter_converter, ParameterConverterInternal):
                 continue
             
             if not parameter_converter.required:
@@ -954,9 +690,9 @@ def check_component_converters_satisfy_regex(parameter_converters, regex_matcher
         else:
             unsatisfied = None
     else:
-        parameters_to_satisfy = regex_matcher.pattern.groups
+        parameters_to_satisfy = regex_matcher.regex_pattern.groups
         for parameter_converter in parameter_converters:
-            if isinstance(parameter_converter, InternalParameterConverter):
+            if isinstance(parameter_converter, ParameterConverterInternal):
                 continue
             
             if not parameter_converter.required:
@@ -974,7 +710,7 @@ def check_component_converters_satisfy_regex(parameter_converters, regex_matcher
     if (unsatisfied is not None):
         raise ValueError(
             f'Parameter {unsatisfied.parameter_name!r} is not satisfied by regex pattern: '
-            f'{regex_matcher.pattern.pattern!r}.'
+            f'{regex_matcher.regex_pattern.pattern!r}.'
         )
 
 
@@ -984,32 +720,69 @@ class RegexMatch(RichAttributeErrorBaseType):
     
     Attributes
     ----------
-    is_group_dict : `bool`
+    group_dict : `bool`
         Whether `groups` is a dictionary.
-    groups : `tuple` of `str`, `dict` of (`str`, `str`) items
+    
+    groups : `tuple<None | str> | dict<str, None | str>`
         The matched groups.
     """
-    __slots__ = ('is_group_dict', 'groups')
+    __slots__ = ('group_dict', 'groups')
     
-    def __new__(cls, groups, is_group_dict):
+    def __new__(cls, group_dict, groups):
         """
         Creates a new ``RegexMatcher`` from the given parameters.
     
         Parameters
         ----------
-        is_group_dict : `bool`
+        group_dict : `bool`
             Whether `groups` is a dictionary.
-        groups : `tuple` of `str`, `dict` of (`str`, `str`) items
+        
+        groups : `tuple<None | str> | dict<str, None | str>`
             The matched groups.
         """
         self = object.__new__(cls)
+        self.group_dict = group_dict
         self.groups = groups
-        self.is_group_dict = is_group_dict
         return self
+    
     
     def __repr__(self):
         """Returns the regex match's representation."""
-        return f'<{self.__class__.__name__} groups={self.groups!r}>'
+        repr_parts = ['<', type(self).__name__]
+        
+        # groups
+        repr_parts.append(' groups = ')
+        repr_parts.append(repr(self.groups))
+        
+        repr_parts.append('>')
+        return ''.join(repr_parts)
+    
+    
+    def __hash__(self):
+        """Returns the regex match's hash value."""
+        hash_value = 0
+        
+        groups = self.groups
+        if self.group_dict:
+            for key, value in groups.items():
+                hash_value ^= hash(key) & (0 if value is None else hash(value))
+        
+        else:
+            for value in groups:
+                hash_value ^= (0 if value is None else hash(value))
+        
+        return hash_value
+    
+    
+    def __eq__(self, other):
+        """Returns whether the two regex matches are equal."""
+        if type(self) is not type(other):
+            return NotImplemented
+        
+        if self.groups != other.groups:
+            return False
+        
+        return True
 
 
 class SlashParameter(RichAttributeErrorBaseType):
@@ -1024,13 +797,13 @@ class SlashParameter(RichAttributeErrorBaseType):
         The accepted channel types.
     description : `None`, `str` = `None`, Optional
         Description for the annotation.
-    max_length : `None`, `int`
+    max_length : `None | int`
         The maximum input length allowed for this option.
-    max_value : `None`, `int`, `float`
+    max_value : `None | int | float`
         The maximal accepted value by the parameter.
-    min_length : `None`, `int`
+    min_length : `None | int`
         The minimum input length allowed for this option.
-    min_value : `None`, `int`, `float`
+    min_value : `None | int | float`
         The minimal accepted value by the parameter.
     name : `None`, `str` = `None`, Optional
         Name to use instead of the parameter's.
@@ -1070,13 +843,13 @@ class SlashParameter(RichAttributeErrorBaseType):
             Auto complete function for the parameter.
         channel_types : `None`, `iterable` of (`int`, ``ChannelType``) = `None`, Optional (Keyword only)
             The accepted channel types.
-        max_length : `None`, `int` = `None`, Optional (Keyword only)
+        max_length : `None | int` = `None`, Optional (Keyword only)
             The maximum input length allowed for this option.
-        max_value : `None`, `int`, `float` = `None`, Optional (Keyword only)
+        max_value : `None | int | float` = `None`, Optional (Keyword only)
             The maximal accepted value by the parameter.
-        min_length : `None`, `int` = `None`, Optional (Keyword only)
+        min_length : `None | int` = `None`, Optional (Keyword only)
             The minimum input length allowed for this option.
-        min_value : `None`, `int`, `float` = `None`, Optional (Keyword only)
+        min_value : `None | int | float` = `None`, Optional (Keyword only)
             The minimal accepted value by the parameter.
         """
         self = object.__new__(cls)
@@ -1093,7 +866,7 @@ class SlashParameter(RichAttributeErrorBaseType):
     
     
     def __repr__(self):
-        repr_parts = ['<', self.__class__.__name__]
+        repr_parts = ['<', type(self).__name__]
         
         field_added = False
         
@@ -1195,7 +968,7 @@ def preprocess_channel_types(channel_types):
     
     Returns
     -------
-    processed_channel_types : `None`, `tuple` of ``ChannelType``
+    processed_channel_types : ``None | tuple<ChannelType>``
     
     Raises
     ------
@@ -1212,7 +985,7 @@ def preprocess_channel_types(channel_types):
         if (getattr(type(channel_types), '__iter__', None) is None):
             raise TypeError(
                 f'`channel_types` can be `None`, `iterable`, got '
-                f'{channel_types.__class__.__anme__}; {channel_types!r}.'
+                f'{type(channel_types).__anme__}; {channel_types!r}.'
             )
         
         for channel_type in channel_types:
@@ -1220,14 +993,14 @@ def preprocess_channel_types(channel_types):
                 pass
             
             elif isinstance(channel_type, int):
-                channel_type = ChannelType.get(channel_type)
+                channel_type = ChannelType(channel_type)
             
                 pass
             
             else:
                 raise TypeError(
                     f'`channel_types` can contain `int`, `{ChannelType.__name__}` elements, got '
-                    f'{channel_type.__class__.__name__}; {channel_type!r}; channel_types = {channel_types!r}.'
+                    f'{type(channel_type).__name__}; {channel_type!r}; channel_types = {channel_types!r}.'
                 )
             
             if processed_channel_types is None:
@@ -1250,14 +1023,14 @@ def postprocess_channel_types(processed_channel_types, parsed_channel_types):
     
     Parameters
     ----------
-    processed_channel_types : `None`, `tuple` of ``ChannelType``
+    processed_channel_types : ``None | tuple<ChannelType>``
         Channel types detected from `channel_types` field.
-    parsed_channel_types : `None`, `tuple` of ``ChannelType``
+    parsed_channel_types : ``None | tuple<ChannelType>``
         Channel types processed from the `type_or_choice` field.
     
     Returns
     -------
-    channel_types : `None`, `tuple` of ``ChannelType``
+    channel_types : ``None | tuple<ChannelType>``
         The selected channel types.
     
     Raises
@@ -1290,7 +1063,7 @@ def process_max_and_min_value(type_, value, value_name):
     ----------
     type_ : `int`
         The value's type's respective internal identifier.
-    value : `None`, `int`, `float`
+    value : `None | int | float`
         The given value.
     value_name : `str`
         The value's name. Used when generating. exception messages.
@@ -1299,7 +1072,7 @@ def process_max_and_min_value(type_, value, value_name):
     -------
     type_ : `int`
         The value's type's respective internal identifier.
-    value : `None`, `int`, `float`
+    value : `None | int | float`
         The min or max value.
     
     Raises
@@ -1332,7 +1105,7 @@ def process_max_and_min_value(type_, value, value_name):
         else:
             raise TypeError(
                 f'`{value_name}` is accepted as {expected_type.__name__} instance if type is specified '
-                f'as `{ANNOTATION_TYPE_TO_REPRESENTATION[type_]}`, got {value.__class__.__name__}; {value!r}.'
+                f'as `{ANNOTATION_TYPE_TO_REPRESENTATION[type_]}`, got {type(value).__name__}; {value!r}.'
             )
     
     return type_, value
@@ -1344,7 +1117,7 @@ def process_max_length(max_length, option_type):
     
     Parameters
     ----------
-    max_length : `None`, `int`
+    max_length : `None | int`
         The maximum input length allowed for this option.
     
     option_type : ``ApplicationCommandOptionType``
@@ -1381,7 +1154,7 @@ def process_min_length(min_length, option_type):
     
     Parameters
     ----------
-    min_length : `None`, `int`
+    min_length : `None | int`
         The minimum input length allowed for this option.
     
     option_type : ``ApplicationCommandOptionType``
@@ -1644,7 +1417,7 @@ def parse_annotation_type_and_choice(annotation_value, parameter_name):
         Choices if applicable.
     choice_enum_type : `None`, `type`
         Enum type of `choices` if applicable.
-    channel_types : `None`, `tuple` of ``ChannelType``
+    channel_types : ``None | tuple<ChannelType>``
         The accepted channel types.
     
     TypeError
@@ -1890,11 +1663,11 @@ def parse_annotation_tuple(parameter, annotation_tuple):
         The parameter's name.
     type_ : `int`
         The parameter's internal type identifier.
-    channel_types : `None`, `tuple` of ``ChannelType``
+    channel_types : ``None | tuple<ChannelType>``
         The accepted channel types.
-    max_value : `None`, `int`, `float`
+    max_value : `None | int | float`
         The maximal accepted value.
-    min_value : `None`, `int`, `float`
+    min_value : `None | int | float`
         The minimal accepted value.
     autocomplete : `None`, `CoroutineFunction`
         Autocomplete function.
@@ -1926,7 +1699,7 @@ def parse_annotation_tuple(parameter, annotation_tuple):
     if annotation_type in INTERNAL_ANNOTATION_TYPES:
         raise ValueError(
             f'`Internal annotations cannot be given inside of a tuple, got annotation for: '
-            f'{ANNOTATION_TYPE_TO_STR_ANNOTATION[annotation_type]!r}; annotation={annotation_tuple!r}.'
+            f'{ANNOTATION_TYPE_TO_STR_ANNOTATION[annotation_type]!r}; annotation = {annotation_tuple!r}.'
         )
     
     if annotation_tuple_length > 1:
@@ -1967,11 +1740,11 @@ def parse_annotation_slash_parameter(parameter, slash_parameter):
         The parameter's name.
     type_ : `int`
         The parameter's internal type identifier.
-    channel_types : `None`, `tuple` of ``ChannelType``
+    channel_types : ``None | tuple<ChannelType>``
         The accepted channel types.
-    max_value : `None`, `int`, `float`
+    max_value : `None | int | float`
         The maximal accepted value.
-    min_value : `None`, `int`, `float`
+    min_value : `None | int | float`
         The minimal accepted value.
     autocomplete : `None`, `CoroutineFunction`
         Autocomplete function.
@@ -2071,11 +1844,11 @@ def parse_pep_593_typing(parameter, annotation_value):
         The parameter's name.
     type_ : `int`
         The parameter's internal type identifier.
-    channel_types : `None`, `tuple` of ``ChannelType``
+    channel_types : ``None | tuple<ChannelType>``
         The accepted channel types.
-    max_value : `None`, `int`, `float`
+    max_value : `None | int | float`
         The maximal accepted value.
-    min_value : `None`, `int`, `float`
+    min_value : `None | int | float`
         The minimal accepted value.
     autocomplete : `None`, `CoroutineFunction`
         Autocomplete function.
@@ -2125,7 +1898,7 @@ def parse_annotation_fallback(parameter, annotation_value):
     ----------
     parameter : ``Parameter``
         The respective parameter's representation.
-    annotation_value : `None`, `object`
+    annotation_value : `None | object`
         The annotated value to interpret.
     
     Returns
@@ -2140,11 +1913,11 @@ def parse_annotation_fallback(parameter, annotation_value):
         The parameter's name.
     type_ : `int`
         The parameter's internal type identifier.
-    channel_types : `None`, `tuple` of ``ChannelType``
+    channel_types : ``None | tuple<ChannelType>``
         The accepted channel types.
-    max_value : `None`, `int`, `float`
+    max_value : `None | int | float`
         The maximal accepted value.
-    min_value : `None`, `int`, `float`
+    min_value : `None | int | float`
         The minimal accepted value.
     autocomplete : `None`, `CoroutineFunction`
         Autocomplete function.
@@ -2193,7 +1966,7 @@ def parse_annotation_internal(annotation):
     
     Returns
     -------
-    annotation_type : `None`, `int`
+    annotation_type : `None | int`
         The parsed annotation type. Returns `None` if the annotation type not refers to an internal type.
     """
     if isinstance(annotation, type):
@@ -2236,11 +2009,11 @@ def parse_annotation(parameter):
         The parameter's name.
     type_ : `int`
         The parameter's internal type identifier.
-    channel_types : `None`, `tuple` of ``ChannelType``
+    channel_types : ``None | tuple<ChannelType>``
         The accepted channel types.
-    max_value : `None`, `int`, `float`
+    max_value : `None | int | float`
         The maximal accepted value.
-    min_value : `None`, `int`, `float`
+    min_value : `None | int | float`
         The minimal accepted value.
     autocomplete : `None`, `CoroutineFunction`
         Autocomplete function.
@@ -2278,862 +2051,6 @@ def parse_annotation(parameter):
     return parse_annotation_fallback(parameter, annotation_value)
 
 
-class ParameterConverter(RichAttributeErrorBaseType):
-    """
-    Base class for parameter converters.
-    
-    Attributes
-    ----------
-    parameter_name : `str`
-        The parameter's name.
-    """
-    __slots__ = ('parameter_name',)
-    
-    def __new__(cls, parameter_name):
-        """
-        Creates a new parameter converter from the given parameter.
-        
-        Parameters
-        ----------
-        parameter_name : `str`
-            The parameter's name.
-        """
-        self = object.__new__(cls)
-        self.parameter_name = parameter_name
-        return self
-    
-    
-    async def __call__(self, client, interaction_event, value):
-        """
-        Calls the parameter converter to convert the given `value` to it's desired state.
-        
-        This method is a coroutine.
-        
-        Parameters
-        ----------
-        client : ``Client``
-            The client who received the respective ``InteractionEvent``.
-        interaction_event : ``InteractionEvent``
-            The received application command interaction.
-        value : `object`
-            ``ApplicationCommandInteractionOption.value``.
-        
-        Returns
-        -------
-        converted_value : `None`, ``object``
-            If conversion fails, always returns `None`.
-        
-        Raises
-        ------
-        SlashCommandParameterConversionError
-            The parameter cannot be parsed.
-        """
-        pass
-    
-    
-    def __repr__(self):
-        """Returns the parameter converter's representation."""
-        return f'<{self.__class__.__name__}, parameter_name = {self.parameter_name!r}>'
-    
-    
-    def as_option(self):
-        """
-        Converts the parameter to an application command option if applicable.
-        
-        Returns
-        -------
-        option : `None`, ``ApplicationCommandOption``
-        """
-        pass
-    
-    
-    def bind_parent(self, parent):
-        """
-        Binds the parent command to self.
-        
-        This method might be called for a few types of command functions to bind themselves to a few interactive
-        parameters.
-        
-        Parameters
-        ----------
-        parent : `None`, ``SlashCommandFunction``
-            The slasher application command function to bind to self.
-        """
-        pass
-
-
-class RegexParameterConverter(ParameterConverter):
-    """
-    Regex parameter parsing for component `custom_id`.
-    
-    Attributes
-    ----------
-    parameter_name : `str`
-        The parameter's name.
-    default : `object`
-        Default value of the parameter.
-    index : `int`
-        the index of the regex pattern to take.
-    required : `bool`
-        Whether the parameter is required.
-    """
-    __slots__ = ('default', 'index', 'required')
-    
-    def __new__(cls, parameter, index):
-        """
-        Creates a new parameter converter from the given parameter.
-        
-        Parameters
-        ----------
-        parameter : ``Parameter``
-            The parameter to create converter from.
-        index : `int`
-            The parameter's index.
-        """
-        self = object.__new__(cls)
-        self.index = index
-        self.parameter_name = parameter.name
-        self.required = parameter.has_default
-        self.default = parameter.default
-        return self
-    
-    
-    @copy_docs(ParameterConverter.__call__)
-    async def __call__(self, client, interaction_event, value):
-        if value is None:
-            converted_value = self.default
-        else:
-            groups = value.groups
-            if value.is_group_dict:
-                parameter_name = self.parameter_name
-                try:
-                    converted_value = groups[parameter_name]
-                except KeyError:
-                    converted_value = self.default
-            else:
-                index = self.index
-                if index < len(groups):
-                    converted_value = groups[index]
-                else:
-                    converted_value = self.default
-        
-        return converted_value
-    
-    
-    @copy_docs(ParameterConverter.__repr__)
-    def __repr__(self):
-        repr_parts = [
-            '<',
-            self.__class__.__name__,
-            ' parameter_name = ',
-            repr(self.parameter_name),
-            ', index = ',
-            repr(self.index),
-        ]
-        
-        if not self.required:
-            repr_parts.append(', default = ')
-            repr_parts.append(repr(self.default))
-        
-        repr_parts.append('>')
-        
-        return ''.join(repr_parts)
-
-
-class FormFieldKeywordParameterConverter(ParameterConverter):
-    """
-    Regex and string matcher and `custom_id` matching parameter parser for forms.
-    
-    Attributes
-    ----------
-    parameter_name : `str`
-        The parameter's name.
-    annotation : `str`, `Pattern`
-        Annotation defaulting to the parameter's name if required.
-    default : `object`
-        Default value of the parameter.
-    matcher : `FunctionType`
-        Matches interaction options based on their `custom_id`.
-    """
-    __slots__ = ('annotation', 'default', 'matcher')
-    
-    def __new__(cls, parameter):
-        """
-        Creates a new parameter converter used by form submit fields.
-        
-        Parameters
-        ----------
-        parameter : ``Parameter``
-            The parameter to create converter from.
-        """
-        # Default annotation to parameter name
-        annotation = parameter.annotation
-        if (annotation is None) or (not isinstance(annotation, (str, Pattern))):
-            annotation = parameter.name
-        
-        if isinstance(annotation, str):
-            matcher = cls._converter_string
-        else:
-            group_count = annotation.groups
-            group_dict = annotation.groupindex
-            group_dict_length = len(group_dict)
-            
-            if group_dict_length and (group_dict_length != group_count):
-                raise ValueError(
-                    f'Regex patterns with mixed dict groups and non-dict groups are disallowed, got '
-                    f'{annotation!r}.'
-                )
-            
-            if group_count:
-                if group_dict_length:
-                    matcher = cls._converter_regex_group_dict
-                else:
-                    matcher = cls._converter_regex_group_tuple
-            else:
-                matcher = cls._converter_regex
-        
-        self = object.__new__(cls)
-        self.parameter_name = parameter.name
-        self.annotation = annotation
-        self.default = parameter.default
-        self.matcher = matcher
-        return self
-    
-    
-    @copy_docs(ParameterConverter.__call__)
-    async def __call__(self, client, interaction_event, value):
-        return self.matcher(self, interaction_event)
-    
-    
-    @copy_docs(ParameterConverter.__repr__)
-    def __repr__(self):
-        repr_parts = [
-            '<',
-            self.__class__.__name__,
-            ' parameter_name = ',
-            repr(self.parameter_name),
-        ]
-        
-        repr_parts.append(', annotation = ')
-        repr_parts.append(repr(self.annotation))
-        
-        repr_parts.append(', default = ')
-        repr_parts.append(repr(self.default))
-        
-        repr_parts.append('>')
-        return ''.join(repr_parts)
-    
-    
-    @staticmethod
-    def _converter_string(converter, interaction_event):
-        """
-        String form submit interaction option value matcher.
-        
-        Parameters
-        ----------
-        converter : ``FormFieldKeywordParameterConverter``
-            The parent converter instance using this function.
-        interaction_event : ``InteractionEvent``
-            A received interaction event.
-        
-        Returns
-        -------
-        value : `object`
-            The matched value or the converter's default value.
-        """
-        value = interaction_event.get_value_for(converter.annotation)
-        if (value is None):
-            value = converter.default
-        
-        return value
-    
-    
-    @staticmethod
-    def _converter_regex(converter, interaction_event):
-        """
-        Regex form submit interaction option value matcher.
-        
-        Parameters
-        ----------
-        converter : ``FormFieldKeywordParameterConverter``
-            The parent converter instance using this function.
-        interaction_event : ``InteractionEvent``
-            A received interaction event.
-        
-        Returns
-        -------
-        value : `object`
-            The matched value or the converter's default value.
-        """
-        match, value = interaction_event.get_match_and_value(converter.annotation.fullmatch)
-        if (value is None):
-            value = converter.default
-        
-        return value
-    
-    
-    @staticmethod
-    def _converter_regex_group_dict(converter, interaction_event):
-        """
-        Regex form submit interaction option value matcher returning the matched group dictionary as well.
-        
-        Parameters
-        ----------
-        converter : ``FormFieldKeywordParameterConverter``
-            The parent converter instance using this function.
-        interaction_event : ``InteractionEvent``
-            A received interaction event.
-        
-        Returns
-        -------
-        value : `object`
-            The matched value or the converter's default value.
-        groups : `dict` of (`str`, `str`) items
-            The matched values by the regex pattern.
-        """
-        match, value = interaction_event.get_match_and_value(converter.annotation.fullmatch)
-        if (value is None):
-            value = converter.default
-        
-        groups = match.groupdict()
-        return groups, value
-    
-    
-    @staticmethod
-    def _converter_regex_group_tuple(converter, interaction_event):
-        """
-        Regex form submit interaction option value matcher returning the matched group tuple as well.
-        
-        Parameters
-        ----------
-        converter : ``FormFieldKeywordParameterConverter``
-            The parent converter instance using this function.
-        interaction_event : ``InteractionEvent``
-            A received interaction event.
-        
-        Returns
-        -------
-        value : `object`
-            The matched value or the converter's default value.
-        groups : `tuple` of `str`
-            The matched values by the regex pattern.
-        """
-        match, value = interaction_event.get_match_and_value(converter.annotation.fullmatch)
-        if (value is None):
-            value = converter.default
-        
-        groups = match.groups()
-        return groups, value
-
-
-class FormFieldMultiParameterConverter(FormFieldKeywordParameterConverter):
-    """
-    Regex and string matcher and `custom_id` matching multi parameter parser for forms.
-    
-    Attributes
-    ----------
-    parameter_name : `str`
-        The parameter's name.
-    annotation : `str`, `Pattern`
-        Annotation defaulting to the parameter's name if required.
-    default : `object`
-        Default value of the parameter.
-    matcher : `FunctionType`
-        Matches interaction options based on their `custom_id`.
-    """
-    __slots__ = ()
-    
-    @staticmethod
-    def _converter_string(converter, interaction_event):
-        """
-        String form submit interaction option multi value matcher.
-        
-        Parameters
-        ----------
-        converter : ``FormFieldKeywordParameterConverter``
-            The parent converter instance using this function.
-        interaction_event : ``InteractionEvent``
-            A received interaction event.
-        
-        Returns
-        -------
-        values : `None`, `list` of `object`
-            The matched values.
-        """
-        value = interaction_event.get_value_for(converter.annotation)
-        
-        if (value is None):
-            values = None
-        else:
-            values = [value]
-        
-        return values
-    
-    
-    @staticmethod
-    def _converter_regex(converter, interaction_event):
-        """
-        Regex form submit interaction option multi value matcher.
-        
-        Parameters
-        ----------
-        converter : ``FormFieldKeywordParameterConverter``
-            The parent converter instance using this function.
-        interaction_event : ``InteractionEvent``
-            A received interaction event.
-        
-        Returns
-        -------
-        values : `None`, `list` of `object`
-            The matched values.
-        """
-        values = None
-        
-        for match, value in interaction_event.iter_matches_and_values(converter.annotation.fullmatch):
-            if (value is not None):
-                if (values is None):
-                    values = []
-                
-                values.append(value)
-        
-        return values
-    
-    
-    @staticmethod
-    def _converter_regex_group_dict(converter, interaction_event):
-        """
-        Regex form submit interaction option multi value matcher returning the matched group dictionaries as well.
-        
-        Parameters
-        ----------
-        converter : ``FormFieldKeywordParameterConverter``
-            The parent converter instance using this function.
-        interaction_event : ``InteractionEvent``
-            A received interaction event.
-        
-        Returns
-        -------
-        groups_and_values : `None`, `list` of `tuple` (`dict` of (`str`, `str`) items, `object`)
-            The matched values from the field's `custom_id` and their values.
-        """
-        values = None
-        
-        for match, value in interaction_event.iter_matches_and_values(converter.annotation.fullmatch):
-            
-            groups = match.groupdict()
-            
-            if (values is None):
-                values = []
-            
-            values.append((groups, value))
-       
-        return values
-    
-    
-    @staticmethod
-    def _converter_regex_group_tuple(converter, interaction_event):
-        """
-        Regex form submit interaction option multi value matcher returning the matched group tuples as well.
-        
-        Parameters
-        ----------
-        converter : ``FormFieldKeywordParameterConverter``
-            The parent converter instance using this function.
-        interaction_event : ``InteractionEvent``
-            A received interaction event.
-        
-        Returns
-        -------
-        groups_and_values : `None`, `list` of `tuple` (`tuple` of `str`, `object`)
-            The matched values from the field's `custom_id` and their values.
-        """
-        values = None
-        
-        for match, value in interaction_event.iter_matches_and_values(converter.annotation.fullmatch):
-            
-            groups = match.groups()
-            
-            if (values is None):
-                values = []
-            
-            values.append((groups, value))
-       
-        return values
-
-
-class InternalParameterConverter(ParameterConverter):
-    """
-    Internal parameter converter.
-    
-    Attributes
-    ----------
-    parameter_name : `str`
-        The parameter's name.
-    converter : `CoroutineFunctionType`
-        The converter to use to convert a value to it's desired type.
-    type : `int`
-        Internal identifier of the converter.
-    """
-    __slots__ = ('converter', 'type')
-    
-    def __new__(cls, parameter_name, type_, converter):
-        """
-        Creates a new ``InternalParameterConverter`` with the given parameters.
-        
-        Parameters
-        ----------
-        parameter_name : `str`
-            The parameter's name.
-        type_ : `int`
-            Internal identifier of the converter.
-        converter : `CoroutineFunctionType`
-            The converter to use to convert a value to it's desired type.
-        """
-        self = object.__new__(cls)
-        self.parameter_name = parameter_name
-        self.type = type_
-        self.converter = converter
-        return self
-    
-    
-    @copy_docs(ParameterConverter.__call__)
-    async def __call__(self, client, interaction_event, value):
-        return await self.converter(client, interaction_event)
-    
-    
-    @copy_docs(ParameterConverter.__repr__)
-    def __repr__(self):
-        return ''.join([
-            '<',
-            self.__class__.__name__,
-            'parameter_name = ',
-            repr(self.parameter_name),
-            ', type = ',
-            ANNOTATION_TYPE_TO_STR_ANNOTATION[self.type],
-            '>',
-        ])
-
-
-class SlashCommandParameterConverter(ParameterConverter):
-    """
-    Converter class for slash command options.
-    
-    Attributes
-    ----------
-    parameter_name : `str`
-        The parameter's internal name.
-    auto_completer : `None`, ``SlashCommandParameterAutoCompleter``
-        Auto completer if registered.
-    channel_types : `None`, `tuple` of ``ChannelType``
-        The accepted channel types.
-    choice_enum_type : `None`, `type`
-        Enum type of `choices` if applicable.
-    choices : `None`, `dict` of ((`int`, `float`, `str`, `Enum`), `str`) items
-        The choices to choose from if applicable. The keys are choice vales meanwhile the values are choice names.
-    converter : `CoroutineFunctionType`
-        The converter to use to convert a value to it's desired type.
-    default : `object`
-        Default value of the parameter.
-    description : `None`, `str`
-        The parameter's description.
-    max_length : `int`
-        The maximum input length allowed for this option.
-    max_value : `None`, `int`, `float`
-        The maximal accepted value by the converter.
-    min_length : `int`
-        The minimum input length allowed for this option.
-    min_value : `None`, `int`, `float`
-        The minimal accepted value by the converter.
-    name : `str`
-        The parameter's name.
-    required : `bool`
-        Whether the the parameter is required.
-    type : `int`
-        Internal identifier of the converter.
-    """
-    __slots__ = (
-        'auto_completer', 'channel_types', 'choice_enum_type', 'choices', 'converter', 'default', 'description',
-        'max_length', 'max_value', 'min_length', 'min_value', 'name', 'required', 'type'
-    )
-    
-    def __new__(
-        cls, parameter_name, type_, converter, name, description, default, required, choice_enum_type, choices,
-        channel_types, max_value, min_value, autocomplete, max_length, min_length
-    ):
-        """
-        Creates a new ``SlashCommandParameterConverter`` from the given parameters.
-        
-        Parameters
-        ----------
-        parameter_name : `str`
-            The parameter's name.
-        type_ : `int`
-            Internal identifier of the converter.
-        converter : `CoroutineFunctionType`
-            The converter to use to convert a value to it's desired type.
-        name : `str`
-            The parameter's internal name.
-        description : `None`, `str`
-            The parameter's description.
-        default : `bool`
-            Default value of the parameter.
-        required : `bool`
-            Whether the the parameter is required.
-        choice_enum_type : `None`, `type`
-            Enum type of `choices` if applicable.
-        choices : `None`, `dict` of ((`int`, `float`, `str`, `Enum`), `str`) items
-            The choices to choose from if applicable. The keys are choice vales meanwhile the values are choice names.
-        channel_types : `None`, `tuple` of ``ChannelType``
-            The accepted channel types.
-        max_value : `None`, `int`, `float`
-            The maximal accepted value by the converter.
-        min_value : `None`, `int`, `float`
-            The minimal accepted value by the converter.
-        autocomplete : `None`, ``SlashCommandParameterAutoCompleter``
-            Auto completer if defined.
-        max_length : `int`
-            The maximum input length allowed for this option.
-        min_length : `int`
-            The minimum input length allowed for this option.
-        """
-        self = object.__new__(cls)
-        
-        self.parameter_name = parameter_name
-        self.auto_completer = None
-        self.choice_enum_type = choice_enum_type
-        self.choices = choices
-        self.converter = converter
-        self.default = default
-        self.description = description
-        self.name = name
-        self.required = required
-        self.type = type_
-        self.channel_types = channel_types
-        self.max_value = max_value
-        self.min_value = min_value
-        self.max_length = max_length
-        self.min_length = min_length
-        
-        if (autocomplete is not None):
-            auto_completer = SlashCommandParameterAutoCompleter(
-                autocomplete, [parameter_name], APPLICATION_COMMAND_FUNCTION_DEEPNESS, None
-            )
-            self.register_auto_completer(auto_completer)
-        
-        return self
-    
-    
-    @copy_docs(ParameterConverter.__call__)
-    async def __call__(self, client, interaction_event, value):
-        choices = self.choices
-        
-        if (value is None):
-            if not self.required:
-                return self.default
-        
-        else:
-            converted_value = await self.converter(client, interaction_event, value)
-            if (converted_value is not None):
-                if (choices is None):
-                    return converted_value
-                
-                choice_enum_type = self.choice_enum_type
-                if (choice_enum_type is None):
-                    if (converted_value in choices):
-                        return converted_value
-                
-                else:
-                    try:
-                        converted_value = choice_enum_type(converted_value)
-                    except ValueError:
-                        pass
-                    else:
-                        return converted_value
-        
-        
-        raise SlashCommandParameterConversionError(
-            self.name,
-            value,
-            ANNOTATION_TYPE_TO_REPRESENTATION.get(self.type, '???'),
-            None if choices is None else [*choices.keys()],
-        )
-    
-    @copy_docs(ParameterConverter.__repr__)
-    def __repr__(self):
-        repr_parts = [
-            '<',
-            self.__class__.__name__,
-        ]
-        
-        parameter_name = self.parameter_name
-        repr_parts.append(' parameter_name = ')
-        repr_parts.append(repr(self.parameter_name))
-        
-        name = self.name
-        if (parameter_name != name):
-            repr_parts.append(', name = ')
-            repr_parts.append(repr(self.name))
-        
-        repr_parts.append(', type = ')
-        repr_parts.append(ANNOTATION_TYPE_TO_STR_ANNOTATION[self.type])
-        
-        repr_parts.append(', description = ')
-        repr_parts.append(reprlib.repr(self.description))
-        
-        if not self.required:
-            repr_parts.append(', default = ')
-            repr_parts.append(repr(self.default))
-        
-        choices = self.choices
-        if (choices is not None):
-            repr_parts.append(', choices = ')
-            repr_parts.append(repr(choices))
-        
-        auto_completer = self.auto_completer
-        if (auto_completer is not None):
-            repr_parts.append(', auto_completer = ')
-            repr_parts.append(repr(auto_completer))
-        
-        channel_types = self.channel_types
-        if (channel_types is not None):
-            repr_parts.append(', channel_types = ')
-            repr_parts.append(repr(channel_types))
-        
-        min_value = self.min_value
-        if (min_value is not None):
-            repr_parts.append(', min_value = ')
-            repr_parts.append(repr(min_value))
-        
-        max_value = self.max_value
-        if (max_value is not None):
-            repr_parts.append(', max_value = ')
-            repr_parts.append(repr(max_value))
-        
-        min_length = self.min_length
-        if (min_length != 0):
-            repr_parts.append(', min_length = ')
-            repr_parts.append(repr(min_length))
-        
-        max_length = self.max_length
-        if (max_length != 0):
-            repr_parts.append(', max_length = ')
-            repr_parts.append(repr(max_length))
-        
-        repr_parts.append('>')
-        
-        return ''.join(repr_parts)
-    
-    
-    @copy_docs(ParameterConverter.as_option)
-    def as_option(self):
-        choices = self.choices
-        if choices is None:
-            option_choices = None
-        else:
-            is_enum = (self.choice_enum_type is not None)
-            
-            option_choices = [
-                ApplicationCommandOptionChoice(name, str(value.value if is_enum else value))
-                for value, name in choices.items()
-            ]
-        
-        option_type = ANNOTATION_TYPE_TO_OPTION_TYPE[self.type]
-        
-        return ApplicationCommandOption(
-            self.name,
-            self.description,
-            option_type,
-            autocomplete = (self.auto_completer is not None),
-            channel_types = self.channel_types,
-            choices = option_choices,
-            required = self.required,
-            min_value = self.min_value,
-            max_value = self.max_value,
-            min_length = self.min_length,
-            max_length = self.max_length,
-        )
-    
-    
-    def can_auto_complete(self):
-        """
-        Returns whether the parameter can be auto completed.
-        
-        Returns
-        -------
-        can_be_auto_completed : `bool`
-            Whether the parameter can be auto completed.
-        """
-        if (self.type not in ANNOTATION_AUTO_COMPLETE_AVAILABILITY):
-            return False
-        
-        if (self.choices is not None):
-            return False
-        
-        return True
-    
-    
-    def is_auto_completed(self):
-        """
-        Returns whether the parameter is already auto completed.
-        
-        Returns
-        -------
-        is_auto_completed : `bool`
-        """
-        if self.auto_completer is None:
-            return False
-        
-        return True
-    
-    
-    def register_auto_completer(self, auto_completer):
-        """
-        Registers an auto completer to the slash command parameter converter.
-        
-        Parameters
-        ----------
-        auto_completer : ``SlashCommandParameterAutoCompleter``
-            The auto completer to register.
-        
-        Returns
-        -------
-        resolved : `int`
-            Whether the parameter was resolved.
-        
-        Raises
-        ------
-        RuntimeError
-            If the parameter cannot be auto completed.
-        """
-        if (self.type not in ANNOTATION_AUTO_COMPLETE_AVAILABILITY):
-            raise RuntimeError(
-                f'Parameter `{self.name}` can not be auto completed. Only string base type parameters '
-                f'can be (str, int, expression).'
-            )
-        
-        if (self.choices is not None):
-            raise RuntimeError(
-                f'Parameter `{self.name}` can not be auto completed. `choices` and `autocomplete` are'
-                f'mutually exclusive.'
-            )
-        
-        self_auto_completer = self.auto_completer
-        if (self_auto_completer is None) or auto_completer._is_deeper_than(self_auto_completer):
-            self.auto_completer = auto_completer
-            resolved = 1
-        else:
-            resolved = 0
-        
-        return resolved
-    
-    
-    @copy_docs(ParameterConverter.bind_parent)
-    def bind_parent(self, parent):
-        auto_completer = self.auto_completer
-        if (auto_completer is not None):
-            self.auto_completer = auto_completer._bind_parent(parent)
-
-
 def create_parameter_converter(parameter, parameter_configurer):
     """
     Creates a new parameter converter from the given parameter.
@@ -3147,7 +2064,7 @@ def create_parameter_converter(parameter, parameter_configurer):
     
     Returns
     -------
-    parameter_converter : ``ParameterConverter``
+    parameter_converter : ``ParameterConverterBase``
     
     Raises
     ------
@@ -3200,7 +2117,7 @@ def create_parameter_converter(parameter, parameter_configurer):
     converter, is_internal = ANNOTATION_TYPE_TO_CONVERTER[annotation_type]
     
     if is_internal:
-        parameter_converter = InternalParameterConverter(parameter.name, annotation_type, converter)
+        parameter_converter = ParameterConverterInternal(parameter.name, annotation_type, converter)
     
     else:
         # Rare error case when the parameter has no description defined, so it defaults back to its name, that is
@@ -3216,7 +2133,7 @@ def create_parameter_converter(parameter, parameter_configurer):
                 f'Note that the required minimal name length is lower than the required minimal description length.'
             )
         
-        parameter_converter = SlashCommandParameterConverter(
+        parameter_converter = ParameterConverterSlashCommand(
             parameter.name, annotation_type, converter, name, description, default, required, choice_enum_type,
             choices, channel_types, max_value, min_value, autocomplete, max_length, min_length
         )
@@ -3235,7 +2152,7 @@ def create_internal_parameter_converter(parameter):
     
     Returns
     -------
-    parameter_converter : ``ParameterConverter``, `None`
+    parameter_converter : ``ParameterConverterBase``, `None`
     """
     if parameter.has_annotation:
         annotation_value = parameter.annotation
@@ -3252,7 +2169,7 @@ def create_internal_parameter_converter(parameter):
         return None
     
     converter, is_internal = ANNOTATION_TYPE_TO_CONVERTER[annotation_type]
-    return InternalParameterConverter(parameter.name, annotation_type, converter)
+    return ParameterConverterInternal(parameter.name, annotation_type, converter)
 
 
 def create_target_parameter_converter(parameter):
@@ -3268,9 +2185,9 @@ def create_target_parameter_converter(parameter):
     
     Returns
     -------
-    parameter_converter : ``ParameterConverter``
+    parameter_converter : ``ParameterConverterBase``
     """
-    return InternalParameterConverter(parameter.name, ANNOTATION_TYPE_SELF_TARGET, converter_self_interaction_target)
+    return ParameterConverterInternal(parameter.name, ANNOTATION_TYPE_SELF_TARGET, converter_self_interaction_target)
 
 
 def create_value_parameter_converter(parameter):
@@ -3286,13 +2203,13 @@ def create_value_parameter_converter(parameter):
     
     Returns
     -------
-    parameter_converter : ``ParameterConverter``
+    parameter_converter : ``ParameterConverterBase``
     """
-    return InternalParameterConverter(parameter.name, ANNOTATION_TYPE_SELF_VALUE, converter_self_interaction_value)
+    return ParameterConverterInternal(parameter.name, ANNOTATION_TYPE_SELF_VALUE, converter_self_interaction_value)
 
 
 def check_command_coroutine(
-    func,
+    function,
     allow_coroutine_generator_functions,
     allow_args_parameters,
     allow_keyword_only_parameters,
@@ -3303,7 +2220,7 @@ def check_command_coroutine(
     
     Parameters
     ----------
-    func : `async-callable`
+    function : `async-callable`
         Command coroutine.
     allow_coroutine_generator_functions : `bool`
         Whether coroutine generator functions are allowed.
@@ -3326,12 +2243,12 @@ def check_command_coroutine(
     Raises
     ------
     TypeError
-        - If `func` is not async callable, neither cannot be instanced to async.
-        - If `func` accepts keyword only parameters.
-        - If `func` accepts `*args`.
-        - If `func` accepts `**kwargs`.
+        - If `function` is not async callable, neither cannot be instanced to async.
+        - If `function` accepts keyword only parameters.
+        - If `function` accepts `*positional_parameters`.
+        - If `function` accepts `**keyword_parameters`.
     """
-    analyzer = CallableAnalyzer(func)
+    analyzer = CallableAnalyzer(function)
     if analyzer.is_async() or (allow_coroutine_generator_functions and analyzer.is_async_generator()):
         real_analyzer = analyzer
         should_instance = False
@@ -3340,10 +2257,10 @@ def check_command_coroutine(
         analyzer.can_instance_to_async_callable() or
         (allow_coroutine_generator_functions and analyzer.can_instance_to_async_generator())
     ):
-        real_analyzer = CallableAnalyzer(func.__call__, as_method = True)
+        real_analyzer = CallableAnalyzer(function.__call__, as_method = True)
         if (not real_analyzer.is_async()) and (not real_analyzer.is_async_generator()):
             raise TypeError(
-                f'`func` is not `async-callable` and cannot be instanced to `async` either, got {func!r}.'
+                f'`func` is not `async-callable` and cannot be instanced to `async` either, got {function!r}.'
             )
         
         should_instance = True
@@ -3352,7 +2269,7 @@ def check_command_coroutine(
         raise TypeError(
             f'`func` is not `async-callable` '
             f'{"nor a coroutine generator function " if allow_coroutine_generator_functions else ""}'
-            f'and cannot be instanced to `async` either, got {func!r}.'
+            f'and cannot be instanced to `async` either, got {function!r}.'
         )
     
     
@@ -3378,13 +2295,13 @@ def check_command_coroutine(
     return analyzer, real_analyzer, should_instance
 
 
-def get_slash_command_parameter_converters(func, parameter_configurers):
+def get_slash_command_parameter_converters(function, parameter_configurers):
     """
     Parses the given `func`'s parameters.
     
     Parameters
     ----------
-    func : `async-callable`
+    function : `async-callable`
         The function used by a ``SlashCommand``.
     parameter_configurers : `None`, `dict` of (`str`, ``ApplicationCommandParameterConfigurerWrapper``) items
         Parameter configurers to overwrite annotations.
@@ -3393,17 +2310,17 @@ def get_slash_command_parameter_converters(func, parameter_configurers):
     -------
     func : `async-callable`
         The converted function.
-    parameter_converters : `tuple` of ``ParameterConverter``
+    parameter_converters : ``tuple<ParameterConverterBase>``
         Parameter converters for the given `func` in order.
     
     Raises
     ------
     TypeError
-        - If `func` is not async callable, neither cannot be instanced to async.
-        - If `func` accepts keyword only parameters.
-        - If `func` accepts `*args`.
-        - If `func` accepts `**kwargs`.
-        - If `func` accepts more than `27` parameters.
+        - If `function` is not async callable, neither cannot be instanced to async.
+        - If `function` accepts keyword only parameters.
+        - If `function` accepts `*positional_parameters`.
+        - If `function` accepts `**keyword_parameters`.
+        - If `function` accepts more than `27` parameters.
         - If a parameter's `annotation_value` is `list`, but it's elements do not match the
             `tuple` (`str`, `str`, `int`) pattern.
         - If a parameter's `annotation_value` is `dict`, but it's items do not match the
@@ -3418,7 +2335,7 @@ def get_slash_command_parameter_converters(func, parameter_configurers):
         - If a parameter's `choice` name is duped.
         - If a parameter's `choice` values are mixed types.
     """
-    analyzer, real_analyzer, should_instance = check_command_coroutine(func, True, False, False, False)
+    analyzer, real_analyzer, should_instance = check_command_coroutine(function, True, False, False, False)
     
     parameters = real_analyzer.get_non_reserved_positional_parameters()
     
@@ -3435,7 +2352,7 @@ def get_slash_command_parameter_converters(func, parameter_configurers):
     
     slash_command_option_count = 0
     for parameter_converter in parameter_converters:
-        if isinstance(parameter_converter, SlashCommandParameterConverter):
+        if isinstance(parameter_converter, ParameterConverterSlashCommand):
             slash_command_option_count += 1
         
     if slash_command_option_count > APPLICATION_COMMAND_OPTIONS_MAX:
@@ -3448,91 +2365,101 @@ def get_slash_command_parameter_converters(func, parameter_configurers):
     parameter_converters = tuple(parameter_converters)
     
     if should_instance:
-        func = analyzer.instance()
+        function = analyzer.instance()
     
-    return func, parameter_converters
+    return function, parameter_converters
 
 
-def get_component_command_parameter_converters(func):
+def get_component_command_parameter_converters(function):
     """
     Parses the given `func`'s parameters.
     
     Parameters
     ----------
-    func : `async-callable`
+    function : `async-callable`
         The function used by a ``ComponentCommand``.
     
     Returns
     -------
     func : `async-callable`
         The converted function.
-    parameter_converters : `tuple` of ``ParameterConverter``
+    
+    positional_parameter_converters : ``tuple<ParameterConverterBase>``
         Parameter converters for the given `func` in order.
+    
+    keyword_parameter_converters : ``tuple<ParameterConverterBase>``
+        Parameter converters for the given `func` for it's keyword parameters.
     
     Raises
     ------
     TypeError
-        - If `func` is not async callable, neither cannot be instanced to async.
-        - If `func` accepts keyword only parameters.
-        - If `func` accepts `*args`.
-        - If `func` accepts `**kwargs`.
+        - If `function` is not async callable, neither cannot be instanced to async.
+        - If `function` accepts `*positional_parameters`.
+        - If `function` accepts `**keyword_parameters`.
+        - If `function accepts multiple keyword parameters.
     """
-    analyzer, real_analyzer, should_instance = check_command_coroutine(func, True, False, False, False)
+    analyzer, real_analyzer, should_instance = check_command_coroutine(function, True, False, True, False)
     
-    parameters = real_analyzer.get_non_reserved_positional_parameters()
-    
-    parameter_converters = []
-    
-    for parameter in parameters:
-        parameter_converter = create_internal_parameter_converter(parameter)
-        parameter_converters.append(parameter_converter)
+    positional_parameters = real_analyzer.get_non_reserved_positional_parameters()
+    positional_parameter_converters = []
     
     parameter_index = 0
-    for index in range(len(parameter_converters)):
-        parameter_converter = parameter_converters[index]
-        if (parameter_converter is not None):
-            continue
-        
-        parameter = parameters[index]
-        parameter_converter = RegexParameterConverter(parameter, parameter_index)
-        parameter_converters[index] = parameter_converter
-        parameter_index += 1
     
-    parameter_converters = tuple(parameter_converters)
+    for parameter in positional_parameters:
+        parameter_converter = create_internal_parameter_converter(parameter)
+        if (parameter_converter is None):
+            parameter_converter = ParameterConverterRegex(parameter, parameter_index)
+            parameter_index += 1
+
+        positional_parameter_converters.append(parameter_converter)
+    
+    positional_parameter_converters = tuple(positional_parameter_converters)
+    
+    keyword_parameters = real_analyzer.get_non_reserved_keyword_only_parameters()
+    keyword_parameter_count = len(keyword_parameters)
+    
+    if keyword_parameter_count == 0:
+        keyword_parameter_converters = ()
+    elif keyword_parameter_count == 1:
+        keyword_parameter_converters = (ParameterConverterMessageComponentKeyword(keyword_parameters[0]),)
+    else:
+        raise TypeError(
+            f'`{real_analyzer.real_function!r}` accepts multiple keyword only parameters.'
+        )
     
     if should_instance:
-        func = analyzer.instance()
+        function = analyzer.instance()
     
-    return func, parameter_converters
+    return function, positional_parameter_converters, keyword_parameter_converters
 
 
-def get_context_command_parameter_converters(func):
+def get_context_command_parameter_converters(function):
     """
     Parses the given `func`'s parameters.
     
     Parameters
     ----------
-    func : `async-callable`
+    function : `async-callable`
         The function used by a ``SlashCommand``.
     
     Returns
     -------
-    func : `async-callable`
+    function : `async-callable`
         The converted function.
-    parameter_converters : `tuple` of ``ParameterConverter``
+    parameter_converters : ``tuple<ParameterConverterBase>``
         Parameter converters for the given `func` in order.
     
     Raises
     ------
     TypeError
-        - If `func` is not async callable, neither cannot be instanced to async.
-        - If `func` accepts keyword only parameters.
-        - If `func` accepts `*args`.
-        - If `func` accepts `**kwargs`.
+        - If `function` is not async callable, neither cannot be instanced to async.
+        - If `function` accepts keyword only parameters.
+        - If `function` accepts `*positional_parameters`.
+        - If `function` accepts `**keyword_parameters`.
     ValueError
-        - If any parameter is not internal.
+        - If over 1 parameter is not internal.
     """
-    analyzer, real_analyzer, should_instance = check_command_coroutine(func, True, False, False, False)
+    analyzer, real_analyzer, should_instance = check_command_coroutine(function, True, False, False, False)
     
     parameters = real_analyzer.get_non_reserved_positional_parameters()
     
@@ -3546,7 +2473,8 @@ def get_context_command_parameter_converters(func):
             if target_converter_detected:
                 raise TypeError(
                     f'`{real_analyzer.real_function!r}`\'s `{parameter.name}` do not refers to any of the '
-                    f'expected internal parameters. Context commands do not accept any additional parameters.'
+                    f'expected internal parameters. '
+                    f'Context commands may have 1 additional parameter for `target` which is already fulfilled.'
                 )
             else:
                 parameter_converter = create_target_parameter_converter(parameter)
@@ -3558,38 +2486,91 @@ def get_context_command_parameter_converters(func):
     parameter_converters = tuple(parameter_converters)
     
     if should_instance:
-        func = analyzer.instance()
+        function = analyzer.instance()
     
-    return func, parameter_converters
+    return function, parameter_converters
 
 
-def get_application_command_parameter_auto_completer_converters(func):
+def get_embedded_activity_launch_command_parameter_converters(function):
     """
     Parses the given `func`'s parameters.
     
     Parameters
     ----------
-    func : `async-callable`
+    function : `async-callable`
+        The function used by a ``SlashCommand``.
+    
+    Returns
+    -------
+    function : `async-callable`
+        The converted function.
+    parameter_converters : ``tuple<ParameterConverterBase>``
+        Parameter converters for the given `func` in order.
+    
+    Raises
+    ------
+    TypeError
+        - If `function` is not async callable, neither cannot be instanced to async.
+        - If `function` accepts keyword only parameters.
+        - If `function` accepts `*positional_parameters`.
+        - If `function` accepts `**keyword_parameters`.
+    ValueError
+        - If any parameter is not internal.
+    """
+    analyzer, real_analyzer, should_instance = check_command_coroutine(function, True, False, False, False)
+    
+    parameters = real_analyzer.get_non_reserved_positional_parameters()
+    
+    parameter_converters = []
+    
+    for parameter in parameters:
+        parameter_converter = create_internal_parameter_converter(parameter)
+        
+        if (parameter_converter is None):
+            raise TypeError(
+                f'`{real_analyzer.real_function!r}`\'s `{parameter.name}` do not refers to any of the '
+                f'expected internal parameters. '
+                f'Embedded activity launch commands may not have any additional parameters.'
+            )
+        
+        parameter_converters.append(parameter_converter)
+    
+    
+    parameter_converters = tuple(parameter_converters)
+    
+    if should_instance:
+        function = analyzer.instance()
+    
+    return function, parameter_converters
+
+
+def get_application_command_parameter_auto_completer_converters(function):
+    """
+    Parses the given `func`'s parameters.
+    
+    Parameters
+    ----------
+    function : `async-callable`
         The function used by a ``SlashCommand``.
     
     Returns
     -------
     func : `async-callable`
         The converted function.
-    parameter_converters : `tuple` of ``ParameterConverter``
+    parameter_converters : ``tuple<ParameterConverterBase>``
         Parameter converters for the given `func` in order.
     
     Raises
     ------
     TypeError
-        - If `func` is not async callable, neither cannot be instanced to async.
-        - If `func` accepts keyword only parameters.
-        - If `func` accepts `*args`.
-        - If `func` accepts `**kwargs`.
+        - If `function` is not async callable, neither cannot be instanced to async.
+        - If `function` accepts keyword only parameters.
+        - If `function` accepts `*positional_parameters`.
+        - If `function` accepts `**keyword_parameters`.
     ValueError
         - If any parameter is not internal.
     """
-    analyzer, real_analyzer, should_instance = check_command_coroutine(func, True, False, False, False)
+    analyzer, real_analyzer, should_instance = check_command_coroutine(function, True, False, False, False)
     
     parameters = real_analyzer.get_non_reserved_positional_parameters()
     
@@ -3605,9 +2586,9 @@ def get_application_command_parameter_auto_completer_converters(func):
                     f'`{real_analyzer.real_function!r}`\'s `{parameter.name}` do not refers to any of the '
                     f'expected internal parameters. Context commands do not accept any additional parameters.'
                 )
-            else:
-                parameter_converter = create_value_parameter_converter(parameter)
-                value_converter_detected = True
+            
+            parameter_converter = create_value_parameter_converter(parameter)
+            value_converter_detected = True
         
         parameter_converters.append(parameter_converter)
     
@@ -3615,71 +2596,67 @@ def get_application_command_parameter_auto_completer_converters(func):
     parameter_converters = tuple(parameter_converters)
     
     if should_instance:
-        func = analyzer.instance()
+        function = analyzer.instance()
     
-    return func, parameter_converters
+    return function, parameter_converters
 
 
-def get_form_submit_command_parameter_converters(func):
+def get_form_submit_command_parameter_converters(function):
     """
-    Parses the given `func`'s parameters.
+    Parses the given `function`'s parameters.
     
     Parameters
     ----------
-    func : `async-callable`
+    function : `async-callable`
         The function used by a ``FormSubmitCommand``.
     
     Returns
     -------
     func : `async-callable`
         The converted function.
-    positional_parameter_converters : `tuple` of ``ParameterConverter``
+    positional_parameter_converters : ``tuple<ParameterConverterBase>``
         Parameter converters for the given `func` in order.
-    multi_parameter_converter : ``ParameterConverter``
-         Parameter converter for `*args` parameter.
-    keyword_parameter_converters : `tuple` of ``ParameterConverter``
+    multi_parameter_converter : `None | ParameterConverterBase`
+         Parameter converter for `*positional_parameters` parameter.
+    keyword_parameter_converters : ``tuple<ParameterConverterBase>``
         Parameter converters for the given `func` for it's keyword parameters.
     
     Raises
     ------
     TypeError
-        - If `func` is not async callable, neither cannot be instanced to async.
-        - If `func` accepts `*args`.
-        - If `func` accepts `**kwargs`.
+        - If `function` is not async callable, neither cannot be instanced to async.
+        - If `function` accepts `*positional_parameters`.
+        - If `function` accepts `**keyword_parameters`.
     """
-    analyzer, real_analyzer, should_instance = check_command_coroutine(func, True, True, True, False)
+    analyzer, real_analyzer, should_instance = check_command_coroutine(function, True, True, True, False)
     
     positional_parameters = real_analyzer.get_non_reserved_positional_parameters()
     
     positional_parameter_converters = []
     
+    parameter_index = 0
     for parameter in positional_parameters:
         parameter_converter = create_internal_parameter_converter(parameter)
+        if (parameter_converter is None):
+            parameter_converter = ParameterConverterRegex(parameter, parameter_index)
+            parameter_index += 1
+            
         positional_parameter_converters.append(parameter_converter)
-    
-    parameter_index = 0
-    for index in range(len(positional_parameter_converters)):
-        parameter_converter = positional_parameter_converters[index]
-        if (parameter_converter is not None):
-            continue
-        
-        parameter = positional_parameters[index]
-        parameter_converter = RegexParameterConverter(parameter, parameter_index)
-        positional_parameter_converters[index] = parameter_converter
-        parameter_index += 1
     
     positional_parameter_converters = tuple(positional_parameter_converters)
     
     keyword_parameters = real_analyzer.get_non_reserved_keyword_only_parameters()
-    keyword_parameter_converters = tuple(FormFieldKeywordParameterConverter(parameter) for parameter in keyword_parameters)
+    keyword_parameter_converters = tuple(
+        ParameterConverterFormFieldKeyword(parameter) for parameter in keyword_parameters
+    )
     
     args_parameter = real_analyzer.args_parameter
     if (args_parameter is None):
         multi_parameter_converter = None
     else:
-        multi_parameter_converter = FormFieldMultiParameterConverter(args_parameter)
+        multi_parameter_converter = ParameterConverterFormFieldMulti(args_parameter)
     
     if should_instance:
-        func = analyzer.instance()
+        function = analyzer.instance()
     
-    return func, positional_parameter_converters, multi_parameter_converter, keyword_parameter_converters
+    return function, positional_parameter_converters, multi_parameter_converter, keyword_parameter_converters

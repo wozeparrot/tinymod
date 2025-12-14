@@ -29,7 +29,7 @@ class PaginationBase:
     
     Attributes
     ----------
-    _canceller : `None`, `Function`
+    _canceller : `None`, `FunctionType`
         The function called when the ``Pagination`` is cancelled or when it expires. This is a onetime use and after
         it was used, is set as `None`.
     
@@ -62,7 +62,7 @@ class PaginationBase:
     client : ``Client`` of ``Embed`` (or any compatible)
         The client who executes the ``Pagination``.
     
-    message : `None`, ``Message``
+    message : ``None | Message``
         The message on what the ``Pagination`` is executed.
     """
     __slots__ = ('_canceller', '_task_flag', '_timeouter', 'channel', 'client', 'message')
@@ -111,7 +111,7 @@ class PaginationBase:
         
         Parameters
         ----------
-        exception : `None`, ``BaseException``
+        exception : `None`, `BaseException`
             Exception to cancel the ``Pagination`` with.
         """
         client = self.client
@@ -177,7 +177,7 @@ class PaginationBase:
             return True
         
         if isinstance(exception, TimeoutError):
-            if self.channel.cached_permissions_for(client).can_manage_messages:
+            if self.channel.cached_permissions_for(client).manage_messages:
                 try:
                     await client.reaction_clear(message)
                 except GeneratorExit:
@@ -214,7 +214,7 @@ class PaginationBase:
         
         Parameters
         ----------
-        exception : `None`, ``BaseException`` = `None`, Optional
+        exception : `None`, `BaseException` = `None`, Optional
             Exception to cancel the pagination with. Defaults to `None`
         
         Returns

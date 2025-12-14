@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime, timedelta as TimeDelta
+from datetime import datetime as DateTime, timedelta as TimeDelta, timezone as TimeZone
 
 import vampytest
 
@@ -18,28 +18,28 @@ def test__Activity__color():
     """
     Tests whether ``Activity.color`` works as intended.
     """
-    activity = Activity(activity_type = ActivityType.game)
+    activity = Activity(activity_type = ActivityType.playing)
     vampytest.assert_instance(activity.color, Color)
 
 
-def test__Activity__discord_side_id__0():
+def test__Activity__discord_side_id__no_id():
     """
     Tests whether ``Activity.discord_side_id`` works as intended.
     
     Case: no id.
     """
-    activity = Activity(activity_type = ActivityType.game)
+    activity = Activity(activity_type = ActivityType.playing)
     vampytest.assert_instance(activity.discord_side_id, str)
 
 
-def test__Activity__discord_side_id__1():
+def test__Activity__discord_side_id__id_given():
     """
     Tests whether ``Activity.discord_side_id`` works as intended.
     
     Case: id given.
     """
     activity_id = 202209080000
-    activity = Activity(activity_type = ActivityType.game, activity_id = activity_id)
+    activity = Activity(activity_type = ActivityType.playing, activity_id = activity_id)
     vampytest.assert_instance(activity.discord_side_id, str)
 
 
@@ -98,7 +98,7 @@ def test__Activity__spotify_track_duration():
     Tests whether ``Activity.spotify_track_duration`` works as intended.
     """
     duration = TimeDelta(seconds = 69)
-    start = DateTime(2022, 6, 6)
+    start = DateTime(2022, 6, 6, tzinfo = TimeZone.utc)
     end = start + duration
     
     activity = Activity(activity_type = ActivityType.spotify, timestamps = ActivityTimestamps(end = end, start = start))
@@ -156,71 +156,11 @@ def test__Activity__spotify_track_url():
     vampytest.assert_in(name, spotify_track_url)
 
 
-def test__Activity__image_large_url():
-    """
-    Tests whether ``Activity.image_large_url`` works as intended.
-    """
-    application_id = 202209080001
-    image_id = '202209080002'
-    
-    activity = Activity(application_id = application_id, assets = ActivityAssets(image_large = image_id))
-    
-    image_large_url = activity.image_large_url
-    vampytest.assert_instance(image_large_url, str)
-    vampytest.assert_true(is_url(image_large_url))
-    vampytest.assert_in(image_id, image_large_url)
-
-
-def test__Activity__image_large_url_as():
-    """
-    Tests whether ``Activity.image_large_url_as`` works as intended.
-    """
-    application_id = 202209080003
-    image_id = '202209080004'
-    
-    activity = Activity(application_id = application_id, assets = ActivityAssets(image_large = image_id))
-    
-    image_large_url = activity.image_large_url_as()
-    vampytest.assert_instance(image_large_url, str)
-    vampytest.assert_true(is_url(image_large_url))
-    vampytest.assert_in(image_id, image_large_url)
-
-
-def test__Activity__image_small_url():
-    """
-    Tests whether ``Activity.image_small_url`` works as intended.
-    """
-    application_id = 202209080005
-    image_id = '202209080006'
-    
-    activity = Activity(application_id = application_id, assets = ActivityAssets(image_small = image_id))
-    
-    image_small_url = activity.image_small_url
-    vampytest.assert_instance(image_small_url, str)
-    vampytest.assert_true(is_url(image_small_url))
-    vampytest.assert_in(image_id, image_small_url)
-
-
-def test__Activity__image_small_url_as():
-    """
-    Tests whether ``Activity.image_small_url_as`` works as intended.
-    """
-    application_id = 202209080007
-    image_id = '202209080008'
-    
-    activity = Activity(application_id = application_id, assets = ActivityAssets(image_small = image_id))
-    
-    image_small_url = activity.image_small_url_as()
-    vampytest.assert_instance(image_small_url, str)
-    vampytest.assert_true(is_url(image_small_url))
-    vampytest.assert_in(image_id, image_small_url)
-
-
 def test__Activity__start():
     """
     Tests whether ``Activity.start`` works as intended.
     """
-    start = DateTime(2022, 6, 6)
+    start = DateTime(2022, 6, 6, tzinfo = TimeZone.utc)
     
     activity = Activity(activity_type = ActivityType.spotify, timestamps = ActivityTimestamps(start = start))
     
@@ -231,7 +171,7 @@ def test__Activity__end():
     """
     Tests whether ``Activity.end`` works as intended.
     """
-    end = DateTime(2022, 6, 6)
+    end = DateTime(2022, 6, 6, tzinfo = TimeZone.utc)
     
     activity = Activity(activity_type = ActivityType.spotify, timestamps = ActivityTimestamps(end = end))
     
@@ -253,7 +193,7 @@ def test__Activity__copy():
     vampytest.assert_eq(activity, copy)
 
 
-def test__Activity__copy_with__0():
+def test__Activity__copy_with__no_fields_given():
     """
     Tests whether ``Activity.copy_with`` works as intended.
     
@@ -270,15 +210,15 @@ def test__Activity__copy_with__0():
     vampytest.assert_eq(activity, copy)
 
 
-
-def test__Activity__copy_with__1():
+def test__Activity__copy_with__fields_given():
     """
     Tests whether ``Activity.copy_with`` works as intended.
     
     Case: Fields given.
     """
-    old_activity_type = ActivityType.game
+    old_activity_type = ActivityType.playing
     old_name = 'Yuuka'
+    
     new_activity_type = ActivityType.competing
     new_name = 'koishi'
     
@@ -294,3 +234,177 @@ def test__Activity__copy_with__1():
     
     vampytest.assert_is(copy.type, new_activity_type)
     vampytest.assert_eq(copy.name, new_name)
+
+
+def _iter_options__image_large_url():
+    application_id = 202209080001
+    image_large = '202209080002'
+    
+    yield (
+        0,
+        None,
+        False,
+    )
+    
+    yield (
+        application_id,
+        image_large,
+        True,
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__image_large_url()).returning_last())
+def test__Activity__image_large_url(application_id, image_large):
+    """
+    Tests whether ``Activity.image_large_url`` works as intended.
+    
+    Parameters
+    ----------
+    application_id : `int`
+        Application identifier to create activity with.
+    
+    image_large : `None | str`
+        Asset large image value to create activity with.
+    
+    Returns
+    -------
+    has_image_large_url : `bool`
+    """
+    activity = Activity(application_id = application_id, assets = ActivityAssets(image_large = image_large))
+    
+    output = activity.image_large_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__image_large_url_as():
+    application_id = 202209080003
+    image_large = '202209080004'
+    
+    yield (
+        0,
+        None,
+        {'ext': 'jpg', 'size': 128},
+        False,
+    )
+    
+    yield (
+        application_id,
+        image_large,
+        {'ext': 'jpg', 'size': 128},
+        True,
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__image_large_url_as()).returning_last())
+def test__Activity__image_large_url_as(application_id, image_large, keyword_parameters):
+    """
+    Tests whether ``Activity.image_large_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    application_id : `int`
+        Application identifier to create activity with.
+    
+    image_large : `None | str`
+        Asset large image value to create activity with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_image_large_url : `bool`
+    """
+    activity = Activity(application_id = application_id, assets = ActivityAssets(image_large = image_large))
+    
+    output = activity.image_large_url_as(**keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__image_small_url():
+    application_id = 202209080005
+    image_small = '202209080006'
+    
+    yield (
+        0,
+        None,
+        False,
+    )
+    
+    yield (
+        application_id,
+        image_small,
+        True,
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__image_small_url()).returning_last())
+def test__Activity__image_small_url(application_id, image_small):
+    """
+    Tests whether ``Activity.image_small_url`` works as intended.
+    
+    Parameters
+    ----------
+    application_id : `int`
+        Application identifier to create activity with.
+    
+    image_small : `None | str`
+        Asset small image value to create activity with.
+    
+    Returns
+    -------
+    has_image_small_url : `bool`
+    """
+    activity = Activity(application_id = application_id, assets = ActivityAssets(image_small = image_small))
+    
+    output = activity.image_small_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__image_small_url_as():
+    application_id = 202209080007
+    image_small = '202209080008'
+    
+    yield (
+        0,
+        None,
+        {'ext': 'jpg', 'size': 128},
+        False,
+    )
+    
+    yield (
+        application_id,
+        image_small,
+        {'ext': 'jpg', 'size': 128},
+        True,
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__image_small_url_as()).returning_last())
+def test__Activity__image_small_url_as(application_id, image_small, keyword_parameters):
+    """
+    Tests whether ``Activity.image_small_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    application_id : `int`
+        Application identifier to create activity with.
+    
+    image_small : `None | str`
+        Asset small image value to create activity with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_image_small_url : `bool`
+    """
+    activity = Activity(application_id = application_id, assets = ActivityAssets(image_small = image_small))
+    
+    output = activity.image_small_url_as(**keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)

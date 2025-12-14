@@ -150,12 +150,12 @@ class ClientCompoundClientGateway(Compound):
             activity = self._activity
         elif activity is None:
             self._activity = ACTIVITY_UNKNOWN
-        elif isinstance(activity, Activity) and (activity.type is not ActivityType.custom):
+        elif isinstance(activity, Activity):
             self._activity = activity
         else:
             raise TypeError(
-                f'`activity` can be `{Activity.__name__}` (except `{ActivityType.custom.name}`), got: '
-                f'{activity.__class__.__name__}; {activity!r}.'
+                f'`activity` can be `{Activity.__name__}`, got: '
+                f'{type(activity).__name__}; {activity!r}.'
             )
         
         if activity is None:
@@ -270,7 +270,7 @@ class ClientCompoundClientGateway(Compound):
         
         Parameters
         ----------
-        guilds : `iterable` of (``Guild``, `int`)
+        guilds : ``iterable<Guild> | iterable<int>``
             The guilds or their identifiers to request the sounds of.
         force_request : `bool` = `False`
             Whether the sounds should be requested even if they are already cached.
@@ -338,7 +338,7 @@ class ClientCompoundClientGateway(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, what's members will be requested.
         
         Raises
@@ -401,7 +401,7 @@ class ClientCompoundClientGateway(Compound):
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild, what's members will be requested.
         name : `str`
             The received user's name or nick should start with this string.
@@ -410,7 +410,7 @@ class ClientCompoundClientGateway(Compound):
         
         Returns
         -------
-        users : `list` of ``ClientUserBase``
+        users : ``list<ClientUserBase>``
         
         Raises
         ------

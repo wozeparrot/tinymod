@@ -1,11 +1,11 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
-from ....activity import Activity
 from ....bases import Icon, IconType
 from ....channel import Channel, ChannelType
 from ....client import Client
+from ....embedded_activity import EmbeddedActivity
 from ....emoji import Emoji
 from ....localization import Locale
 from ....permission import Permission
@@ -19,13 +19,11 @@ from ....user import ClientUserBase, GuildProfile, User, VoiceState
 from ....utils import is_url
 from ....webhook import Webhook
 
-from ...embedded_activity_state import EmbeddedActivityState
-
 from ..constants import GUILD_STATE_MASK_CACHE_ALL, GUILD_STATE_MASK_CACHE_BOOSTERS
 from ..emoji_counts import EmojiCounts
 from ..flags import SystemChannelFlag
 from ..guild import Guild
-from ..guild_premium_perks import GuildPremiumPerks, TIER_0, TIER_MAX
+from ..guild_boost_perks import GuildBoostPerks, LEVEL_0, LEVEL_MAX
 from ..preinstanced import (
     ExplicitContentFilterLevel, GuildFeature, HubType, MfaLevel, MessageNotificationLevel, NsfwLevel, VerificationLevel
 )
@@ -45,7 +43,8 @@ def test__Guild__copy():
     explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     description = 'Koishi'
     discovery_splash = Icon(IconType.animated, 14)
-    features = [GuildFeature.animated_icon]
+    features = [GuildFeature.icon_animated]
+    home_splash = Icon(IconType.animated, 36)
     hub_type = HubType.college
     icon = Icon(IconType.animated, 16)
     invite_splash = Icon(IconType.animated, 18)
@@ -74,6 +73,7 @@ def test__Guild__copy():
         description = description,
         discovery_splash = discovery_splash,
         features = features,
+        home_splash = home_splash,
         hub_type = hub_type,
         icon = icon,
         invite_splash = invite_splash,
@@ -113,7 +113,8 @@ def test__Guild__copy_with__0():
     explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     description = 'Koishi'
     discovery_splash = Icon(IconType.animated, 14)
-    features = [GuildFeature.animated_icon]
+    features = [GuildFeature.icon_animated]
+    home_splash = Icon(IconType.animated, 36)
     hub_type = HubType.college
     icon = Icon(IconType.animated, 16)
     invite_splash = Icon(IconType.animated, 18)
@@ -142,6 +143,7 @@ def test__Guild__copy_with__0():
         description = description,
         discovery_splash = discovery_splash,
         features = features,
+        home_splash = home_splash,
         hub_type = hub_type,
         icon = icon,
         invite_splash = invite_splash,
@@ -181,7 +183,8 @@ def test__Guild__copy_with__1():
     old_explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     old_description = 'Koishi'
     old_discovery_splash = Icon(IconType.animated, 14)
-    old_features = [GuildFeature.animated_icon]
+    old_features = [GuildFeature.icon_animated]
+    old_home_splash = Icon(IconType.animated, 36)
     old_hub_type = HubType.college
     old_icon = Icon(IconType.animated, 16)
     old_invite_splash = Icon(IconType.animated, 18)
@@ -208,7 +211,8 @@ def test__Guild__copy_with__1():
     new_explicit_content_filter_level = ExplicitContentFilterLevel.everyone
     new_description = 'Okuu'
     new_discovery_splash = Icon(IconType.animated, 114)
-    new_features = [GuildFeature.animated_banner]
+    new_features = [GuildFeature.banner_animated]
+    new_home_splash = Icon(IconType.animated, 37)
     new_hub_type = HubType.high_school
     new_icon = Icon(IconType.animated, 116)
     new_invite_splash = Icon(IconType.animated, 118)
@@ -237,6 +241,7 @@ def test__Guild__copy_with__1():
         description = old_description,
         discovery_splash = old_discovery_splash,
         features = old_features,
+        home_splash = old_home_splash,
         hub_type = old_hub_type,
         icon = old_icon,
         invite_splash = old_invite_splash,
@@ -266,6 +271,7 @@ def test__Guild__copy_with__1():
         description = new_description,
         discovery_splash = new_discovery_splash,
         features = new_features,
+        home_splash = new_home_splash,
         hub_type = new_hub_type,
         icon = new_icon,
         invite_splash = new_invite_splash,
@@ -299,6 +305,7 @@ def test__Guild__copy_with__1():
     vampytest.assert_eq(copy.description, new_description)
     vampytest.assert_eq(copy.discovery_splash, new_discovery_splash)
     vampytest.assert_eq(copy.features, tuple(new_features))
+    vampytest.assert_eq(copy.home_splash, new_home_splash)
     vampytest.assert_is(copy.hub_type, new_hub_type)
     vampytest.assert_eq(copy.icon, new_icon)
     vampytest.assert_eq(copy.invite_splash, new_invite_splash)
@@ -319,7 +326,7 @@ def test__Guild__copy_with__1():
     vampytest.assert_eq(copy.widget_enabled, new_widget_enabled)
 
 
-def test__Guild__delete__0():
+def test__Guild__delete__client_not_in_guild():
     """
     Tests whether ``Guild._delete`` works as intended.
     
@@ -333,7 +340,7 @@ def test__Guild__delete__0():
     user.guild_profiles[guild_id] = GuildProfile()
     
     client = Client(
-        token = 'token_20230623_0000',
+        token = 'token_' + str(client_id),
         client_id = client_id,
     )
     
@@ -350,7 +357,7 @@ def test__Guild__delete__0():
         client = None
 
 
-def test__Guild__delete__1():
+def test__Guild__delete__client_is_last():
     """
     Tests whether ``Guild._delete`` works as intended.
     
@@ -364,7 +371,7 @@ def test__Guild__delete__1():
     user.guild_profiles[guild_id] = GuildProfile()
     
     client = Client(
-        token = 'token_20230623_0001',
+        token = 'token_' + str(client_id),
         client_id = client_id,
     )
     client.guild_profiles[guild_id] = GuildProfile()
@@ -376,8 +383,10 @@ def test__Guild__delete__1():
         guild._delete(client)
         
         vampytest.assert_not_in(guild_id, user.guild_profiles)
-        vampytest.assert_in(guild_id, client.guild_profiles)
         vampytest.assert_eq(guild.clients, [])
+        
+        vampytest.assert_not_in(guild_id, client.guild_profiles)
+        vampytest.assert_is(guild._cache_permission, None)
     
     # Cleanup
     finally:
@@ -385,7 +394,7 @@ def test__Guild__delete__1():
         client = None
 
 
-def test__Guild__delete__2():
+def test__Guild__delete__client_not_last():
     """
     Tests whether ``Guild._delete`` works as intended.
     
@@ -400,13 +409,13 @@ def test__Guild__delete__2():
     user.guild_profiles[guild_id] = GuildProfile()
     
     client_0 = Client(
-        token = 'token_20230623_0001',
+        token = 'token_' + str(client_id_0),
         client_id = client_id_0,
     )
     client_0.guild_profiles[guild_id] = GuildProfile()
     
     client_1 = Client(
-        token = 'token_20230623_0002',
+        token = 'token_' + str(client_id_1),
         client_id = client_id_1,
     )
     client_1.guild_profiles[guild_id] = GuildProfile()
@@ -414,15 +423,18 @@ def test__Guild__delete__2():
     guild = Guild.precreate(guild_id, users = [client_0, client_1, user])
     guild.clients.append(client_0)
     guild.clients.append(client_1)
-    
+    guild.cached_permissions_for(client_0)
+    guild.cached_permissions_for(client_1)
     
     try:
         guild._delete(client_0)
         
         vampytest.assert_in(guild_id, user.guild_profiles)
-        vampytest.assert_in(guild_id, client_0.guild_profiles)
-        vampytest.assert_in(guild_id, client_1.guild_profiles)
         vampytest.assert_eq(guild.clients, [client_1])
+        
+        vampytest.assert_not_in(guild_id, client_0.guild_profiles)
+        vampytest.assert_in(guild_id, client_1.guild_profiles)
+        vampytest.assert_is(guild._cache_permission, None)
         
     # Cleanup
     finally:
@@ -433,64 +445,7 @@ def test__Guild__delete__2():
         client_1 = None
 
 
-@vampytest.call_with('shield')
-@vampytest.call_with('banner1')
-@vampytest.call_with('banner2')
-@vampytest.call_with('banner3')
-@vampytest.call_with('banner4')
-def test__Guild__widget_url_as__passing(style):
-    """
-    Tests whether ``Guild.widget_url_as`` works as intended.
-    
-    Case: Passing.
-    
-    Parameters
-    ----------
-    style : `str`
-        Widget style
-    """
-    guild = Guild.precreate(202306230037)
-    widget_url = guild.widget_url_as(style)
-    
-    vampytest.assert_instance(widget_url, str)
-    vampytest.assert_true(is_url(widget_url))
-
-
-@vampytest.raising(ValueError)
-@vampytest.call_with('shield1')
-@vampytest.call_with('banner11')
-@vampytest.call_with('banner5')
-@vampytest.call_with('banner0')
-def test__Guild__widget_url_as__value_error(style):
-    """
-    Tests whether ``Guild.widget_url_as`` works as intended.
-    
-    Case: `ValueError`.
-    
-    Parameters
-    ----------
-    style : `str`
-        Widget style
-    """
-    guild = Guild.precreate(202306230038)
-    widget_url = guild.widget_url_as(style)
-    
-    vampytest.assert_instance(widget_url, str)
-    vampytest.assert_true(is_url(widget_url))
-
-
-def test__Guild__widget_url():
-    """
-    Tests whether ``Guild.widget_url`` works as intended.
-    """
-    guild = Guild.precreate(202306230039)
-    widget_url = guild.widget_url
-    
-    vampytest.assert_instance(widget_url, str)
-    vampytest.assert_true(is_url(widget_url))
-    
-
-def test__Guild__nsfw__0():
+def test__Guild__nsfw__safe():
     """
     Tests whether `Guild.nsfw` returns the correct value.
     
@@ -502,7 +457,7 @@ def test__Guild__nsfw__0():
     vampytest.assert_eq(guild.nsfw, nsfw_level.nsfw)
 
 
-def test__Guild__nsfw__1():
+def test__Guild__nsfw__explicit():
     """
     Tests whether `Guild.nsfw` returns the correct value.
     
@@ -515,49 +470,62 @@ def test__Guild__nsfw__1():
 
 
 def _iter_options__iter_features():
-    feature_0 = GuildFeature.animated_icon
-    feature_1 = GuildFeature.animated_banner
+    feature_0 = GuildFeature.icon_animated
+    feature_1 = GuildFeature.banner_animated
     
-    yield Guild.precreate(202305290002, features = None), set()
-    yield Guild.precreate(202305290003, features = [feature_0]), {feature_0}
-    yield Guild.precreate(202305290004, features = [feature_0, feature_1]), {feature_0, feature_1}
+    yield 202305290002, None, set()
+    yield 202305290003, [feature_0], {feature_0}
+    yield 202305290004, [feature_0, feature_1], {feature_0, feature_1}
 
 
 @vampytest._(vampytest.call_from(_iter_options__iter_features()).returning_last())
-def test__Guild__iter_features(guild):
+def test__Guild__iter_features(guild_id, features):
     """
     Tests whether ``Guild.iter_features`` works as intended.
     
     Parameters
     ----------
-    guild : ``Guild``
-        The guild to iter the features of.
+    guild_id : `int`
+        Guild identifier to create guild for.
+    
+    features : ``None | list<GuildFeature>``
+        Guild features to create guild with.
     
     Returns
     -------
-    output : `set` of ``GuildFeature``
+    output : ``set<GuildFeature>`
     """
-    return {*guild.iter_features()}
+    guild = Guild.precreate(guild_id, features = features)
+    output = {*guild.iter_features()}
+    
+    for element in output:
+        vampytest.assert_instance(element, GuildFeature)
+    
+    return output
 
 
 def _iter_options__has_feature():
-    feature = GuildFeature.animated_icon
+    feature = GuildFeature.icon_animated
 
-    yield Guild.precreate(202212190038, features = []), feature, False
-    yield Guild.precreate(202212200020, features = [GuildFeature.animated_banner]), feature, False
-    yield Guild.precreate(202212200021, features = [feature]), feature, True
-    yield Guild.precreate(202212200022, features = [GuildFeature.animated_banner, feature]), feature, True
+    yield 202212190038, None, feature, False
+    yield 202212200020, [GuildFeature.banner_animated], feature, False
+    yield 202212200021, [feature], feature, True
+    yield 202212200022, [GuildFeature.banner_animated, feature], feature, True
 
 
 @vampytest._(vampytest.call_from(_iter_options__has_feature()).returning_last())
-def test__Guild__has_feature(guild, feature):
+def test__Guild__has_feature(guild_id, features, feature):
     """
     Tests whether ``Guild.has_feature`` works as intended.
     
     Parameters
     ----------
-    guild : ``Guild``
-        The guild to check the feature of.
+    guild_id : `int`
+        Guild identifier to create guild for.
+    
+    features : ``None | list<GuildFeature>``
+        Guild features to create guild with.
+    
     feature : ``GuildFeature``
         The feature to check for.
     
@@ -565,127 +533,179 @@ def test__Guild__has_feature(guild, feature):
     -------
     output : `bool`
     """
-    return guild.has_feature(feature)
+    guild = Guild.precreate(guild_id, features = features)
+    output = guild.has_feature(feature)
+    vampytest.assert_instance(output, bool)
+    return output
 
 
-def test__Guild__premium_perks():
+def test__Guild__boost_perks():
     """
-    Tests whether ``Guild.premium_perks`` works as intended.
+    Tests whether ``Guild.boost_perks`` works as intended.
     """
-    premium_tier = 2
+    boost_level = 2
     
-    guild = Guild.precreate(202212190039, premium_tier = premium_tier)
-    premium_perks = guild.premium_perks
-    vampytest.assert_instance(premium_perks, GuildPremiumPerks)
-    vampytest.assert_eq(premium_perks.tier, premium_tier)
+    guild = Guild.precreate(202212190039, boost_level = boost_level)
+    boost_perks = guild.boost_perks
+    vampytest.assert_instance(boost_perks, GuildBoostPerks)
+    vampytest.assert_eq(boost_perks.level, boost_level)
 
 
 def _iter_options__emoji_limit():
-    yield Guild.precreate(202212200000, premium_tier = 0), TIER_0.emoji_limit
-    yield Guild.precreate(202212200001, premium_tier = TIER_MAX.tier), TIER_MAX.emoji_limit
-    yield Guild.precreate(202212200002, premium_tier = 1, features = [GuildFeature.more_emoji]), 200
-    yield (
-        Guild.precreate(202212200003, premium_tier = TIER_MAX.tier, features = [GuildFeature.more_emoji]),
-        TIER_MAX.emoji_limit,
-    )
-    
+    yield 202212200000, 0, None, LEVEL_0.emoji_limit
+    yield 202212200001, LEVEL_MAX.level, None, LEVEL_MAX.emoji_limit
+    yield 202212200002, 1, [GuildFeature.more_emoji], 200
+    yield 202212200003, LEVEL_MAX.level, [GuildFeature.more_emoji], LEVEL_MAX.emoji_limit
+
 
 @vampytest._(vampytest.call_from(_iter_options__emoji_limit()).returning_last())
-def test__Guild__emoji_limit(guild):
+def test__Guild__emoji_limit(guild_id, boost_level, features):
     """
     Tests whether ``Guild.emoji_limit`` works as intended.
     
     Parameters
     ----------
-    guild : ``Guild``
-        The guild to get its emoji limit of.
+    guild_id : `int`
+        Guild identifier to create the guild with.
+    
+    boost_level : `int`
+        The boost level of the guild.
+    
+    features : `None | list<GuildFeature>`
+        Features to create the guild with.
     
     Returns
     -------
     output : `int`
     """
+    guild = Guild.precreate(guild_id, boost_level = boost_level, features = features)
     emoji_limit = guild.emoji_limit
     vampytest.assert_instance(emoji_limit, int)
     return emoji_limit
 
 
+def _iter_options__soundboard_sound_limit():
+    yield 202511240000, 0, None, LEVEL_0.soundboard_sound_limit
+    yield 202511240001, LEVEL_MAX.level, None, LEVEL_MAX.soundboard_sound_limit
+    yield 202511240002, 1, [GuildFeature.more_soundboard_sound], 36
+    yield 202511240003, LEVEL_MAX.level, [GuildFeature.more_soundboard_sound], LEVEL_MAX.soundboard_sound_limit
+
+
+@vampytest._(vampytest.call_from(_iter_options__soundboard_sound_limit()).returning_last())
+def test__Guild__soundboard_sound_limit(guild_id, boost_level, features):
+    """
+    Tests whether ``Guild.soundboard_sound_limit`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Guild identifier to create the guild with.
+    
+    boost_level : `int`
+        The boost level of the guild.
+    
+    features : `None | list<GuildFeature>`
+        Features to create the guild with.
+    
+    Returns
+    -------
+    output : `int`
+    """
+    guild = Guild.precreate(guild_id, boost_level = boost_level, features = features)
+    soundboard_sound_limit = guild.soundboard_sound_limit
+    vampytest.assert_instance(soundboard_sound_limit, int)
+    return soundboard_sound_limit
+
+
 def _iter_options__bitrate_limit():
-    yield Guild.precreate(202212200004, premium_tier = 0), TIER_0.bitrate_limit
-    yield Guild.precreate(202212200005, premium_tier = TIER_MAX.tier), TIER_MAX.bitrate_limit
-    yield Guild.precreate(202212200006, premium_tier = 1, features = [GuildFeature.vip_voice_regions]), 128000
-    yield (
-        Guild.precreate(202212200007, premium_tier = TIER_MAX.tier, features = [GuildFeature.vip_voice_regions]),
-        TIER_MAX.bitrate_limit,
-    )
+    yield 202212200004, 0, None, LEVEL_0.bitrate_limit
+    yield 202212200005, LEVEL_MAX.level, None, LEVEL_MAX.bitrate_limit
+    yield 202212200006, 1, [GuildFeature.vip_voice_regions], 128000
+    yield 202212200007, LEVEL_MAX.level, [GuildFeature.vip_voice_regions], LEVEL_MAX.bitrate_limit
 
 
 @vampytest._(vampytest.call_from(_iter_options__bitrate_limit()).returning_last())
-def test__Guild__bitrate_limit(guild):
+def test__Guild__bitrate_limit(guild_id, boost_level, features):
     """
     Tests whether ``Guild.bitrate_limit`` works as intended.
     
     Parameters
     ----------
-    guild : ``Guild``
-        The guild to get its bitrate limit of.
+    guild_id : `int`
+        Guild identifier to create the guild with.
+    
+    boost_level : `int`
+        The boost level of the guild.
+    
+    features : `None | list<GuildFeature>`
+        Features to create the guild with.
     
     Returns
     -------
     output : `int`
     """
+    guild = Guild.precreate(guild_id, boost_level = boost_level, features = features)
     bitrate_limit = guild.bitrate_limit
     vampytest.assert_instance(bitrate_limit, int)
     return bitrate_limit
 
 
-def _iter_options__upload_limit():
-    yield Guild.precreate(202212200008, premium_tier = 0), TIER_0.upload_limit
-    yield Guild.precreate(202212200009, premium_tier = TIER_MAX.tier), TIER_MAX.upload_limit
+def _iter_options__attachment_size_limit():
+    yield 202212200008, 0, LEVEL_0.attachment_size_limit
+    yield 202212200009, LEVEL_MAX.level, LEVEL_MAX.attachment_size_limit
 
 
-@vampytest._(vampytest.call_from(_iter_options__upload_limit()).returning_last())
-def test__Guild__upload_limit(guild):
+@vampytest._(vampytest.call_from(_iter_options__attachment_size_limit()).returning_last())
+def test__Guild__attachment_size_limit(guild_id, boost_level):
     """
-    Tests whether ``Guild.upload_limit`` works as intended.
+    Tests whether ``Guild.attachment_size_limit`` works as intended.
     
     Parameters
     ----------
-    guild : ``Guild``
-        The guild to get its upload limit of.
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    boost_level : `int`
+        Boost level to create the guild with.
     
     Returns
     -------
     output : `int`
     """
-    upload_limit = guild.upload_limit
-    vampytest.assert_instance(upload_limit, int)
-    return upload_limit
+    guild = Guild.precreate(guild_id, boost_level = boost_level)
+    attachment_size_limit = guild.attachment_size_limit
+    vampytest.assert_instance(attachment_size_limit, int)
+    return attachment_size_limit
 
 
 def _iter_options__sticker_limit():
-    yield Guild.precreate(202212200010, premium_tier = 0), TIER_0.sticker_limit
-    yield Guild.precreate(202212200011, premium_tier = TIER_MAX.tier), TIER_MAX.sticker_limit
-    yield Guild.precreate(202212200012, premium_tier = 1, features = [GuildFeature.more_sticker]), 30
-    yield (
-        Guild.precreate(202212200013, premium_tier = TIER_MAX.tier, features = [GuildFeature.more_sticker]),
-        TIER_MAX.sticker_limit,
-    )
+    yield 202212200010, 0, None, LEVEL_0.sticker_limit
+    yield 202212200011, LEVEL_MAX.level, None, LEVEL_MAX.sticker_limit
+    yield 202212200012, 1, [GuildFeature.more_sticker], 30
+    yield 202212200013, LEVEL_MAX.level, [GuildFeature.more_sticker], LEVEL_MAX.sticker_limit
 
 
 @vampytest._(vampytest.call_from(_iter_options__sticker_limit()).returning_last())
-def test__Guild__sticker_limit(guild):
+def test__Guild__sticker_limit(guild_id, boost_level, features):
     """
     Tests whether ``Guild.sticker_limit`` works as intended.
     
     Parameters
     ----------
-    guild : ``Guild``
-        The guild to get its sticker limit of.
+    guild_id : `int`
+        Guild identifier to create the guild with.
+    
+    boost_level : `int`
+        The boost level of the guild.
+    
+    features : `None | list<GuildFeature>`
+        Features to create the guild with.
     
     Returns
     -------
     output : `int`
     """
+    guild = Guild.precreate(guild_id, boost_level = boost_level, features = features)
     sticker_limit = guild.sticker_limit
     vampytest.assert_instance(sticker_limit, int)
     return sticker_limit
@@ -868,38 +888,6 @@ def test__Guild__get_soundboard_sounds_like(guild, name):
     return guild.get_soundboard_sounds_like(name)
 
 
-def test__Guild__vanity_url__has_no():
-    """
-    Tests whether ``Guild.vanity_url`` works as intended.
-    """
-    guild = Guild.precreate(202306230130, vanity_code = None)
-    vanity_url = guild.vanity_url
-    
-    vampytest.assert_is(vanity_url, None)
-
-
-def test__Guild__vanity_url__has():
-    """
-    Tests whether ``Guild.vanity_url`` works as intended.
-    """
-    guild = Guild.precreate(202306230131, vanity_code = 'koishi')
-    vanity_url = guild.vanity_url
-    
-    vampytest.assert_instance(vanity_url, str)
-    vampytest.assert_true(is_url(vanity_url))
-
-
-def test__Guild__widget_json_url():
-    """
-    Tests whether ``Guild.widget_json_url`` works as intended.
-    """
-    guild = Guild.precreate(202306230132)
-    widget_json_url = guild.widget_json_url
-    
-    vampytest.assert_instance(widget_json_url, str)
-    vampytest.assert_true(is_url(widget_json_url))
-
-
 def test__Guild__default_role():
     """
     Tests whether ``Guild.default_role`` works as intended.
@@ -1051,7 +1039,7 @@ def test__Guild__get_emoji(guild, name):
     
     Returns
     -------
-    output : `None`, ``Emoji``
+    output : ``None | Emoji``
     """
     return guild.get_emoji(name)
 
@@ -1083,7 +1071,7 @@ def test__Guild__get_emoji_like(guild, name):
     
     Returns
     -------
-    output : `None`, ``Emoji``
+    output : ``None | Emoji``
     """
     return guild.get_emoji_like(name)
 
@@ -1360,7 +1348,7 @@ def test__Guild__get_channel(guild, name, type_checker):
     
     Returns
     -------
-    output : `None`, ``Channel``
+    output : ``None | Channel``
     """
     return guild.get_channel(name, type_checker = type_checker)
 
@@ -1409,7 +1397,7 @@ def test__Guild__get_channel_like(guild, name, type_checker):
     
     Returns
     -------
-    output : `None`, ``Channel``
+    output : ``None | Channel``
     """
     return guild.get_channel_like(name, type_checker = type_checker)
 
@@ -1509,7 +1497,7 @@ def test__Guild__get_user(guild, name):
     
     Returns
     -------
-    output : `None`, ``ClientUserBase``
+    output : ``None | ClientUserBase``
     """
     return guild.get_user(name)
 
@@ -1574,7 +1562,7 @@ def test__Guild__get_user_like(guild, name):
     
     Returns
     -------
-    output : `None`, ``ClientUserBase``
+    output : ``None | ClientUserBase``
     """
     return guild.get_user_like(name)
 
@@ -1628,7 +1616,7 @@ def test__Guild__get_users_like(guild, name):
     
     Returns
     -------
-    output : `list` of ``ClientUserBase``
+    output : ``list<ClientUserBase>``
     """
     return guild.get_users_like(name)
 
@@ -1637,19 +1625,19 @@ def _iter_options__get_users_like_ordered():
     guild_id = 202306260074
     
     user_0 = User.precreate(202306260074, name = 'orin')
-    user_0.guild_profiles[guild_id] = GuildProfile(joined_at = DateTime(2016, 5, 14))
+    user_0.guild_profiles[guild_id] = GuildProfile(joined_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     
     user_1 = User.precreate(202306260075, name = 'rin')
-    user_1.guild_profiles[guild_id] = GuildProfile(joined_at = DateTime(2016, 5, 13))
+    user_1.guild_profiles[guild_id] = GuildProfile(joined_at = DateTime(2016, 5, 13, tzinfo = TimeZone.utc))
     
     user_2 = User.precreate(202306260076, name = 'cat', discriminator = 12, display_name = 'orin')
-    user_2.guild_profiles[guild_id] = GuildProfile(joined_at = DateTime(2016, 5, 15))
+    user_2.guild_profiles[guild_id] = GuildProfile(joined_at = DateTime(2016, 5, 15, tzinfo = TimeZone.utc))
     
     user_3 = User.precreate(202306260077, name = 'cat', discriminator = 14)
-    user_3.guild_profiles[guild_id] = GuildProfile(nick = 'orin', joined_at = DateTime(2016, 5, 12))
+    user_3.guild_profiles[guild_id] = GuildProfile(nick = 'orin', joined_at = DateTime(2016, 5, 12, tzinfo = TimeZone.utc))
 
     user_4 = User.precreate(202306260078, name = 'cat', discriminator = 14)
-    user_4.guild_profiles[guild_id] = GuildProfile(nick = 'okuu', joined_at = DateTime(2016, 5, 20))
+    user_4.guild_profiles[guild_id] = GuildProfile(nick = 'okuu', joined_at = DateTime(2016, 5, 20, tzinfo = TimeZone.utc))
     
     guild = Guild.precreate(guild_id, users = [user_0, user_1, user_2, user_3, user_4])
     
@@ -1811,6 +1799,43 @@ def test__Guild__iter_channels(guild, type_checker):
     return {*guild.iter_channels(type_checker)}
 
 
+def test__Guild__iter_clients():
+    """
+    Tests whether ``Guild.iter_clients`` works as intended.
+    """
+    guild_id = 202509240000
+    user_id_0 = 202509240001
+    user_id_1 = 202509240002
+    
+    client_0 = Client(
+        token = f'token_{user_id_0}',
+        client_id = user_id_0,
+    )
+    try:
+        client_1 = Client(
+            token = f'token_{user_id_1}',
+            client_id = user_id_1,
+        )
+        
+        try:
+            guild = Guild.precreate(guild_id, users = [client_0, client_1])
+            guild.clients.append(client_0)
+            guild.clients.append(client_1)
+            
+            output = {*guild.iter_clients()}
+            vampytest.assert_eq(output, {client_0, client_1})
+        
+        # Cleanup
+        finally:
+            client_1._delete()
+            client_1 = None
+        
+    # Cleanup
+    finally:
+        client_0._delete()
+        client_0 = None
+
+
 def _iter_options__iter_scheduled_events():
     scheduled_event_0 = ScheduledEvent.precreate(202306270007)
     scheduled_event_1 = ScheduledEvent.precreate(202306270008)
@@ -1840,40 +1865,47 @@ def test__Guild__iter_scheduled_events(guild):
     return {*guild.iter_scheduled_events()}
 
 
-def _iter_options__iter_embedded_activity_states():
-    embedded_activity_state_0 = EmbeddedActivityState(
-        activity = Activity('dance'), guild_id = 202306270012, channel_id = 202306270013
-    )
-    embedded_activity_state_1 = EmbeddedActivityState(
-        activity = Activity('party'), guild_id = 202306270014, channel_id = 202306270015
-    )
-
-    yield Guild.precreate(202306270016), set()
+def _iter_options__iter_embedded_activities():
+    embedded_activity_0 = EmbeddedActivity.precreate(202409040016)
+    embedded_activity_1 = EmbeddedActivity.precreate(202409040017)
+    
     yield (
-        Guild.precreate(202306270017, embedded_activity_states = [embedded_activity_state_0]),
-        {embedded_activity_state_0},
+        202306270016,
+        None,
+        set(),
     )
+    
     yield (
-        Guild.precreate(202306270018, embedded_activity_states = [embedded_activity_state_0, embedded_activity_state_1]),
-        {embedded_activity_state_0, embedded_activity_state_1}
+        202306270017,
+        [embedded_activity_0],
+        {embedded_activity_0},
+    )
+    
+    yield (
+        202306270018,
+        [embedded_activity_0, embedded_activity_1],
+        {embedded_activity_0, embedded_activity_1},
     )
 
 
-@vampytest._(vampytest.call_from(_iter_options__iter_embedded_activity_states()).returning_last())
-def test__Guild__iter_embedded_activity_states(guild):
+@vampytest._(vampytest.call_from(_iter_options__iter_embedded_activities()).returning_last())
+def test__Guild__iter_embedded_activities(guild_id, embedded_activities):
     """
-    Tests whether ``Guild.iter_embedded_activity_states`` works as intended.
+    Tests whether ``Guild.iter_embedded_activities`` works as intended.
     
     Parameters
     ----------
-    guild : ``Guild``
-        The guild to iterate its embedded activity states of.
+    guild_id : ``Guild``
+        The guild identifier to create guild as.
+    embedded_activities : `None | list<EmbeddedActivity>`
+        Embedded activities to create the guild with.
     
     Returns
     -------
-    output : `set` of ``EmbeddedActivityState``
+    output : `set` of ``EmbeddedActivity``
     """
-    return {*guild.iter_embedded_activity_states()}
+    guild = Guild.precreate(guild_id, embedded_activities = embedded_activities)
+    return {*guild.iter_embedded_activities()}
 
 
 def _iter_options__iter_stages():
@@ -1977,7 +2009,7 @@ def test__Guild__afk_channel(guild):
     
     Returns
     -------
-    output : `None`, ``Channel``
+    output : ``None | Channel``
     """
     return guild.afk_channel
 
@@ -2005,7 +2037,7 @@ def test__Guild__rules_channel(guild):
     
     Returns
     -------
-    output : `None`, ``Channel``
+    output : ``None | Channel``
     """
     return guild.rules_channel
 
@@ -2033,7 +2065,7 @@ def test__Guild__safety_alerts_channel(guild):
     
     Returns
     -------
-    output : `None`, ``Channel``
+    output : ``None | Channel``
     """
     return guild.safety_alerts_channel
 
@@ -2061,7 +2093,7 @@ def test__Guild__system_channel(guild):
     
     Returns
     -------
-    output : `None`, ``Channel``
+    output : ``None | Channel``
     """
     return guild.system_channel
 
@@ -2089,7 +2121,7 @@ def test__Guild__widget_channel(guild):
     
     Returns
     -------
-    output : `None`, ``Channel``
+    output : ``None | Channel``
     """
     return guild.widget_channel
 
@@ -2266,12 +2298,12 @@ def test__Guild__boosters__has():
     user_0.guild_profiles[guild_id] = GuildProfile()
     
     user_1 = User.precreate(202306270089)
-    user_1.guild_profiles[guild_id] = GuildProfile(boosts_since = DateTime(2016, 4, 14))
+    user_1.guild_profiles[guild_id] = GuildProfile(boosts_since = DateTime(2016, 4, 14, tzinfo = TimeZone.utc))
     
     user_2 = User.precreate(202306270090)
     
     user_3 = User.precreate(202306270092)
-    user_3.guild_profiles[guild_id] = GuildProfile(boosts_since = DateTime(2015, 4, 14))
+    user_3.guild_profiles[guild_id] = GuildProfile(boosts_since = DateTime(2015, 4, 14, tzinfo = TimeZone.utc))
     
     guild = Guild.precreate(guild_id, users = [user_0, user_1, user_2, user_3], boost_count = 2)
     
@@ -2602,3 +2634,505 @@ def test__Guild__permissions_for_roles__admin():
     permissions = guild.permissions_for_roles(role)
     vampytest.assert_instance(permissions, Permission)
     vampytest.assert_eq(permissions, PERMISSION_ALL)
+
+
+def _iter_options__get_voice_state():
+    user_id_0 = 202407110000
+    user_id_1 = 202407110001
+    
+    voice_state_0 = VoiceState(user_id = user_id_0)
+    voice_state_1 = VoiceState(user_id = user_id_1)
+    
+    yield 202407110002, None, user_id_0, None
+    yield 202407110003, [voice_state_0], user_id_0, voice_state_0
+    yield 202407110004, [voice_state_1], user_id_0, None
+    yield 202407110005, [voice_state_0, voice_state_1], user_id_0, voice_state_0
+
+
+@vampytest._(vampytest.call_from(_iter_options__get_voice_state()).returning_last())
+def test__Guild__get_voice_state(guild_id, voice_states, user_id):
+    """
+    Tests whether ``Guild.get_voice_state`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    voice_states : ``None | list<VoiceState>``
+        Voice states to create guild with.
+    
+    user_id : `int`
+        User identifier to get voice state for.
+    
+    Returns
+    -------
+    output : `None`, ``VoiceState``
+    """
+    guild = Guild.precreate(guild_id, voice_states = voice_states)
+    output = guild.get_voice_state(user_id)
+    vampytest.assert_instance(output, VoiceState, nullable = True)
+    return output
+
+
+def _iter_options__icon_url():
+    yield 202505280010, None, False
+    yield 202505280011, Icon(IconType.animated, 5), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__icon_url()).returning_last())
+def test__Guild__icon_url(guild_id, icon):
+    """
+    Tests whether ``Guild.icon_url`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    icon : ``None | Icon``
+        Icon to create the guild with.
+    
+    Returns
+    -------
+    has_icon_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        icon = icon,
+    )
+    
+    output = guild.icon_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__icon_url_as():
+    yield 202505280020, None, {'ext': 'webp', 'size': 128}, False
+    yield 202505280021, Icon(IconType.animated, 5), {'ext': 'webp', 'size': 128}, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__icon_url_as()).returning_last())
+def test__Guild__icon_url_as(guild_id, icon, keyword_parameters):
+    """
+    Tests whether ``Guild.icon_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    icon : ``None | Icon``
+        Icon to create the guild with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_icon_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        icon = icon,
+    )
+    
+    output = guild.icon_url_as(**keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__invite_splash_url():
+    yield 202505290004, None, False
+    yield 202505290005, Icon(IconType.animated, 5), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__invite_splash_url()).returning_last())
+def test__Guild__invite_splash_url(guild_id, icon):
+    """
+    Tests whether ``Guild.invite_splash_url`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    icon : ``None | Icon``
+        Icon to create the guild with.
+    
+    Returns
+    -------
+    has_invite_splash_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        invite_splash = icon,
+    )
+    
+    output = guild.invite_splash_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__invite_splash_url_as():
+    yield 202505290006, None, {'ext': 'webp', 'size': 128}, False
+    yield 202505290007, Icon(IconType.animated, 5), {'ext': 'webp', 'size': 128}, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__invite_splash_url_as()).returning_last())
+def test__Guild__invite_splash_url_as(guild_id, icon, keyword_parameters):
+    """
+    Tests whether ``Guild.invite_splash_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    icon : ``None | Icon``
+        Icon to create the guild with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    hash_invite_splash_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        invite_splash = icon,
+    )
+    
+    output = guild.invite_splash_url_as(**keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__discovery_splash_url():
+    yield 202505290008, None, False
+    yield 202505290009, Icon(IconType.animated, 5), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__discovery_splash_url()).returning_last())
+def test__Guild__discovery_splash_url(guild_id, icon):
+    """
+    Tests whether ``Guild.discovery_splash_url`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    icon : ``None | Icon``
+        Icon to create the guild with.
+    
+    Returns
+    -------
+    has_discovery_splash_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        discovery_splash = icon,
+    )
+    
+    output = guild.discovery_splash_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__discovery_splash_url_as():
+    yield 202505290010, None, {'ext': 'webp', 'size': 128}, False
+    yield 202505290011, Icon(IconType.animated, 5), {'ext': 'webp', 'size': 128}, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__discovery_splash_url_as()).returning_last())
+def test__Guild__discovery_splash_url_as(guild_id, icon, keyword_parameters):
+    """
+    Tests whether ``Guild.discovery_splash_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    icon : ``None | Icon``
+        Icon to create the guild with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_discovery_splash_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        discovery_splash = icon,
+    )
+    
+    output = guild.discovery_splash_url_as(**keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__banner_url():
+    yield 202505290020, None, False
+    yield 202505290021, Icon(IconType.animated, 5), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__banner_url()).returning_last())
+def test__Guild__banner_url(guild_id, icon):
+    """
+    Tests whether ``Guild.banner_url`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    icon : ``None | Icon``
+        Icon to create the guild with.
+    
+    Returns
+    -------
+    has_banner_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        banner = icon,
+    )
+    
+    output = guild.banner_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__banner_url_as():
+    yield 202505290022, None, {'ext': 'webp', 'size': 128}, False
+    yield 202505290023, Icon(IconType.animated, 5), {'ext': 'webp', 'size': 128}, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__banner_url_as()).returning_last())
+def test__Guild__banner_url_as(guild_id, icon, keyword_parameters):
+    """
+    Tests whether ``Guild.banner_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    icon : ``None | Icon``
+        Icon to create the guild with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_banner_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        banner = icon,
+    )
+    
+    output = guild.banner_url_as(**keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__widget_url():
+    yield 202505290024, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__widget_url()).returning_last())
+def test__Guild__widget_url(guild_id):
+    """
+    Tests whether ``Guild.widget_url`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    Returns
+    -------
+    has_widget_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+    )
+    
+    output = guild.widget_url
+    vampytest.assert_instance(output, str)
+    return True
+
+
+def _iter_options__widget_url_as__passing():
+    yield 202505290025, 'shield', True
+    yield 202505290026, 'banner1', True
+    yield 202505290027, 'banner2', True
+    yield 202505290028, 'banner3', True
+    yield 202505290029, 'banner4', True
+
+
+def _iter_options__widget_url_as__value_error():
+    yield 202505290030, 'shield1'
+    yield 202505290026, 'banner11'
+    yield 202505290027, 'banner5'
+    yield 202505290028, 'banner0'
+
+
+@vampytest._(vampytest.call_from(_iter_options__widget_url_as__passing()).returning_last())
+@vampytest._(vampytest.call_from(_iter_options__widget_url_as__value_error()).raising(ValueError))
+def test__Guild__widget_url_as(guild_id, style):
+    """
+    Tests whether ``Guild.widget_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    style : `str`
+        Widget style.
+    
+    Returns
+    -------
+    has_widget_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+    )
+    
+    output = guild.widget_url_as(style)
+    vampytest.assert_instance(output, str)
+    return True
+
+
+def _iter_options__widget_json_url():
+    yield 202505290029, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__widget_json_url()).returning_last())
+def test__Guild__widget_json_url(guild_id):
+    """
+    Tests whether ``Guild.widget_json_url`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    Returns
+    -------
+    has_widget_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+    )
+    
+    output = guild.widget_json_url
+    vampytest.assert_instance(output, str)
+    return True
+
+
+def _iter_options__home_splash_url():
+    yield 202505300032, None, False
+    yield 202505300033, Icon(IconType.animated, 5), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__home_splash_url()).returning_last())
+def test__Guild__home_splash_url(guild_id, icon):
+    """
+    Tests whether ``Guild.home_splash_url`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    icon : ``None | Icon``
+        Icon to create the guild with.
+    
+    Returns
+    -------
+    has_home_splash_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        home_splash = icon,
+    )
+    
+    output = guild.home_splash_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__home_splash_url_as():
+    yield 202505300034, None, {'ext': 'webp', 'size': 128}, False
+    yield 202505300035, Icon(IconType.animated, 5), {'ext': 'webp', 'size': 128}, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__home_splash_url_as()).returning_last())
+def test__Guild__home_splash_url_as(guild_id, icon, keyword_parameters):
+    """
+    Tests whether ``Guild.home_splash_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    icon : ``None | Icon``
+        Icon to create the guild with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_home_splash_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        home_splash = icon,
+    )
+    
+    output = guild.home_splash_url_as(**keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__vanity_url():
+    yield 202505310004, None, False
+    yield 202505310005, 'tewi', True
+
+
+@vampytest._(vampytest.call_from(_iter_options__vanity_url()).returning_last())
+def test__Guild__vanity_url(guild_id, vanity_code):
+    """
+    Tests whether ``Guild.vanity_url`` works as intended.
+    
+    Parameters
+    ----------
+    guild_id : `int`
+        Identifier to create guild with.
+    
+    vanity_code : `None | str`
+        Vanity code to create the guild with,
+    
+    Returns
+    -------
+    hash_vanity_url : `bool`
+    """
+    guild = Guild.precreate(
+        guild_id,
+        vanity_code = vanity_code,
+    )
+    
+    output = guild.vanity_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)

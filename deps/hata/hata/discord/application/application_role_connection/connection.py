@@ -3,8 +3,8 @@ __all__ = ('ApplicationRoleConnection',)
 from scarletio import RichAttributeErrorBaseType
 
 from .fields import (
-    parse_metadata_values, parse_platform_name, parse_platform_user_name, put_metadata_values_into,
-    put_platform_name_into, put_platform_user_name_into, validate_metadata_values, validate_platform_name,
+    parse_metadata_values, parse_platform_name, parse_platform_user_name, put_metadata_values,
+    put_platform_name, put_platform_user_name, validate_metadata_values, validate_platform_name,
     validate_platform_user_name
 )
 
@@ -19,7 +19,7 @@ class ApplicationRoleConnection(RichAttributeErrorBaseType):
         The vanity name of the platform the application represents.
     platform_user_name : `None`, `str`
         The name of the user on the application's platform.
-    metadata_values : `None`, `dict` of (`str`, `str`) items
+    metadata_values : `None | dict<str, str>`
         Metadata key to attached value relation.
     """
     __slots__ = ('platform_name', 'platform_user_name', 'metadata_values')
@@ -34,7 +34,7 @@ class ApplicationRoleConnection(RichAttributeErrorBaseType):
             The vanity name of the platform the application represents.
         platform_user_name : `None`, `str`, Optional (Keyword only)
             The name of the user on the application's platform.
-        metadata_values : `None`, `dict` of (`str`, `str`) items, Optional (Keyword only)
+        metadata_values : `None | dict<str, str>`, Optional (Keyword only)
             Metadata key to attached value relation.
         
         Raises
@@ -76,7 +76,7 @@ class ApplicationRoleConnection(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Role connection data.
         
         Returns
@@ -101,12 +101,12 @@ class ApplicationRoleConnection(RichAttributeErrorBaseType):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
-        put_platform_name_into(self.platform_name, data, defaults)
-        put_platform_user_name_into(self.platform_user_name, data, defaults)
-        put_metadata_values_into(self.metadata_values, data, defaults)
+        put_platform_name(self.platform_name, data, defaults)
+        put_platform_user_name(self.platform_user_name, data, defaults)
+        put_metadata_values(self.metadata_values, data, defaults)
         return data
     
     
@@ -212,7 +212,7 @@ class ApplicationRoleConnection(RichAttributeErrorBaseType):
             The vanity name of the platform the application represents.
         platform_user_name : `None`, `str`, Optional (Keyword only)
             The name of the user on the application's platform.
-        metadata_values : `None`, `dict` of (`str`, `str`) items, Optional (Keyword only)
+        metadata_values : `None | dict<str, str>`, Optional (Keyword only)
             Metadata key to attached value relation.
         
         Returns
@@ -265,7 +265,7 @@ class ApplicationRoleConnection(RichAttributeErrorBaseType):
         
         Returns
         -------
-        translated_value : `None`, `object`
+        translated_value : `None | object`
         """
         metadata_values = self.metadata_values
         if (metadata_values is None):

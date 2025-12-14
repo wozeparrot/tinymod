@@ -2,7 +2,7 @@ import vampytest
 
 from ....application import ApplicationIntegrationType
 from ....interaction import InteractionType
-from ....user import ClientUserBase, ZEROUSER, create_partial_user_from_id
+from ....user import ClientUserBase, User, create_partial_user_from_id
 
 from ..message_interaction import MessageInteraction
 
@@ -38,11 +38,13 @@ def test__MessageInteraction__copy():
     Tests whether ``MessageInteraction.copy`` works as intended.
     """
     interaction_type = InteractionType.application_command
-    user_id = 202403250030
+    user = User.precreate(202403250030)
     sub_command_name_stack = ('Afraid', 'Darkness')
     name = 'Chata'
     response_message_id = 20240325012
     interacted_message_id = 20240325043
+    target_message_id = 202410060020
+    target_user = User.precreate(202410060021)
     triggering_interaction = MessageInteraction.precreate(202403260011, name = 'pain')
     authorizer_user_ids = {
         ApplicationIntegrationType.user_install: 202403270024,
@@ -56,8 +58,10 @@ def test__MessageInteraction__copy():
         name = name,
         response_message_id = response_message_id,
         sub_command_name_stack = sub_command_name_stack,
+        target_message_id = target_message_id,
+        target_user = target_user,
         triggering_interaction = triggering_interaction,
-        user_id = user_id,
+        user = user,
     )
     
     copy = message_interaction.copy()
@@ -73,11 +77,13 @@ def test__MessageInteraction__copy_with__no_fields():
     Case: No fields given.
     """
     interaction_type = InteractionType.application_command
-    user_id = 202403250031
+    user = User.precreate(202403250031)
     sub_command_name_stack = ('Afraid', 'Darkness')
     name = 'Chata'
     response_message_id = 20240325013
     interacted_message_id = 20240325044
+    target_message_id = 202410060022
+    target_user = User.precreate(202410060023)
     triggering_interaction = MessageInteraction.precreate(202403260012, name = 'pain')
     authorizer_user_ids = {
         ApplicationIntegrationType.user_install: 202403270026,
@@ -91,8 +97,10 @@ def test__MessageInteraction__copy_with__no_fields():
         name = name,
         response_message_id = response_message_id,
         sub_command_name_stack = sub_command_name_stack,
+        target_message_id = target_message_id,
+        target_user = target_user,
         triggering_interaction = triggering_interaction,
-        user_id = user_id,
+        user = user,
     )
     
     copy = message_interaction.copy_with()
@@ -108,11 +116,13 @@ def test__MessageInteraction__copy_with__all_fields():
     Case: All fields given.
     """
     old_interaction_type = InteractionType.application_command
-    old_user_id = 202403250032
+    old_user = User.precreate(202403250032)
     old_sub_command_name_stack = ('Afraid', 'Darkness')
     old_name = 'Chata'
     old_response_message_id = 20240325014
     old_interacted_message_id = 20240325045
+    old_target_message_id = 202410060024
+    old_target_user = User.precreate(202410060025)
     old_triggering_interaction = MessageInteraction.precreate(202403260013, name = 'pain')
     old_authorizer_user_ids = {
         ApplicationIntegrationType.user_install: 202403270028,
@@ -120,11 +130,13 @@ def test__MessageInteraction__copy_with__all_fields():
     }
     
     new_interaction_type = InteractionType.application_command
-    new_user_id = 202403250033
+    new_user = User.precreate(202403250033)
     new_sub_command_name_stack = ('Dragon', 'Maid')
     new_name = 'Suika'
     new_response_message_id = 20240325015
     new_interacted_message_id = 20240325046
+    new_target_message_id = 202410060026
+    new_target_user = User.precreate(202410060027)
     new_triggering_interaction = MessageInteraction.precreate(202403260014, name = 'true')
     new_authorizer_user_ids = {
         ApplicationIntegrationType.user_install: 202403270030,
@@ -138,8 +150,10 @@ def test__MessageInteraction__copy_with__all_fields():
         name = old_name,
         response_message_id = old_response_message_id,
         sub_command_name_stack = old_sub_command_name_stack,
+        target_message_id = old_target_message_id,
+        target_user = old_target_user,
         triggering_interaction = old_triggering_interaction,
-        user_id = old_user_id,
+        user = old_user,
     )
     
     copy = message_interaction.copy_with(
@@ -149,8 +163,10 @@ def test__MessageInteraction__copy_with__all_fields():
         name = new_name,
         response_message_id = new_response_message_id,
         sub_command_name_stack = new_sub_command_name_stack,
+        target_message_id = new_target_message_id,
+        target_user = new_target_user,
         triggering_interaction = new_triggering_interaction,
-        user_id = new_user_id,
+        user = new_user,
     )
     _assert_fields_set(copy)
     vampytest.assert_is_not(copy, message_interaction)
@@ -159,9 +175,11 @@ def test__MessageInteraction__copy_with__all_fields():
     vampytest.assert_eq(copy.name, new_name)
     vampytest.assert_eq(copy.response_message_id, new_response_message_id)
     vampytest.assert_eq(copy.sub_command_name_stack, new_sub_command_name_stack)
+    vampytest.assert_eq(copy.target_message_id, new_target_message_id)
+    vampytest.assert_is(copy.target_user, new_target_user)
     vampytest.assert_eq(copy.triggering_interaction, new_triggering_interaction)
     vampytest.assert_is(copy.type, new_interaction_type)
-    vampytest.assert_eq(copy.user_id, new_user_id)
+    vampytest.assert_is(copy.user, new_user)
 
 
 def _iter_options__joined_name():
@@ -196,33 +214,33 @@ def test__MessageInteraction__joined_name(name, sub_command_name_stack):
     return output
 
 
-def _iter_options__user():
+def _iter_options__user_id():
     user_id = 202403250054
     
-    yield 0, ZEROUSER
-    yield user_id, create_partial_user_from_id(user_id)
+    yield None, 0
+    yield User.precreate(user_id), user_id
 
 
-@vampytest._(vampytest.call_from(_iter_options__user()).returning_last())
-def test__MessageInteraction__user(user_id):
+@vampytest._(vampytest.call_from(_iter_options__user_id()).returning_last())
+def test__MessageInteraction__user(user):
     """
-    Tests whether ``MessageInteraction.user`` works as intended.
+    Tests whether ``MessageInteraction.user_id`` works as intended.
     
     Parameters
     ----------
-    user_id : `int`
-        The invoking user's identifier.
+    user : `None | ClientUserBase`
+        The invoking user.
     
     Returns
     -------
-    output : ``ClientUserBase``
+    output : `int`
     """
     message_interaction = MessageInteraction(
-        user_id = user_id,
+        user = user,
     )
     
-    output = message_interaction.user
-    vampytest.assert_instance(output, ClientUserBase)
+    output = message_interaction.user_id
+    vampytest.assert_instance(output, int)
     return output
 
 
@@ -284,8 +302,8 @@ def test__MessageInteraction__get_authorizer_user_id(authorizer_user_ids, integr
     
     Parameters
     ----------
-    authorizer_user_ids : `int`
-        The invoking authorizer_user_id's identifier.
+    authorizer_user_ids : `dict<ApplicationIntegrationType, int>`
+        The authorizer users identifiers.
     
     integration_type : `ApplicationIntegrationType | int`
         Integration type to query for.
@@ -362,8 +380,8 @@ def test__MessageInteraction__get_authorizer_user(authorizer_user_ids, integrati
     
     Parameters
     ----------
-    authorizer_user_ids : `int`
-        The invoking authorizer_user_id's identifier.
+    authorizer_user_ids : `dict<ApplicationIntegrationType, int>`
+        The authorizer users identifiers.
     
     integration_type : `ApplicationIntegrationType | int`
         Integration type to query for.
@@ -378,4 +396,34 @@ def test__MessageInteraction__get_authorizer_user(authorizer_user_ids, integrati
     
     output = message_interaction.get_authorizer_user(integration_type)
     vampytest.assert_instance(output, ClientUserBase, nullable = True)
+    return output
+
+
+def _iter_options__target_user_id():
+    user_id = 202410060028
+    
+    yield None, 0
+    yield User.precreate(user_id), user_id
+
+
+@vampytest._(vampytest.call_from(_iter_options__target_user_id()).returning_last())
+def test__MessageInteraction__user(target_user):
+    """
+    Tests whether ``MessageInteraction.target_user_id`` works as intended.
+    
+    Parameters
+    ----------
+    target_user : `None | ClientUserBase`
+        The targeted user.
+    
+    Returns
+    -------
+    output : `int`
+    """
+    message_interaction = MessageInteraction(
+        target_user = target_user,
+    )
+    
+    output = message_interaction.target_user_id
+    vampytest.assert_instance(output, int)
     return output

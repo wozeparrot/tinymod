@@ -1,6 +1,6 @@
 __all__ = ('Permission', )
 
-from ..bases import FlagBase
+from ..bases import FlagBase, FlagDescriptor as F
 
 
 PERMISSION_SHIFT_CREATE_INSTANT_INVITE = 0
@@ -53,6 +53,8 @@ PERMISSION_SHIFT_SEND_VOICE_MESSAGES = 46
 PERMISSION_SHIFT_USE_CLYDE_AI = 47
 PERMISSION_SHIFT_SET_VOICE_CHANNEL_STATUS = 48
 PERMISSION_SHIFT_SEND_POLLS = 49
+PERMISSION_SHIFT_USE_EXTERNAL_APPLICATION_COMMANDS = 50
+PERMISSION_SHIFT_PIN_MESSAGES = 51
 
 
 PERMISSION_MASK_CREATE_INSTANT_INVITE = 1 << PERMISSION_SHIFT_CREATE_INSTANT_INVITE
@@ -105,9 +107,11 @@ PERMISSION_MASK_SEND_VOICE_MESSAGES = 1 << PERMISSION_SHIFT_SEND_VOICE_MESSAGES
 PERMISSION_MASK_USE_CLYDE_AI = 1 << PERMISSION_SHIFT_USE_CLYDE_AI
 PERMISSION_MASK_SET_VOICE_CHANNEL_STATUS = 1 << PERMISSION_SHIFT_SET_VOICE_CHANNEL_STATUS
 PERMISSION_MASK_SEND_POLLS = 1 << PERMISSION_SHIFT_SEND_POLLS
+PERMISSION_MASK_USE_EXTERNAL_APPLICATION_COMMANDS = 1 << PERMISSION_SHIFT_USE_EXTERNAL_APPLICATION_COMMANDS
+PERMISSION_MASK_PIN_MESSAGES = 1 << PERMISSION_SHIFT_PIN_MESSAGES
 
 
-class Permission(FlagBase, access_keyword = 'can', enable_keyword = 'allow', disable_keyword = 'deny'):
+class Permission(FlagBase):
     """
     Represents a Discord permission.
     
@@ -214,62 +218,66 @@ class Permission(FlagBase, access_keyword = 'can', enable_keyword = 'allow', dis
     +---------------------------------------+-------------------+
     | send_polls                            | 49                |
     +---------------------------------------+-------------------+
+    | use_external_application_commands     | 50                |
+    +---------------------------------------+-------------------+
+    | pin_messages                          | 51                |
+    +---------------------------------------+-------------------+
     
     Each permission can be accessed as property with `can_` + it's respective name, meanwhile a new edited permission
     can be created with the `allow_...` and with the `deny_...` methods.
     """
-    __keys__ = {
-        'create_instant_invite': PERMISSION_SHIFT_CREATE_INSTANT_INVITE,
-        'kick_users': PERMISSION_SHIFT_KICK_USERS,
-        'ban_users': PERMISSION_SHIFT_BAN_USERS,
-        'administrator': PERMISSION_SHIFT_ADMINISTRATOR,
-        'manage_channels': PERMISSION_SHIFT_MANAGE_CHANNELS,
-        'manage_guild': PERMISSION_SHIFT_MANAGE_GUILD,
-        'add_reactions': PERMISSION_SHIFT_ADD_REACTION,
-        'view_audit_logs': PERMISSION_SHIFT_VIEW_AUDIT_LOGS,
-        'priority_speaker': PERMISSION_SHIFT_PRIORITY_SPEAKER,
-        'stream': PERMISSION_SHIFT_STREAM,
-        'view_channel': PERMISSION_SHIFT_VIEW_CHANNEL,
-        'send_messages': PERMISSION_SHIFT_SEND_MESSAGES,
-        'send_tts_messages': PERMISSION_SHIFT_SEND_TTS_MESSAGES,
-        'manage_messages': PERMISSION_SHIFT_MANAGE_MESSAGES,
-        'embed_links': PERMISSION_SHIFT_EMBED_LINKS,
-        'attach_files': PERMISSION_SHIFT_ATTACH_FILES,
-        'read_message_history': PERMISSION_SHIFT_READ_MESSAGE_HISTORY,
-        'mention_everyone': PERMISSION_SHIFT_MENTION_EVERYONE,
-        'use_external_emojis': PERMISSION_SHIFT_USE_EXTERNAL_EMOJIS,
-        'view_guild_insights': PERMISSION_SHIFT_VIEW_GUILD_INSIGHTS,
-        'connect': PERMISSION_SHIFT_CONNECT,
-        'speak': PERMISSION_SHIFT_SPEAK,
-        'mute_users': PERMISSION_SHIFT_MUTE_USERS,
-        'deafen_users': PERMISSION_SHIFT_DEAFEN_USERS,
-        'move_users': PERMISSION_SHIFT_MOVE_USERS,
-        'use_voice_activation': PERMISSION_SHIFT_USE_VOICE_ACTIVATION,
-        'change_nickname': PERMISSION_SHIFT_CHANGE_NICKNAME,
-        'manage_nicknames': PERMISSION_SHIFT_MANAGE_NICKNAMES,
-        'manage_roles': PERMISSION_SHIFT_MANAGE_ROLES,
-        'manage_webhooks': PERMISSION_SHIFT_MANAGE_WEBHOOKS,
-        'manage_guild_expressions': PERMISSION_SHIFT_MANAGE_GUILD_EXPRESSIONS,
-        'use_application_commands': PERMISSION_SHIFT_USE_APPLICATION_COMMANDS,
-        'request_to_speak': PERMISSION_SHIFT_REQUEST_TO_SPEAK,
-        'manage_events': PERMISSION_SHIFT_MANAGE_EVENTS,
-        'manage_threads': PERMISSION_SHIFT_MANAGE_THREADS,
-        'create_public_threads': PERMISSION_SHIFT_CREATE_PUBLIC_THREADS,
-        'create_private_threads': PERMISSION_SHIFT_CREATE_PRIVATE_THREADS,
-        'use_external_stickers': PERMISSION_SHIFT_USE_EXTERNAL_STICKERS,
-        'send_messages_in_threads': PERMISSION_SHIFT_SEND_MESSAGES_IN_THREADS,
-        'use_embedded_activities': PERMISSION_SHIFT_USE_EMBEDDED_ACTIVITIES,
-        'moderate_users': PERMISSION_SHIFT_MODERATE_USERS,
-        'view_creator_monetization_analytics': PERMISSION_SHIFT_VIEW_CREATOR_MONETIZATION_ANALYTICS,
-        'use_soundboard': PERMISSION_SHIFT_USE_SOUNDBOARD,
-        'create_guild_expressions': PERMISSION_SHIFT_CREATE_GUILD_EXPRESSIONS,
-        'create_events': PERMISSION_SHIFT_CREATE_GUILD_EVENTS,
-        'use_external_sounds': PERMISSION_SHIFT_USE_EXTERNAL_SOUNDS,
-        'send_voice_messages': PERMISSION_SHIFT_SEND_VOICE_MESSAGES,
-        'use_clyde_ai': PERMISSION_SHIFT_USE_CLYDE_AI,
-        'set_voice_channel_status': PERMISSION_SHIFT_SET_VOICE_CHANNEL_STATUS,
-        'send_polls': PERMISSION_SHIFT_SEND_POLLS,
-    }
+    create_instant_invite = F(PERMISSION_SHIFT_CREATE_INSTANT_INVITE)
+    kick_users = F(PERMISSION_SHIFT_KICK_USERS)
+    ban_users = F(PERMISSION_SHIFT_BAN_USERS)
+    administrator = F(PERMISSION_SHIFT_ADMINISTRATOR)
+    manage_channels = F(PERMISSION_SHIFT_MANAGE_CHANNELS)
+    manage_guild = F(PERMISSION_SHIFT_MANAGE_GUILD)
+    add_reactions = F(PERMISSION_SHIFT_ADD_REACTION)
+    view_audit_logs = F(PERMISSION_SHIFT_VIEW_AUDIT_LOGS)
+    priority_speaker = F(PERMISSION_SHIFT_PRIORITY_SPEAKER)
+    stream = F(PERMISSION_SHIFT_STREAM)
+    view_channel = F(PERMISSION_SHIFT_VIEW_CHANNEL)
+    send_messages = F(PERMISSION_SHIFT_SEND_MESSAGES)
+    send_tts_messages = F(PERMISSION_SHIFT_SEND_TTS_MESSAGES)
+    manage_messages = F(PERMISSION_SHIFT_MANAGE_MESSAGES)
+    embed_links = F(PERMISSION_SHIFT_EMBED_LINKS)
+    attach_files = F(PERMISSION_SHIFT_ATTACH_FILES)
+    read_message_history = F(PERMISSION_SHIFT_READ_MESSAGE_HISTORY)
+    mention_everyone = F(PERMISSION_SHIFT_MENTION_EVERYONE)
+    use_external_emojis = F(PERMISSION_SHIFT_USE_EXTERNAL_EMOJIS)
+    view_guild_insights = F(PERMISSION_SHIFT_VIEW_GUILD_INSIGHTS)
+    connect = F(PERMISSION_SHIFT_CONNECT)
+    speak = F(PERMISSION_SHIFT_SPEAK)
+    mute_users = F(PERMISSION_SHIFT_MUTE_USERS)
+    deafen_users = F(PERMISSION_SHIFT_DEAFEN_USERS)
+    move_users = F(PERMISSION_SHIFT_MOVE_USERS)
+    use_voice_activation = F(PERMISSION_SHIFT_USE_VOICE_ACTIVATION)
+    change_nickname = F(PERMISSION_SHIFT_CHANGE_NICKNAME)
+    manage_nicknames = F(PERMISSION_SHIFT_MANAGE_NICKNAMES)
+    manage_roles = F(PERMISSION_SHIFT_MANAGE_ROLES)
+    manage_webhooks = F(PERMISSION_SHIFT_MANAGE_WEBHOOKS)
+    manage_guild_expressions = F(PERMISSION_SHIFT_MANAGE_GUILD_EXPRESSIONS)
+    use_application_commands = F(PERMISSION_SHIFT_USE_APPLICATION_COMMANDS)
+    request_to_speak = F(PERMISSION_SHIFT_REQUEST_TO_SPEAK)
+    manage_events = F(PERMISSION_SHIFT_MANAGE_EVENTS)
+    manage_threads = F(PERMISSION_SHIFT_MANAGE_THREADS)
+    create_public_threads = F(PERMISSION_SHIFT_CREATE_PUBLIC_THREADS)
+    create_private_threads = F(PERMISSION_SHIFT_CREATE_PRIVATE_THREADS)
+    use_external_stickers = F(PERMISSION_SHIFT_USE_EXTERNAL_STICKERS)
+    send_messages_in_threads = F(PERMISSION_SHIFT_SEND_MESSAGES_IN_THREADS)
+    use_embedded_activities = F(PERMISSION_SHIFT_USE_EMBEDDED_ACTIVITIES)
+    moderate_users = F(PERMISSION_SHIFT_MODERATE_USERS)
+    view_creator_monetization_analytics = F(PERMISSION_SHIFT_VIEW_CREATOR_MONETIZATION_ANALYTICS)
+    use_soundboard = F(PERMISSION_SHIFT_USE_SOUNDBOARD)
+    create_guild_expressions = F(PERMISSION_SHIFT_CREATE_GUILD_EXPRESSIONS)
+    create_events = F(PERMISSION_SHIFT_CREATE_GUILD_EVENTS)
+    use_external_sounds = F(PERMISSION_SHIFT_USE_EXTERNAL_SOUNDS)
+    send_voice_messages = F(PERMISSION_SHIFT_SEND_VOICE_MESSAGES)
+    use_clyde_ai = F(PERMISSION_SHIFT_USE_CLYDE_AI)
+    set_voice_channel_status = F(PERMISSION_SHIFT_SET_VOICE_CHANNEL_STATUS)
+    send_polls = F(PERMISSION_SHIFT_SEND_POLLS)
+    use_external_application_commands = F(PERMISSION_SHIFT_USE_EXTERNAL_APPLICATION_COMMANDS)
+    pin_messages = F(PERMISSION_SHIFT_PIN_MESSAGES)
 
 
 PERMISSION_ALL = Permission().update_by_keys(
@@ -323,6 +331,8 @@ PERMISSION_ALL = Permission().update_by_keys(
     use_clyde_ai = True,
     set_voice_channel_status = True,
     send_polls = True,
+    use_external_application_commands = True,
+    pin_messages = True,
 )
 
 PERMISSION_NONE = Permission()
@@ -376,6 +386,8 @@ PERMISSION_PRIVATE = Permission().update_by_keys(
     use_clyde_ai = False,
     set_voice_channel_status = False,
     send_polls = True,
+    use_external_application_commands = True,
+    pin_messages = True,
 )
 
 PERMISSION_PRIVATE_BOT = PERMISSION_PRIVATE.update_by_keys(
@@ -441,6 +453,8 @@ PERMISSION_TEXT_ALL = Permission().update_by_keys(
     use_clyde_ai = True,
     set_voice_channel_status = False,
     send_polls = True,
+    use_external_application_commands = True,
+    pin_messages = True,
 )
 
 PERMISSION_TEXT_DENY = Permission(~PERMISSION_TEXT_ALL)
@@ -512,6 +526,7 @@ PERMISSION_VOICE_ONLY = Permission().update_by_keys(
     use_clyde_ai = False,
     set_voice_channel_status = False,
     send_polls = False,
+    use_external_application_commands = False,
 )
 
 PERMISSION_VOICE_DENY = Permission(~PERMISSION_VOICE_ONLY)
@@ -578,6 +593,7 @@ PERMISSION_STAGE_MODERATOR = Permission().update_by_keys(
     use_clyde_ai = False,
     set_voice_channel_status = False,
     send_polls = False,
+    use_external_application_commands = False,
 )
 
 PERMISSION_CAN_SEND_MESSAGES_ALL = Permission().update_by_keys(

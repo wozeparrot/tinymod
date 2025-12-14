@@ -1,4 +1,3 @@
-from .achievement import *
 from .application import *
 from .application_command import *
 from .application_role_connection import *
@@ -7,7 +6,8 @@ from .channel import *
 from .client import *
 from .client_gateway import *
 from .discovery import *
-from .emoji import *
+from .emoji_application import *
+from .emoji_guild import *
 from .guild import *
 from .guild_ban import *
 from .interaction import *
@@ -30,7 +30,6 @@ from .webhook import *
 
 
 __all__ = (
-    *achievement.__all__,
     *application.__all__,
     *application_command.__all__,
     *application_role_connection.__all__,
@@ -39,7 +38,8 @@ __all__ = (
     *client.__all__,
     *client_gateway.__all__,
     *discovery.__all__,
-    *emoji.__all__,
+    *emoji_application.__all__,
+    *emoji_guild.__all__,
     *guild.__all__,
     *guild_ban.__all__,
     *interaction.__all__,
@@ -62,7 +62,6 @@ __all__ = (
 )
 
 
-from .achievement import ClientCompoundAchievementEndpoints
 from .application import ClientCompoundApplicationEndpoints
 from .application_command import ClientCompoundApplicationCommandEndpoints
 from .application_role_connection import ClientCompoundApplicationRoleConnectionEndpoints
@@ -71,7 +70,8 @@ from .channel import ClientCompoundChannelEndpoints
 from .client import ClientCompoundClientEndpoints
 from .client_gateway import ClientCompoundClientGateway
 from .discovery import ClientCompoundDiscoveryEndpoints
-from .emoji import ClientCompoundEmojiEndpoints
+from .emoji_application import ClientCompoundEmojiApplicationEndpoints
+from .emoji_guild import ClientCompoundEmojiGuildEndpoints
 from .guild import ClientCompoundGuildEndpoints
 from .guild_ban import ClientCompoundGuildBanEndpoints
 from .interaction import ClientCompoundInteractionEndpoints
@@ -94,7 +94,6 @@ from .webhook import ClientCompoundWebhookEndpoints
 
 
 CLIENT_COMPOUNDS = (
-    ClientCompoundAchievementEndpoints,
     ClientCompoundApplicationEndpoints,
     ClientCompoundApplicationCommandEndpoints,
     ClientCompoundApplicationRoleConnectionEndpoints,
@@ -103,7 +102,8 @@ CLIENT_COMPOUNDS = (
     ClientCompoundClientEndpoints,
     ClientCompoundClientGateway,
     ClientCompoundDiscoveryEndpoints,
-    ClientCompoundEmojiEndpoints,
+    ClientCompoundEmojiApplicationEndpoints,
+    ClientCompoundEmojiGuildEndpoints,
     ClientCompoundGuildEndpoints,
     ClientCompoundGuildBanEndpoints,
     ClientCompoundInteractionEndpoints,

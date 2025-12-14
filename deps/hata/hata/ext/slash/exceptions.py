@@ -8,6 +8,7 @@ from scarletio import copy_docs
 from ...discord.exceptions import DiscordException, ERROR_CODES
 from ...discord.interaction import InteractionType
 
+from .responding import InteractionResponse
 
 SlashCommand = include('SlashCommand')
 Slasher = include('Slasher')
@@ -345,81 +346,96 @@ async def default_slasher_exception_handler(client, interaction_event, command, 
     handled : `bool`
         Whether the error handler handled the exception.
     """
-    if isinstance(exception, SlasherCommandError):
-        forward = exception.pretty_repr
-        render = False
-        create_new_message = False
+    render = True
     
-    elif isinstance(exception, DiscordException) and (exception.status == 500):
-        forward = None
-        render = True
-        create_new_message = False
-    
-    elif (interaction_event.type is InteractionType.application_command) and interaction_event.is_unanswered():
-        forward = client.slasher._random_error_message_getter()
-        render = True
-        create_new_message = False
-    
-    elif (interaction_event.type is InteractionType.message_component) and interaction_event.is_unanswered():
-        forward = client.slasher._random_error_message_getter()
-        render = True
-        create_new_message = True
+    try:
+        if isinstance(exception, SlasherCommandError):
+            forward = exception.pretty_repr
+            render = False
+            create_new_message = False
         
-        try:
-            await client.interaction_component_acknowledge(interaction_event)
-        except BaseException as err:
-            if isinstance(err, ConnectionError):
-                forward = None
+        elif isinstance(exception, DiscordException) and (exception.status == 500):
+            forward = None
+            create_new_message = False
+        
+        elif (interaction_event.type is InteractionType.application_command) and interaction_event.is_unanswered():
+            forward = client.slasher._random_error_message_getter()
+            create_new_message = False
+        
+        elif (interaction_event.type is InteractionType.message_component) and interaction_event.is_unanswered():
+            forward = client.slasher._random_error_message_getter()
+            create_new_message = True
             
-            elif (
-                isinstance(err, DiscordException) and
-                (
-                    (err.status == 500) or
-                    (err.code == ERROR_CODES.unknown_interaction)
-                )
-            ):
-                forward = None
-            
-            else:
+            try:
+                await client.interaction_component_acknowledge(interaction_event)
+            except GeneratorExit:
                 raise
-    
-    else:
-        forward = None
-        render = True
-        create_new_message = False
-    
-    
-    if (forward is not None):
-        if create_new_message:
-            function = type(client).interaction_followup_message_create
+            
+            except ConnectionError:
+                pass
+            
+            except DiscordException as err:
+                if not (
+                    (err.status == 500) or
+                    (
+                        err.code in (
+                            ERROR_CODES.unknown_interaction,
+                            ERROR_CODES.unknown_webhook,
+                        )
+                    )
+                ):
+                    raise
+        
         else:
-            function = type(client).interaction_response_message_create
+            forward = None
+            create_new_message = False
         
-        try:
-            await function(
-                client,
-                interaction_event,
-                forward,
-                show_for_invoking_user_only = True,
-            )
-        except BaseException as err:
-            if isinstance(err, ConnectionError):
-                pass
-            
-            elif (
-                isinstance(err, DiscordException) and
-                (
-                    (err.status == 500) or
-                    (err.code == ERROR_CODES.unknown_interaction)
-                )
-            ):
-                pass
-            
+        if (forward is not None):
+            # Process what to forward
+            if isinstance(forward, tuple):
+                forward = InteractionResponse(*forward)
             else:
+                forward = InteractionResponse(forward)
+            
+            # Get forward function
+            if create_new_message:
+                function = type(client).interaction_followup_message_create
+            else:
+                function = type(client).interaction_response_message_create
+            
+            try:
+                await function(
+                    client,
+                    interaction_event,
+                    forward,
+                    show_for_invoking_user_only = True,
+                )
+            except GeneratorExit:
                 raise
+            
+            except ConnectionError:
+                pass
+            
+            except DiscordException as err:
+                if not (
+                    (err.status == 500) or
+                    (
+                        err.code in (
+                            ERROR_CODES.unknown_interaction,
+                            ERROR_CODES.unknown_webhook,
+                        )
+                    )
+                ):
+                    raise
     
-    if render:
-        await _render_application_command_exception(client, command, exception)
+    except GeneratorExit:
+        # Disable `await` in finally.
+        render = False
+        raise
+    
+    finally:
+        if render:
+            await _render_application_command_exception(client, command, exception)
     
     return True
 
@@ -448,8 +464,8 @@ async def handle_command_exception(entity, client, interaction_event, exception)
 
     Parameters
     ----------
-    entity : ``ComponentCommand``, ``Slasher``, ``SlashCommand``, ``SlashCommandCategory``,
-            ``SlashCommandFunction``, ``SlashCommandParameterAutoCompleter``
+    entity : ``ComponentCommand``, ``Slasher``, ``EmbeddedActivityLaunchCommand``, ``SlashCommand``,
+            ``SlashCommandCategory``, ``SlashCommandFunction``, ``SlashCommandParameterAutoCompleter``
         The entity to iterate it's exception handlers.
     client : ``Client``
         The respective client.
@@ -483,8 +499,8 @@ def _iter_exception_handlers(entity):
     
     Parameters
     ----------
-    entity : ``ComponentCommand``, ``Slasher``, ``SlashCommand``, ``SlashCommandCategory``,
-            ``SlashCommandFunction``, ``SlashCommandParameterAutoCompleter``
+    entity : ``ComponentCommand``, ``Slasher``, ``EmbeddedActivityLaunchCommand``, ``SlashCommand``,
+            ``SlashCommandCategory``, ``SlashCommandFunction``, ``SlashCommandParameterAutoCompleter``
         The entity to iterate it's exception handlers.
     
     Yields
@@ -519,7 +535,9 @@ class SlasherSyncError(BaseException):
     entity: ``SlashCommand``
         The entity, who's sync failed.
     """
-    def __init__(self, entity, err):
+    __slots__ = ('entity',)
+    
+    def __new__(cls, entity, err):
         """
         Creates a new slasher sync error exception.
         
@@ -527,9 +545,14 @@ class SlasherSyncError(BaseException):
         ----------
         entity: ``SlashCommand``
             The entity, who's sync failed.
-        err : ``BaseException``
+        
+        err : `BaseException`
             Source exception.
         """
+        self = BaseException.__new__(cls, entity)
         self.entity = entity
-        BaseException.__init__(self, entity)
         self.__cause__ = err
+        return self
+    
+    
+    __init__ = object.__init__

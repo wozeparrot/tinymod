@@ -4,6 +4,7 @@ from itertools import islice
 
 from scarletio import is_coroutine_generator, skip_ready_cycle
 
+from ...discord.application_command import ApplicationCommandTargetType
 from ...discord.client import Client
 from ...discord.component import InteractionForm
 from ...discord.interaction import InteractionType
@@ -40,7 +41,7 @@ async def get_request_coroutines(client, interaction_event, response_modifier, r
     response_modifier : `None`, ``ResponseModifier``
         Modifies values returned and yielded to command coroutine processor.
     response : `object`
-        object object yielded or returned by the command coroutine.
+        Object yielded or returned by the command coroutine.
     is_return : `bool`
         Whether the response is used in a return and we do not require response message.
     
@@ -58,7 +59,10 @@ async def get_request_coroutines(client, interaction_event, response_modifier, r
     if (response is None):
         if interaction_event.is_unanswered():
             if (
-                (interaction_event_type is INTERACTION_TYPE_APPLICATION_COMMAND) or
+                (
+                    (interaction_event_type is INTERACTION_TYPE_APPLICATION_COMMAND) and
+                    (interaction_event.target_type is not ApplicationCommandTargetType.embedded_activity_launch)
+                ) or
                 (interaction_event_type is INTERACTION_TYPE_FORM_SUBMIT)
             ):
                 if (not is_return):
@@ -86,6 +90,19 @@ async def get_request_coroutines(client, interaction_event, response_modifier, r
                     get_wait_for_acknowledgement_of(response_modifier),
                 )
                 
+                return
+            
+            if (
+                (interaction_event_type is INTERACTION_TYPE_APPLICATION_COMMAND) and
+                (interaction_event.target_type is ApplicationCommandTargetType.embedded_activity_launch)
+            ):
+                if not interaction_event.is_unanswered():
+                    return
+                
+                yield client.interaction_embedded_activity_launch(
+                    interaction_event,
+                    get_wait_for_acknowledgement_of(response_modifier),
+                )
                 return
         
         # no more cases
@@ -118,13 +135,15 @@ async def get_request_coroutines(client, interaction_event, response_modifier, r
         return
     
     if not isinstance(response, InteractionResponse):
-        response = InteractionResponse(response)
+        if isinstance(response, tuple):
+            response = InteractionResponse(*response)
+        else:
+            response = InteractionResponse(response)
     
     for request_coroutine in response.get_request_coroutines(
         client,
         interaction_event,
         response_modifier,
-        is_return,
     ):
         yield request_coroutine
     
@@ -166,6 +185,7 @@ async def process_command_coroutine_generator(
     """
     response_message = None
     response_exception = None
+    
     while True:
         if response_exception is None:
             step = coroutine_generator.asend(response_message)
@@ -209,7 +229,7 @@ async def process_command_coroutine_generator(
                 False,
             ):
                 try:
-                    response_message = await request_coroutine
+                    maybe_response_message = await request_coroutine
                 except GeneratorExit:
                     raise
                 
@@ -218,8 +238,12 @@ async def process_command_coroutine_generator(
                     response_message = None
                     response_exception = err
                     break
-    
-    
+                
+                else:
+                    # It can happen that the first request creates the response message and the second one edits it.
+                    if (maybe_response_message is not None):
+                        response_message = maybe_response_message
+                        maybe_response_message = None
     return response
 
 
@@ -287,6 +311,7 @@ class InteractionResponse(
     - ``Client.interaction_application_command_autocomplete``
     - ``Client.interaction_component_acknowledge``
     - ``Client.interaction_component_message_edit``
+    - ``Client.interaction_embedded_activity_launch``
     - ``Client.interaction_followup_message_create``
     - ``Client.interaction_followup_message_edit``
     - ``Client.interaction_response_message_create``
@@ -325,7 +350,7 @@ class InteractionResponse(
             Which user or role can the message ping (or everyone). Check ``parse_allowed_mentions``
             for details.
         
-        attachments : `None`, `object`, Optional (Keyword only)
+        attachments : `None | object`, Optional (Keyword only)
             Attachments to send.
         
         components : `None`, ``Component``, `(tuple | list)<Component, (tuple | list)<Component>>`
@@ -345,22 +370,22 @@ class InteractionResponse(
         embeds : `None`, `list<Embed>`, Optional
             The new embedded content of the message.
         
-        event : `None`, ``InteractionEvent`` = `None`, Optional
+        event : ``None | InteractionEvent`` = `None`, Optional
             Alternative for `interaction_event`.
         
-        file : `None`, `object`, Optional (Keyword only)
+        file : `None | object`, Optional (Keyword only)
             Alternative for `attachments`.
         
-        files : `None`, `object`, Optional (Keyword only)
+        files : `None | object`, Optional (Keyword only)
             Alternative for `attachments`.
         
         flags : `int`, ``MessageFlag`, Optional
             The message's flags.
         
-        interaction_event : `None`, ``InteractionEvent`` = `None`, Optional
+        interaction_event : ``None | InteractionEvent`` = `None`, Optional
             A specific event ot answer instead of the command's.
         
-        message : `None`, ``Message``, Optional (Keyword only)
+        message : ``None | Message``, Optional (Keyword only)
             Whether the interaction's message should be edited.
         
         show_for_invoking_user_only : `bool` = `False`, Optional (Keyword only)
@@ -374,6 +399,9 @@ class InteractionResponse(
         
         tts : `bool` = `False`, Optional (Keyword only)
             Whether the message is text-to-speech.
+        
+        voice_attachment : ``None | VoiceAttachment``, Optional (Keyword only)
+            Modifies the message to be a voice message, allowing it to contain just a single voice attachment.
         
         Raises
         ------
@@ -402,7 +430,7 @@ class InteractionResponse(
         return self
     
     
-    def get_request_coroutines(self, client, interaction_event, response_modifier, is_return):
+    def get_request_coroutines(self, client, interaction_event, response_modifier):
         """
         Gets request coroutine buildable from the ``InteractionResponse``.
         
@@ -416,8 +444,6 @@ class InteractionResponse(
             The respective event to respond on.
         response_modifier : `None`, ``ResponseModifier``
             Modifies values returned and yielded to command coroutine processor.
-        is_return : `bool`
-            Whether the response is used in a return and we do not require response message.
         
         Yields
         -------
@@ -436,26 +462,41 @@ class InteractionResponse(
             )
         ):
             for message in self._try_pull_field_value(CONVERSION_MESSAGE):
-                # Note: here we cannot put `poll` on the message.
                 if (response_modifier is not None):
                     response_modifier.apply_to_edition(self)
                 
                 if message is None:
                     yield client.interaction_response_message_edit(interaction_event, self)
                 else:
+                    # Note: here we cannot put `poll` on the message.
                     yield client.interaction_followup_message_edit(interaction_event, message, self)
+                return
+            
+            # If an application command interaction with embedded activity launch check whether we want to indeed
+            # launch it
+            if (
+                (interaction_event.target_type is ApplicationCommandTargetType.embedded_activity_launch) and
+                interaction_event.is_unanswered() and
+                (not self.abort)
+            ):
+                yield client.interaction_embedded_activity_launch(
+                    interaction_event,
+                    get_wait_for_acknowledgement_of(response_modifier),
+                )
+                if (response_modifier is not None):
+                    response_modifier.apply_to_creation(self)
+                
+                yield client.interaction_followup_message_create(interaction_event, self)
                 return
             
             if (not interaction_event.is_unanswered()):
                 need_acknowledging = False
-            elif (self.attachments is not None):
+            elif (self.attachments is not None) or (self.voice_attachment is not None):
                 need_acknowledging = True
             elif self.abort:
                 need_acknowledging = False
-            elif is_return:
-                need_acknowledging = False
             else:
-                need_acknowledging = True
+                need_acknowledging = False
             
             if need_acknowledging:
                 yield client.interaction_application_command_acknowledge(
@@ -467,14 +508,16 @@ class InteractionResponse(
                 response_modifier.apply_to_creation(self)
             
             if need_acknowledging or (not interaction_event.is_unanswered()):
-                yield client.interaction_followup_message_create(interaction_event, self)
-            
+                if (interaction_event.message is None) and (not interaction_event.is_responded()):
+                    yield client.interaction_response_message_edit(interaction_event, self)
+                else:
+                    yield client.interaction_followup_message_create(interaction_event, self)
             else:
                 yield client.interaction_response_message_create(interaction_event, self)
             
             return
         
-        elif (
+        if (
             (interaction_event_type is INTERACTION_TYPE_MESSAGE_COMPONENT) or
             (
                 (interaction_event_type is INTERACTION_TYPE_FORM_SUBMIT) and
@@ -492,7 +535,7 @@ class InteractionResponse(
                 yield client.interaction_followup_message_create(interaction_event, self)
                 
             elif interaction_event.is_unanswered():
-                if (self.attachments is not None):
+                if (self.attachments is not None) or (self.voice_attachment is not None):
                     need_acknowledging = True
                 else:
                     need_acknowledging = False
@@ -515,7 +558,6 @@ class InteractionResponse(
                 yield client.interaction_component_message_edit(interaction_event, self)
             
             elif interaction_event.is_deferred():
-                # Note: here we cannot put `poll` on the message.
                 yield client.interaction_response_message_edit(interaction_event, self)
             
             elif interaction_event.is_responded():
@@ -526,7 +568,7 @@ class InteractionResponse(
             
             return
         
-        elif (interaction_event_type is INTERACTION_TYPE_AUTOCOMPLETE):
+        if (interaction_event_type is INTERACTION_TYPE_AUTOCOMPLETE):
             if interaction_event.is_unanswered():
                 yield client.interaction_application_command_autocomplete(interaction_event, None)
             
@@ -569,7 +611,7 @@ def abort(
         Which user or role can the message ping (or everyone). Check ``parse_allowed_mentions``
         for details.
     
-    attachments : `None`, `object`, Optional (Keyword only)
+    attachments : `None | object`, Optional (Keyword only)
         Attachments to send.
     
     components : `None`, ``Component``, `(tuple | list)<Component, (tuple | list)<Component>>`
@@ -589,22 +631,22 @@ def abort(
     embeds : `None`, `list<Embed>`, Optional
         The new embedded content of the message.
     
-    event : `None`, ``InteractionEvent`` = `None`, Optional
+    event : ``None | InteractionEvent`` = `None`, Optional
         Alternative for `interaction_event`.
     
-    file : `None`, `object`, Optional (Keyword only)
+    file : `None | object`, Optional (Keyword only)
         Alternative for `attachments`.
     
-    files : `None`, `object`, Optional (Keyword only)
+    files : `None | object`, Optional (Keyword only)
         Alternative for `attachments`.
     
     flags : `int`, ``MessageFlag`, Optional
         The message's flags.
     
-    interaction_event : `None`, ``InteractionEvent`` = `None`, Optional
+    interaction_event : ``None | InteractionEvent`` = `None`, Optional
         A specific event ot answer instead of the command's.
     
-    message : `None`, ``Message``, Optional (Keyword only)
+    message : ``None | Message``, Optional (Keyword only)
         Whether the interaction's message should be edited.
     
     silent : `bool` = `False`, Optional (Keyword only)
@@ -615,6 +657,9 @@ def abort(
     
     tts : `bool` = `False`, Optional (Keyword only)
         Whether the message is text-to-speech.
+    
+    voice_attachment : ``None | VoiceAttachment``, Optional (Keyword only)
+        Modifies the message to be a voice message, allowing it to contain just a single voice attachment.
     
     Raises
     ------

@@ -1,11 +1,11 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 from scarletio import WeakValueDictionary
 
-from ....activity import Activity
 from ....bases import Icon, IconType
 from ....channel import Channel, ChannelType
+from ....embedded_activity import EmbeddedActivity
 from ....emoji import Emoji
 from ....localization import Locale
 from ....role import Role
@@ -15,7 +15,6 @@ from ....stage import Stage
 from ....sticker import Sticker
 from ....user import User, VoiceState
 
-from ...embedded_activity_state import EmbeddedActivityState
 from ...guild_incidents import GuildIncidents
 from ...guild_inventory_settings import GuildInventorySettings
 
@@ -47,6 +46,7 @@ def _assert_fields_set(guild):
     vampytest.assert_instance(guild.banner_hash, int)
     vampytest.assert_instance(guild.banner_type, IconType)
     vampytest.assert_instance(guild.boost_count, int)
+    vampytest.assert_instance(guild.boost_level, int)
     vampytest.assert_instance(guild.boost_progress_bar_enabled, bool)
     vampytest.assert_instance(guild.channels, dict)
     vampytest.assert_instance(guild.clients, list)
@@ -54,9 +54,11 @@ def _assert_fields_set(guild):
     vampytest.assert_instance(guild.discovery_splash_hash, int)
     vampytest.assert_instance(guild.discovery_splash_type, IconType)
     vampytest.assert_instance(guild.description, str, nullable = True)
-    vampytest.assert_instance(guild.embedded_activity_states, set, nullable = True)
+    vampytest.assert_instance(guild.embedded_activities, set, nullable = True)
     vampytest.assert_instance(guild.emojis, dict)
     vampytest.assert_instance(guild.features, tuple, nullable = True)
+    vampytest.assert_instance(guild.home_splash_hash, int)
+    vampytest.assert_instance(guild.home_splash_type, IconType)
     vampytest.assert_instance(guild.hub_type, HubType)
     vampytest.assert_instance(guild.icon_hash, int)
     vampytest.assert_instance(guild.icon_type, IconType)
@@ -76,23 +78,22 @@ def _assert_fields_set(guild):
     vampytest.assert_instance(guild.nsfw_level, NsfwLevel)
     vampytest.assert_instance(guild.owner_id, int)
     vampytest.assert_instance(guild.locale, Locale)
-    vampytest.assert_instance(guild.premium_tier, int)
     vampytest.assert_instance(guild.public_updates_channel_id, int)
     vampytest.assert_instance(guild.safety_alerts_channel_id, int)
     vampytest.assert_instance(guild.roles, dict)
     vampytest.assert_instance(guild.rules_channel_id, int)
-    vampytest.assert_instance(guild.scheduled_events, dict)
+    vampytest.assert_instance(guild.scheduled_events, dict, nullable = True)
     vampytest.assert_instance(guild.soundboard_sounds, dict, nullable = True)
     vampytest.assert_instance(guild.stages, dict, nullable = True)
     vampytest.assert_instance(guild.stickers, dict)
     vampytest.assert_instance(guild.system_channel_id, int)
     vampytest.assert_instance(guild.system_channel_flags, SystemChannelFlag)
-    vampytest.assert_instance(guild.threads, dict)
+    vampytest.assert_instance(guild.threads, dict, nullable = True)
     vampytest.assert_instance(guild.user_count, int)
     vampytest.assert_instance(guild.users, dict, WeakValueDictionary)
     vampytest.assert_instance(guild.vanity_code, str, nullable = True)
     vampytest.assert_instance(guild.verification_level, VerificationLevel)
-    vampytest.assert_instance(guild.voice_states, dict)
+    vampytest.assert_instance(guild.voice_states, dict, nullable = True)
     vampytest.assert_instance(guild.widget_channel_id, int)
     vampytest.assert_instance(guild.widget_enabled, bool)
 
@@ -120,7 +121,8 @@ def test__Guild__new__all_fields():
     explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     description = 'Koishi'
     discovery_splash = Icon(IconType.animated, 14)
-    features = [GuildFeature.animated_icon]
+    features = [GuildFeature.icon_animated]
+    home_splash = Icon(IconType.animated, 36)
     hub_type = HubType.college
     icon = Icon(IconType.animated, 16)
     invite_splash = Icon(IconType.animated, 18)
@@ -149,6 +151,7 @@ def test__Guild__new__all_fields():
         description = description,
         discovery_splash = discovery_splash,
         features = features,
+        home_splash = home_splash,
         hub_type = hub_type,
         icon = icon,
         invite_splash = invite_splash,
@@ -178,6 +181,7 @@ def test__Guild__new__all_fields():
     vampytest.assert_eq(guild.description, description)
     vampytest.assert_eq(guild.discovery_splash, discovery_splash)
     vampytest.assert_eq(guild.features, tuple(features))
+    vampytest.assert_eq(guild.home_splash, home_splash)
     vampytest.assert_is(guild.hub_type, hub_type)
     vampytest.assert_eq(guild.icon, icon)
     vampytest.assert_eq(guild.invite_splash, invite_splash)
@@ -253,6 +257,7 @@ def test__Guild__precreate__all_fields():
     available = True
     banner = Icon(IconType.animated, 12)
     boost_count = 3
+    boost_level = 1
     boost_progress_bar_enabled = True
     channels = [
         Channel.precreate(202306210012, channel_type = ChannelType.guild_text),
@@ -261,18 +266,19 @@ def test__Guild__precreate__all_fields():
     explicit_content_filter_level = ExplicitContentFilterLevel.no_role
     description = 'Koishi'
     discovery_splash = Icon(IconType.animated, 14)
-    embedded_activity_states = [
-        EmbeddedActivityState(activity = Activity('dance'), guild_id = guild_id, channel_id = 202306220034),
-        EmbeddedActivityState(activity = Activity('party'), guild_id = guild_id, channel_id = 202306220035),
+    embedded_activities = [
+        EmbeddedActivity.precreate(202409040000, guild_id = guild_id),
+        EmbeddedActivity.precreate(202409040001, guild_id = guild_id),
     ]
     emojis = [
         Emoji.precreate(202306210014),
         Emoji.precreate(202306210015),
     ]
-    features = [GuildFeature.animated_icon]
+    features = [GuildFeature.icon_animated]
+    home_splash = Icon(IconType.animated, 36)
     hub_type = HubType.college
     icon = Icon(IconType.animated, 16)
-    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14))
+    incidents = GuildIncidents(invites_disabled_until = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     inventory_settings = GuildInventorySettings(emoji_pack_collectible = True)
     invite_splash = Icon(IconType.animated, 18)
     large = True
@@ -286,7 +292,6 @@ def test__Guild__precreate__all_fields():
     nsfw_level = NsfwLevel.explicit
     owner_id = 202306210016
     locale = Locale.finnish
-    premium_tier = 1
     public_updates_channel_id = 202306210017
     roles = [
         Role.precreate(202306210019),
@@ -339,14 +344,16 @@ def test__Guild__precreate__all_fields():
         available = available,
         banner = banner,
         boost_count = boost_count,
+        boost_level = boost_level,
         boost_progress_bar_enabled = boost_progress_bar_enabled,
         channels = channels,
         explicit_content_filter_level = explicit_content_filter_level,
         description = description,
         discovery_splash = discovery_splash,
-        embedded_activity_states = embedded_activity_states,
+        embedded_activities = embedded_activities,
         emojis = emojis,
         features = features,
+        home_splash = home_splash,
         hub_type = hub_type,
         icon = icon,
         incidents = incidents,
@@ -363,7 +370,6 @@ def test__Guild__precreate__all_fields():
         nsfw_level = nsfw_level,
         owner_id = owner_id,
         locale = locale,
-        premium_tier = premium_tier,
         public_updates_channel_id = public_updates_channel_id,
         roles = roles,
         rules_channel_id = rules_channel_id,
@@ -392,14 +398,16 @@ def test__Guild__precreate__all_fields():
     vampytest.assert_eq(guild.available, available)
     vampytest.assert_eq(guild.banner, banner)
     vampytest.assert_eq(guild.boost_count, boost_count)
+    vampytest.assert_eq(guild.boost_level, boost_level)
     vampytest.assert_eq(guild.boost_progress_bar_enabled, boost_progress_bar_enabled)
     vampytest.assert_eq(guild.channels, {channel.id: channel for channel in channels})
     vampytest.assert_is(guild.explicit_content_filter_level, explicit_content_filter_level)
     vampytest.assert_eq(guild.description, description)
     vampytest.assert_eq(guild.discovery_splash, discovery_splash)
-    vampytest.assert_eq(guild.embedded_activity_states, set(embedded_activity_states))
+    vampytest.assert_eq(guild.embedded_activities, set(embedded_activities))
     vampytest.assert_eq(guild.emojis, {emoji.id: emoji for emoji in emojis})
     vampytest.assert_eq(guild.features, tuple(features))
+    vampytest.assert_eq(guild.home_splash, home_splash)
     vampytest.assert_is(guild.hub_type, hub_type)
     vampytest.assert_eq(guild.icon, icon)
     vampytest.assert_eq(guild.incidents, incidents)
@@ -416,7 +424,6 @@ def test__Guild__precreate__all_fields():
     vampytest.assert_is(guild.nsfw_level, nsfw_level)
     vampytest.assert_eq(guild.owner_id, owner_id)
     vampytest.assert_is(guild.locale, locale)
-    vampytest.assert_eq(guild.premium_tier, premium_tier)
     vampytest.assert_eq(guild.public_updates_channel_id, public_updates_channel_id)
     vampytest.assert_eq(guild.roles, {role.id: role for role in roles})
     vampytest.assert_eq(guild.rules_channel_id, rules_channel_id)

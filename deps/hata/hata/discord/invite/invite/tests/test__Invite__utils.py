@@ -1,10 +1,11 @@
+from datetime import datetime as DateTime, timedelta as TimeDelta, timezone as TimeZone
+
 import vampytest
 
 from ....application import Application
 from ....channel import Channel
 from ....guild import Guild
 from ....user import User
-from ....utils import is_url
 
 from ..flags import InviteFlag
 from ..invite import Invite
@@ -140,7 +141,7 @@ def test__test__Invite__channel_id(code, channel):
     ----------
     code : `str`
         Invite code.
-    channel : `None`, ``Channel``
+    channel : ``None | Channel``
         Channel to create the invite with.
     
     Returns
@@ -166,7 +167,7 @@ def test__test__Invite__guild_id(code, guild):
     ----------
     code : `str`
         Invite code.
-    guild : `None`, ``Guild``
+    guild : ``None | Guild``
         Guild to create the invite with.
     
     Returns
@@ -174,19 +175,6 @@ def test__test__Invite__guild_id(code, guild):
     guild_id : `int`
     """
     return Invite.precreate(code, guild = guild).guild_id
-
-
-def test__Invite__url():
-    """
-    Tests whether ``Invite.url`` works as intended.
-    """
-    code = '202308060013'
-    invite = Invite.precreate(code)
-    
-    url = invite.url
-    vampytest.assert_instance(url, str)
-    vampytest.assert_true(is_url(url))
-    vampytest.assert_in(code, url)
 
 
 def test__Invite__id():
@@ -218,7 +206,7 @@ def test__test__Invite__target_application_id(code, target_application):
     ----------
     code : `str`
         Invite code.
-    target_application : `None`, ``Application``
+    target_application : ``None | Application``
         Application to create the invite with.
     
     Returns
@@ -244,7 +232,7 @@ def test__test__Invite__target_user_id(code, target_user):
     ----------
     code : `str`
         Invite code.
-    target_user : `None`, ``ClientUserBase``
+    target_user : ``None | ClientUserBase``
         User to create the invite with.
     
     Returns
@@ -297,7 +285,8 @@ def test__test__Invite__inviter_id(code, inviter):
     ----------
     code : `str`
         Invite code.
-    inviter : `None`, ``ClientUserBase``
+    
+    inviter : ``None | ClientUserBase``
         User to create the invite with.
     
     Returns
@@ -305,3 +294,73 @@ def test__test__Invite__inviter_id(code, inviter):
     inviter_id : `int`
     """
     return Invite.precreate(code, inviter = inviter).inviter_id
+
+
+def _iter_options__url():
+    yield 'tewi', True
+
+
+@vampytest._(vampytest.call_from(_iter_options__url()).returning_last())
+def test__Invite__url(invite_code):
+    """
+    Tests whether ``Invite.url`` works as intended.
+    
+    Parameters
+    ----------
+    invite_code : `str`
+        Invite code to create the invite with.
+    
+    Returns
+    -------
+    has_url : `bool`
+    """
+    invite = Invite.precreate(invite_code)
+    
+    url = invite.url
+    vampytest.assert_instance(url, str)
+    return True
+
+
+def _iter_options__expires_at():
+    date_time = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
+    
+    yield (
+        'tewi',
+        date_time,
+        None,
+        None,
+    )
+    
+    yield (
+        'tewi',
+        date_time,
+        1000,
+        date_time + TimeDelta(seconds = 1000),
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__expires_at()).returning_last())
+def test__Invite__expires_at(invite_code, created_at, max_age):
+    """
+    Tests whether ``Invite.expires_at`` works as intended.
+    
+    Parameters
+    ----------
+    invite_code : `str`
+        Invite code to create the invite with.
+    
+    created_at : `DateTime`
+        When the invite was created.
+    
+    max_age : `None | int`
+        The time in seconds after the invite will expire.
+    
+    Returns
+    -------
+    has_expires_at : `None | DateTime`
+    """
+    invite = Invite.precreate(invite_code, created_at = created_at, max_age = max_age)
+    
+    expires_at = invite.expires_at
+    vampytest.assert_instance(expires_at, DateTime, nullable = True)
+    return expires_at

@@ -1,13 +1,9 @@
 __all__ = ('ConnectionType', 'ConnectionVisibility',)
 
-from warnings import warn
-
-from scarletio import class_property
-
 from ...bases import Preinstance as P, PreinstancedBase
 
 
-class ConnectionType(PreinstancedBase):
+class ConnectionType(PreinstancedBase, value_type = str):
     """
     Represents a connection's type.
     
@@ -15,24 +11,22 @@ class ConnectionType(PreinstancedBase):
     ----------
     name : `str`
         The name of the connection type.
+    
     value : `str`
         The identifier value the connection type.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`str`, ``ConnectionType``) items
-        Stores the predefined ``ConnectionType``-s. These can be accessed with their `value` as key.
-    VALUE_TYPE : `type` = `str`
-        The connection types' values' type.
-    DEFAULT_NAME : `str` = `'UNDEFINED'`
-        The default name of the connection types.
-    
-    Every predefined connection type can be accessed as class attribute as well:
+    Type Attributes
+    ---------------
+    Every predefined connection type can be accessed as type attribute as well:
     
     +-----------------------+-----------------------+-------------------+
-    | Class attribute name  | Name                  | Value             |
+    | Type attribute name   | Name                  | Value             |
     +=======================+=======================+===================+
+    | amazon_music          | Amazon Music          | amazon-music      |
+    +-----------------------+-----------------------+-------------------+
     | battlenet             | Battle.net            | battlenet         |
+    +-----------------------+-----------------------+-------------------+
+    | bluesky               | Bluesky               | bluesky           |
     +-----------------------+-----------------------+-------------------+
     | bungie                | Bungie.net            | bungie            |
     +-----------------------+-----------------------+-------------------+
@@ -52,6 +46,8 @@ class ConnectionType(PreinstancedBase):
     +-----------------------+-----------------------+-------------------+
     | league_of_legends     | League of Legends     | leagueoflegends   |
     +-----------------------+-----------------------+-------------------+
+    | mastodon              | Mastodon              | mastodon          |
+    +-----------------------+-----------------------+-------------------+
     | none                  | none                  |                   |
     +-----------------------+-----------------------+-------------------+
     | paypal                | PayPal                | paypal            |
@@ -61,6 +57,8 @@ class ConnectionType(PreinstancedBase):
     | reddit                | Reddit                | reddit            |
     +-----------------------+-----------------------+-------------------+
     | riot_games            | Riot Games            | riotgames         |
+    +-----------------------+-----------------------+-------------------+
+    | roblox                | Roblox                | roblox            |
     +-----------------------+-----------------------+-------------------+
     | samsung_galaxy        | Samsung Galaxy        | samsunggalaxy     |
     +-----------------------+-----------------------+-------------------+
@@ -81,13 +79,11 @@ class ConnectionType(PreinstancedBase):
     | youtube               | YouTube               | youtube           |
     +-----------------------+-----------------------+-------------------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = str
-    DEFAULT_NAME = 'UNDEFINED'
-    
     __slots__ = ()
     
+    amazon_music = P('amazon-music', 'Amazon Music')
     battlenet = P('battlenet', 'Battle.net')
+    bluesky = P('bluesky', 'Bluesky')
     bungie = P('bungie', 'Bungie.net')
     crunchyroll = P('crunchyroll', 'Crunchyroll')
     domain = P('domain', 'Domain')
@@ -97,11 +93,13 @@ class ConnectionType(PreinstancedBase):
     github = P('github', 'GitHub')
     instagram = P('instagram', 'Instagram')
     league_of_legends = P('leagueoflegends', 'League of Legends')
+    mastodon = P('mastodon', 'Mastodon')
     none = P('', 'none')
     paypal = P('paypal', 'PayPal')
     playstation = P('playstation', 'PlayStation Network')
     reddit = P('reddit', 'Reddit')
     riot_games = P('riotgames', 'Riot Games')
+    roblox = P('roblox', 'Roblox') # Only kids play roblox
     samsung_galaxy = P('samsunggalaxy', 'Samsung Galaxy')
     spotify = P('spotify', 'Spotify')
     skype = P('skype', 'Skype')
@@ -111,26 +109,9 @@ class ConnectionType(PreinstancedBase):
     twitter = P('twitter', 'X (Twitter)')
     xbox = P('xbox', 'Xbox')
     youtube = P('youtube', 'YouTube')
-    
-    
-    @class_property
-    def unknown(cls):
-        """
-        Deprecated and will be removed in 2024 February. Please use `.none` instead.
-        """
-        warn(
-            (
-                f'`{cls.__name__}.unknown` is deprecated and will be removed in 2024 February. '
-                f'Please use `.none` instead.'
-            ),
-            FutureWarning,
-            stacklevel = 2,
-        )
-        
-        return cls.none
 
 
-class ConnectionVisibility(PreinstancedBase):
+class ConnectionVisibility(PreinstancedBase, value_type = int):
     """
     Represents a connection visibility.
     
@@ -138,32 +119,22 @@ class ConnectionVisibility(PreinstancedBase):
     ----------
     name : `str`
         The name of the connection visibility.
-    value : `str`
+    
+    value : `int`
         The identifier value the connection visibility.
     
-    Class Attributes
-    ----------------
-    INSTANCES : `dict` of (`str`, ``ConnectionVisibility``) items
-        Stores the predefined ``ConnectionVisibility``-s. These can be accessed with their `value` as key.
-    VALUE_TYPE : `type` = `str`
-        The connection visibilities' values' type.
-    DEFAULT_NAME : `str` = `'UNDEFINED'`
-        The default name of the connection visibilities.
-    
-    Every predefined connection visibility can be accessed as class attribute as well:
+    Type Attributes
+    ---------------
+    Every predefined connection visibility can be accessed as type attribute as well:
     
     +-----------------------+-----------------------+-------------------+
-    | Class attribute name  | Name                  | Value             |
+    | Type attribute name   | Name                  | Value             |
     +=======================+=======================+===================+
     | user_only             | user only             | 0                 |
     +-----------------------+-----------------------+-------------------+
     | everyone              | everyone              | 1                 |
     +-----------------------+-----------------------+-------------------+
     """
-    INSTANCES = {}
-    VALUE_TYPE = int
-    DEFAULT_NAME = 'UNDEFINED'
-    
     __slots__ = ()
     
     user_only = P(0, 'user only')

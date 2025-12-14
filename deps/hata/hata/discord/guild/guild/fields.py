@@ -5,6 +5,7 @@ from scarletio import set_docs
 from ....env import CACHE_PRESENCE
 
 from ...channel import Channel
+from ...embedded_activity import EmbeddedActivity
 from ...emoji import Emoji
 from ...field_parsers import (
     bool_parser_factory, entity_id_parser_factory, flag_parser_factory, force_string_parser_factory, int_parser_factory,
@@ -33,7 +34,6 @@ from ...stage import Stage
 from ...sticker import Sticker
 from ...user import ClientUserBase, User, VoiceState
 
-from ..embedded_activity_state import EmbeddedActivityState
 from ..guild_incidents import GuildIncidents
 from ..guild_inventory_settings import GuildInventorySettings
 
@@ -42,6 +42,7 @@ from .constants import (
     MAX_STAGE_CHANNEL_VIDEO_USERS_DEFAULT, MAX_USERS_DEFAULT, MAX_VOICE_CHANNEL_VIDEO_USERS_DEFAULT, NAME_LENGTH_MAX,
     NAME_LENGTH_MIN
 )
+from .guild_boost_perks import LEVELS
 from .flags import SystemChannelFlag
 from .preinstanced import (
     ExplicitContentFilterLevel, GuildFeature, HubType, MfaLevel, MessageNotificationLevel, NsfwLevel, VerificationLevel
@@ -50,19 +51,19 @@ from .preinstanced import (
 # afk_channel_id
 
 parse_afk_channel_id = entity_id_parser_factory('afk_channel_id')
-put_afk_channel_id_into = entity_id_optional_putter_factory('afk_channel_id')
+put_afk_channel_id = entity_id_optional_putter_factory('afk_channel_id')
 validate_afk_channel_id = entity_id_validator_factory('afk_channel_id', Channel)
 
 # afk_timeout
 
 parse_afk_timeout = int_parser_factory('afk_timeout', AFK_TIMEOUT_DEFAULT)
-put_afk_timeout_into = int_optional_putter_factory('afk_timeout', AFK_TIMEOUT_DEFAULT)
-validate_afk_timeout = int_options_validator_factory('afk_timeout', AFK_TIMEOUT_OPTIONS)
+put_afk_timeout = int_optional_putter_factory('afk_timeout', AFK_TIMEOUT_DEFAULT)
+validate_afk_timeout = int_options_validator_factory('afk_timeout', AFK_TIMEOUT_OPTIONS, 0)
 
 # approximate_online_count
 
 parse_approximate_online_count = int_parser_factory('approximate_presence_count', 0)
-put_approximate_online_count_into = int_putter_factory('approximate_presence_count')
+put_approximate_online_count = int_putter_factory('approximate_presence_count')
 validate_approximate_online_count = int_conditional_validator_factory(
     'approximate_online_count',
     0,
@@ -73,7 +74,7 @@ validate_approximate_online_count = int_conditional_validator_factory(
 # approximate_user_count
 
 parse_approximate_user_count = int_parser_factory('approximate_member_count', 0)
-put_approximate_user_count_into = int_putter_factory('approximate_member_count')
+put_approximate_user_count = int_putter_factory('approximate_member_count')
 validate_approximate_user_count = int_conditional_validator_factory(
     'approximate_user_count',
     0,
@@ -84,25 +85,35 @@ validate_approximate_user_count = int_conditional_validator_factory(
 # available
 
 parse_available = negated_bool_parser_factory('unavailable', True)
-put_available_into = negated_bool_optional_putter_factory('unavailable', True)
+put_available = negated_bool_optional_putter_factory('unavailable', True)
 validate_available = bool_validator_factory('unavailable', True)
 
-# boost_progress_bar_enabled
-
-parse_boost_progress_bar_enabled = bool_parser_factory('premium_progress_bar_enabled', False)
-put_boost_progress_bar_enabled_into = bool_optional_putter_factory('premium_progress_bar_enabled', False)
-validate_boost_progress_bar_enabled = bool_validator_factory('boost_progress_bar_enabled', False)
 
 # boost_count
 
 parse_boost_count = int_parser_factory('premium_subscription_count', 0)
-put_boost_count_into = int_optional_putter_factory('premium_subscription_count', 0)
+put_boost_count = int_optional_putter_factory('premium_subscription_count', 0)
 validate_boost_count = int_conditional_validator_factory(
     'boost_count',
     0,
     lambda boost_count : boost_count >= 0,
     '>= 0',
 )
+
+
+# boost_level
+
+parse_boost_level = int_parser_factory('premium_tier', 0)
+put_boost_level = int_putter_factory('premium_tier')
+validate_boost_level = int_options_validator_factory('boost_level', frozenset(LEVELS.keys()), 0)
+
+
+# boost_progress_bar_enabled
+
+parse_boost_progress_bar_enabled = bool_parser_factory('premium_progress_bar_enabled', False)
+put_boost_progress_bar_enabled = bool_optional_putter_factory('premium_progress_bar_enabled', False)
+validate_boost_progress_bar_enabled = bool_validator_factory('boost_progress_bar_enabled', False)
+
 
 # channels
 
@@ -137,7 +148,7 @@ def parse_channels(data, channels, guild_id = 0):
     return channels
 
 
-put_channels_into = entity_dictionary_putter_factory('channels', Channel, force_include_internals = True)
+put_channels = entity_dictionary_putter_factory('channels', Channel, force_include_internals = True)
 validate_channels = entity_dictionary_validator_factory('channels', Channel)
 
 # client_guild_profile
@@ -190,7 +201,7 @@ set_docs(
 parse_default_message_notification_level = preinstanced_parser_factory(
     'default_message_notifications', MessageNotificationLevel, MessageNotificationLevel.all_messages
 )
-put_default_message_notification_level_into = preinstanced_putter_factory('default_message_notifications')
+put_default_message_notification_level = preinstanced_putter_factory('default_message_notifications')
 validate_default_message_notification_level = preinstanced_validator_factory(
     'default_message_notification_level', MessageNotificationLevel
 )
@@ -198,81 +209,80 @@ validate_default_message_notification_level = preinstanced_validator_factory(
 # description
 
 parse_description = nullable_string_parser_factory('description')
-put_description_into = nullable_string_optional_putter_factory('description')
+put_description = nullable_string_optional_putter_factory('description')
 validate_description = nullable_string_validator_factory('description', 0, DESCRIPTION_LENGTH_MAX)
 
-# embedded_activity_states
+# embedded_activities
 
-def parse_embedded_activity_states(data, embedded_activity_states, guild_id = 0):
+def parse_embedded_activities(data, embedded_activities, guild_id = 0):
     """
-    Parses the guild's embedded_activity_states from the given data.
+    Parses the guild's embedded_activities from the given data.
     
     Parameters
     ----------
     data : `dict<str, object>`
         Guild data.
-    embedded_activity_states : `None | set<EmbeddedActivityState>`
-        The guild's embedded activity states.
+    embedded_activities : `None | set<EmbeddedActivity>`
+        The guild's embedded activities.
     guild_id : `int` = `0`, Optional
         The guild's identifier.
         
     Returns
     -------
-    embedded_activity_states : `None | set<EmbeddedActivityState>`
-        Returns the `embedded_activity_states` parameter.
+    embedded_activities : `None | set<EmbeddedActivity>`
     """
-    if (embedded_activity_states is not None):
-        old_embedded_activity_states = [*embedded_activity_states]
-        embedded_activity_states.clear()
+    if (embedded_activities is not None):
+        old_embedded_activities = [*embedded_activities]
+        embedded_activities.clear()
     
-    embedded_activity_state_datas = data.get('embedded_activities', None)
-    if (embedded_activity_state_datas is not None):
-        for embedded_activity_state_data in embedded_activity_state_datas:
-            embedded_activity_state = EmbeddedActivityState.from_data(
-                embedded_activity_state_data, guild_id, strong_cache = False
-            )
+    embedded_activity_datas = data.get('activity_instances', None)
+    if (embedded_activity_datas is not None):
+        for embedded_activity_data in embedded_activity_datas:
+            embedded_activity = EmbeddedActivity.from_data(embedded_activity_data, guild_id)
             
-            if embedded_activity_states is None:
-                embedded_activity_states = set()
+            if embedded_activities is None:
+                embedded_activities = set()
                 
-            embedded_activity_states.add(embedded_activity_state)
+            embedded_activities.add(embedded_activity)
     
-    if (embedded_activity_states is not None) and (not embedded_activity_states):
-        embedded_activity_states = None
+    if (embedded_activities is not None) and (not embedded_activities):
+        embedded_activities = None
     
-    return embedded_activity_states
+    return embedded_activities
 
 
-def put_embedded_activity_states_into(embedded_activity_states, data, defaults):
+def put_embedded_activities(embedded_activities, data, defaults):
     """
-    Puts the given embedded activity states into the given `data` json serializable object.
+    Puts the given embedded activities into the given `data` json serializable object.
     
     Parameters
     ----------
-    embedded_activity_states : `None | set<EmbeddedActivityState>`
+    embedded_activities : `None | set<EmbeddedActivity>`
         Entity array.
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Json serializable dictionary.
     defaults : `bool`
         Whether default values should be included as well.
     
     Returns
     -------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
     """
-    if embedded_activity_states is None:
-        embedded_activity_state_datas = []
+    if embedded_activities is None:
+        embedded_activity_datas = []
     else:
-        embedded_activity_state_datas = [
-            embedded_activity_state.to_data(defaults = defaults) for embedded_activity_state in embedded_activity_states
+        embedded_activity_datas = [
+            embedded_activity.to_data(defaults = defaults, include_internals = True)
+            for embedded_activity in embedded_activities
         ]
     
-    data['embedded_activities'] = embedded_activity_state_datas
+    data['activity_instances'] = embedded_activity_datas
     
     return data
 
-validate_embedded_activity_states = nullable_entity_set_validator_factory(
-    'embedded_activity_states', EmbeddedActivityState
+
+validate_embedded_activities = nullable_entity_set_validator_factory(
+    'embedded_activities', EmbeddedActivity
 )
 
 # emojis
@@ -307,7 +317,7 @@ def parse_emojis(data, emojis, guild_id = 0):
     
     return emojis
 
-put_emojis_into = entity_dictionary_putter_factory('emojis', Emoji, force_include_internals = True)
+put_emojis = entity_dictionary_putter_factory('emojis', Emoji, force_include_internals = True)
 validate_emojis = entity_dictionary_validator_factory('emojis', Emoji)
 
 # explicit_content_filter_level
@@ -315,7 +325,7 @@ validate_emojis = entity_dictionary_validator_factory('emojis', Emoji)
 parse_explicit_content_filter_level = preinstanced_parser_factory(
     'explicit_content_filter', ExplicitContentFilterLevel, ExplicitContentFilterLevel.disabled
 )
-put_explicit_content_filter_level_into = preinstanced_putter_factory('explicit_content_filter')
+put_explicit_content_filter_level = preinstanced_putter_factory('explicit_content_filter')
 validate_explicit_content_filter_level = preinstanced_validator_factory(
     'explicit_content_filter_level', ExplicitContentFilterLevel
 )
@@ -323,43 +333,43 @@ validate_explicit_content_filter_level = preinstanced_validator_factory(
 # features
 
 parse_features = preinstanced_array_parser_factory('features', GuildFeature)
-put_features_into = preinstanced_array_putter_factory('features')
+put_features = preinstanced_array_putter_factory('features')
 validate_features = preinstanced_array_validator_factory('features', GuildFeature)
 
 # hub_type
 
 parse_hub_type = preinstanced_parser_factory('hub_type', HubType, HubType.none)
-put_hub_type_into = preinstanced_putter_factory('hub_type')
+put_hub_type = preinstanced_putter_factory('hub_type')
 validate_hub_type = preinstanced_validator_factory('hub_type', HubType)
 
 # id
 
 parse_id = entity_id_parser_factory('id')
-put_id_into = entity_id_putter_factory('id')
+put_id = entity_id_putter_factory('id')
 validate_id = entity_id_validator_factory('guild_id')
 
 # incidents
 
 parse_incidents = nullable_entity_parser_factory('incidents_data', GuildIncidents)
-put_incidents_into = nullable_entity_putter_factory('incidents_data', GuildIncidents, force_include_internals = True)
+put_incidents = nullable_entity_putter_factory('incidents_data', GuildIncidents, force_include_internals = True)
 validate_incidents = nullable_entity_validator_factory('incidents', GuildIncidents)
 
 # inventory_settings
 
 parse_inventory_settings = nullable_entity_parser_factory('inventory_settings', GuildInventorySettings)
-put_inventory_settings_into = nullable_entity_putter_factory('inventory_settings', GuildInventorySettings)
+put_inventory_settings = nullable_entity_putter_factory('inventory_settings', GuildInventorySettings)
 validate_inventory_settings = nullable_entity_validator_factory('inventory_settings', GuildInventorySettings)
 
 # large
 
 parse_large = bool_parser_factory('large', False)
-put_large_into = bool_optional_putter_factory('large', False)
+put_large = bool_optional_putter_factory('large', False)
 validate_large = bool_validator_factory('large', False)
 
 # max_presences
 
 parse_max_presences = int_parser_factory('max_presences', MAX_PRESENCES_DEFAULT)
-put_max_presences_into = int_putter_factory('max_presences')
+put_max_presences = int_putter_factory('max_presences')
 validate_max_presences = int_conditional_validator_factory(
     'max_presences',
     MAX_PRESENCES_DEFAULT,
@@ -372,7 +382,7 @@ validate_max_presences = int_conditional_validator_factory(
 parse_max_stage_channel_video_users = int_parser_factory(
     'max_stage_video_channel_users', MAX_STAGE_CHANNEL_VIDEO_USERS_DEFAULT
 )
-put_max_stage_channel_video_users_into = int_putter_factory('max_stage_video_channel_users')
+put_max_stage_channel_video_users = int_putter_factory('max_stage_video_channel_users')
 validate_max_stage_channel_video_users = int_conditional_validator_factory(
     'max_stage_channel_video_users',
     MAX_STAGE_CHANNEL_VIDEO_USERS_DEFAULT,
@@ -383,7 +393,7 @@ validate_max_stage_channel_video_users = int_conditional_validator_factory(
 # max_users
 
 parse_max_users = int_parser_factory('max_members', MAX_USERS_DEFAULT)
-put_max_users_into = int_putter_factory('max_members')
+put_max_users = int_putter_factory('max_members')
 validate_max_users = int_conditional_validator_factory(
     'max_users',
     MAX_USERS_DEFAULT,
@@ -396,7 +406,7 @@ validate_max_users = int_conditional_validator_factory(
 parse_max_voice_channel_video_users = int_parser_factory(
     'max_video_channel_users', MAX_VOICE_CHANNEL_VIDEO_USERS_DEFAULT
 )
-put_max_voice_channel_video_users_into = int_putter_factory('max_video_channel_users')
+put_max_voice_channel_video_users = int_putter_factory('max_video_channel_users')
 validate_max_voice_channel_video_users = int_conditional_validator_factory(
     'max_voice_channel_video_users',
     MAX_VOICE_CHANNEL_VIDEO_USERS_DEFAULT,
@@ -407,25 +417,25 @@ validate_max_voice_channel_video_users = int_conditional_validator_factory(
 # mfa_level
 
 parse_mfa_level = preinstanced_parser_factory('mfa_level', MfaLevel, MfaLevel.none)
-put_mfa_level_into = preinstanced_putter_factory('mfa_level')
+put_mfa_level = preinstanced_putter_factory('mfa_level')
 validate_mfa_level = preinstanced_validator_factory('mfa_level', MfaLevel)
 
 # name
 
 parse_name = force_string_parser_factory('name')
-put_name_into = force_string_putter_factory('name')
+put_name = force_string_putter_factory('name')
 validate_name = force_string_validator_factory('name', NAME_LENGTH_MIN, NAME_LENGTH_MAX)
 
 # nsfw_level
 
 parse_nsfw_level = preinstanced_parser_factory('nsfw_level', NsfwLevel, NsfwLevel.none)
-put_nsfw_level_into = preinstanced_putter_factory('nsfw_level')
+put_nsfw_level = preinstanced_putter_factory('nsfw_level')
 validate_nsfw_level = preinstanced_validator_factory('nsfw_level', NsfwLevel)
 
 # owner_id
 
 parse_owner_id = entity_id_parser_factory('owner_id')
-put_owner_id_into = entity_id_putter_factory('owner_id')
+put_owner_id = entity_id_putter_factory('owner_id')
 validate_owner_id = entity_id_validator_factory('owner_id', ClientUserBase)
 
 # locale
@@ -447,17 +457,17 @@ def parse_locale(data):
     # When receiving interaction
     locale = data.get('locale', None)
     if (locale is not None):
-        return Locale.get(locale)
+        return Locale(locale)
     
     # When receiving guild itself
     locale = data.get('preferred_locale', None)
     if (locale is not None):
-        return Locale.get(locale)
+        return Locale(locale)
     
     return LOCALE_DEFAULT
 
 
-def put_locale_into(locale, data, defaults):
+def put_locale(locale, data, defaults):
     """
     Puts the given `locale` into the given `data` json serializable object.
     
@@ -481,16 +491,11 @@ def put_locale_into(locale, data, defaults):
 
 validate_locale = preinstanced_validator_factory('locale', Locale)
 
-# premium_tier
-
-parse_premium_tier = int_parser_factory('premium_tier', 0)
-put_premium_tier_into = int_putter_factory('premium_tier')
-validate_premium_tier = int_options_validator_factory('premium_tier', frozenset((range(4))))
 
 # public_updates_channel_id
 
 parse_public_updates_channel_id = entity_id_parser_factory('public_updates_channel_id')
-put_public_updates_channel_id_into = entity_id_optional_putter_factory('public_updates_channel_id')
+put_public_updates_channel_id = entity_id_optional_putter_factory('public_updates_channel_id')
 validate_public_updates_channel_id = entity_id_validator_factory('public_updates_channel_id', Channel)
 
 # roles
@@ -525,23 +530,63 @@ def parse_roles(data, roles, guild_id = 0):
     
     return roles
 
-put_roles_into = entity_dictionary_putter_factory('roles', Role, force_include_internals = True)
+put_roles = entity_dictionary_putter_factory('roles', Role, force_include_internals = True)
 validate_roles = entity_dictionary_validator_factory('roles', Role)
 
 # rules_channel_id
 
 parse_rules_channel_id = entity_id_parser_factory('rules_channel_id')
-put_rules_channel_id_into = entity_id_optional_putter_factory('rules_channel_id')
+put_rules_channel_id = entity_id_optional_putter_factory('rules_channel_id')
 validate_rules_channel_id = entity_id_validator_factory('rules_channel_id', Channel)
 
 # safety_alerts_channel_id
 
 parse_safety_alerts_channel_id = entity_id_parser_factory('safety_alerts_channel_id')
-put_safety_alerts_channel_id_into = entity_id_optional_putter_factory('safety_alerts_channel_id')
+put_safety_alerts_channel_id = entity_id_optional_putter_factory('safety_alerts_channel_id')
 validate_safety_alerts_channel_id = entity_id_validator_factory('safety_alerts_channel_id', Channel)
+
 
 # soundboard_sounds
 
+def parse_soundboard_sounds(data, soundboard_sounds):
+    """
+    Parses the guild's soundboard_sounds from the given data.
+    
+    Parameters
+    ----------
+    data : `dict<str, object>`
+        Guild data.
+    
+    soundboard_sounds : `None | dict<int, SoundboardSound>`
+        The guild's soundboard sounds.
+        
+    Returns
+    -------
+    soundboard_sounds : `None | dict<int, SoundboardSound>`
+        Returns `soundboard sounds` parameter.
+    """
+    if (soundboard_sounds is not None):
+        soundboard_sounds.clear()
+        soundboard_sounds = None
+    
+    soundboard_sound_datas = data.get('soundboard_sounds', None)
+    if (soundboard_sound_datas is not None):
+        for soundboard_sound_data in soundboard_sound_datas:
+            soundboard_sound = SoundboardSound.from_data(soundboard_sound_data, strong_cache = False)
+            if (soundboard_sound is None):
+                continue
+            
+            if soundboard_sounds is None:
+                soundboard_sounds = {}
+            
+            soundboard_sounds[soundboard_sound.id] = soundboard_sound
+    
+    return soundboard_sounds
+
+
+put_soundboard_sounds = entity_dictionary_putter_factory(
+    'soundboard_sounds', SoundboardSound, force_include_internals = True
+)
 validate_soundboard_sounds = nullable_entity_dictionary_validator_factory('soundboard_sounds', SoundboardSound)
 
 # scheduled_events
@@ -562,22 +607,26 @@ def parse_scheduled_events(data, scheduled_events):
     scheduled_events : `dict<int, ScheduledEvent>`
         Returns `scheduled_events` parameter.
     """
-    if scheduled_events:
+    if (scheduled_events is not None):
         old_scheduled_events = [*scheduled_events.values()]
-        scheduled_events.clear()
+        scheduled_events = None
     
     scheduled_event_datas = data.get('guild_scheduled_events', None)
     if (scheduled_event_datas is not None):
         for scheduled_event_data in scheduled_event_datas:
             scheduled_event = ScheduledEvent.from_data(scheduled_event_data, strong_cache = False)
+            
+            if scheduled_events is None:
+                scheduled_events = {}
+            
             scheduled_events[scheduled_event.id] = scheduled_event
     
     return scheduled_events
 
-put_scheduled_events_into = entity_dictionary_putter_factory(
+put_scheduled_events = entity_dictionary_putter_factory(
     'guild_scheduled_events', ScheduledEvent, force_include_internals = True
 )
-validate_scheduled_events = entity_dictionary_validator_factory('scheduled_events', ScheduledEvent)
+validate_scheduled_events = nullable_entity_dictionary_validator_factory('scheduled_events', ScheduledEvent)
 
 # stages
 
@@ -617,7 +666,7 @@ def parse_stages(data, stages):
     return stages
 
 
-put_stages_into = entity_dictionary_putter_factory(
+put_stages = entity_dictionary_putter_factory(
     'stage_instances', Stage, force_include_internals = True
 )
 validate_stages = nullable_entity_dictionary_validator_factory('stages', Stage)
@@ -652,7 +701,8 @@ def parse_stickers(data, stickers):
     
     return stickers
 
-put_stickers_into = entity_dictionary_putter_factory('stickers', Sticker, force_include_internals = True)
+
+put_stickers = entity_dictionary_putter_factory('stickers', Sticker, force_include_internals = True)
 validate_stickers = entity_dictionary_validator_factory('stickers', Sticker)
 
 # system_channel_flags
@@ -660,7 +710,7 @@ validate_stickers = entity_dictionary_validator_factory('stickers', Sticker)
 parse_system_channel_flags = flag_parser_factory(
     'system_channel_flags', SystemChannelFlag, default_value = SystemChannelFlag.NONE
 )
-put_system_channel_flags_into = flag_putter_factory('system_channel_flags')
+put_system_channel_flags = flag_putter_factory('system_channel_flags')
 validate_system_channel_flags = flag_validator_factory(
     'system_channel_flags', SystemChannelFlag, default_value = SystemChannelFlag.NONE
 )
@@ -668,7 +718,7 @@ validate_system_channel_flags = flag_validator_factory(
 # system_channel_id
 
 parse_system_channel_id = entity_id_parser_factory('system_channel_id')
-put_system_channel_id_into = entity_id_optional_putter_factory('system_channel_id')
+put_system_channel_id = entity_id_optional_putter_factory('system_channel_id')
 validate_system_channel_id = entity_id_validator_factory('system_channel_id', Channel)
 
 # threads
@@ -681,36 +731,39 @@ def parse_threads(data, threads, guild_id = 0):
     ----------
     data : `dict<str, object>`
         Guild data.
-    threads : `dict<int, Channel>`
+    threads : `None | dict<int, Channel>`
         The guild's threads.
     guild_id : `int` = `0`, Optional
         The guild's identifier.
         
     Returns
     -------
-    threads : `dict<int, Channel>`
+    threads : `None | dict<int, Channel>`
         Returns `threads` parameter.
     """
     if threads:
         old_threads = [*threads.values()]
-        threads.clear()
+        threads = None
     
     thread_datas = data.get('threads', None)
     if (thread_datas is not None):
         for thread_data in thread_datas:
             thread = Channel.from_data(thread_data, None, guild_id, strong_cache = False)
+            if threads is None:
+                threads = {}
+            
             threads[thread.id] = thread
     
     return threads
 
 
-put_threads_into = entity_dictionary_putter_factory('threads', Channel, force_include_internals = True)
-validate_threads = entity_dictionary_validator_factory('threads', Channel)
+put_threads = entity_dictionary_putter_factory('threads', Channel, force_include_internals = True)
+validate_threads = nullable_entity_dictionary_validator_factory('threads', Channel)
 
 # user_count
 
 parse_user_count = int_parser_factory('member_count', 0)
-put_user_count_into = int_putter_factory('member_count')
+put_user_count = int_putter_factory('member_count')
 validate_user_count = int_conditional_validator_factory(
     'user_count',
     0,
@@ -780,7 +833,7 @@ set_docs(
 )
 
 
-def put_users_into(users, data, defaults, *, guild_id = 0):
+def put_users(users, data, defaults, *, guild_id = 0):
     """
     Puts the given `users` into the given `data` json serializable object.
     
@@ -788,7 +841,7 @@ def put_users_into(users, data, defaults, *, guild_id = 0):
     ----------
     users : `dict`, ``WeakValueDictionary``  of (`int`, ``ClientUserBase``) items
         Resolved users.
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Interaction resolved data.
     defaults : `bool`
         Whether default fields values should be included as well.
@@ -797,7 +850,7 @@ def put_users_into(users, data, defaults, *, guild_id = 0):
     
     Returns
     -------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
     """
     guild_profiles_datas = []
     
@@ -823,49 +876,57 @@ validate_users = entity_dictionary_validator_factory('users', ClientUserBase)
 # vanity_code
 
 parse_vanity_code = nullable_string_parser_factory('vanity_url_code')
-put_vanity_code_into = nullable_string_optional_putter_factory('vanity_url_code')
+put_vanity_code = nullable_string_optional_putter_factory('vanity_url_code')
 validate_vanity_code = nullable_string_validator_factory('vanity_code', 0, 1024)
 
 # verification_level
 
 parse_verification_level = preinstanced_parser_factory('verification_level', VerificationLevel, VerificationLevel.none)
-put_verification_level_into = preinstanced_putter_factory('verification_level')
+put_verification_level = preinstanced_putter_factory('verification_level')
 validate_verification_level = preinstanced_validator_factory('verification_level', VerificationLevel)
 
 # voice_states
 
 def parse_voice_states(data, voice_states, guild_id = 0):
     """
-    Parses the guild's voice_states from the given data.
+    Parses the guild's voice states from the given data.
     
     Parameters
     ----------
     data : `dict<str, object>`
         Guild data.
-    voice_states : `dict<int, VoiceState>`
-        The guild's voice_states.
+    
+    voice_states : `None | dict<int, VoiceState>`
+        The guild's voice states.
+    
+    guild_id : `int` = `0`, Optional
+        The guild's identifier.
         
     Returns
     -------
-    voice_states : `dict<int, VoiceState>`
+    voice_states : `None | dict<int, VoiceState>`
         Returns `voice_states` parameter.
-    guild_id : `int` = `0`, Optional
-        The guild's identifier.
     """
-    if voice_states:
+    if (voice_states is not None):
         voice_states.clear()
+        voice_states = None
     
     voice_state_datas = data.get('voice_states', None)
     if (voice_state_datas is not None):
         for voice_state_data in voice_state_datas:
             voice_state = VoiceState.from_data(voice_state_data, guild_id, strong_cache = False)
-            if (voice_state is not None):
-                voice_states[voice_state.user_id] = voice_state
+            if (voice_state is None):
+                continue
+            
+            if voice_states is None:
+                voice_states = {}
+            
+            voice_states[voice_state.user_id] = voice_state
     
     return voice_states
 
 
-put_voice_states_into = entity_dictionary_putter_factory('voice_states', VoiceState)
+put_voice_states = entity_dictionary_putter_factory('voice_states', VoiceState)
 
 
 def validate_voice_states(field_value):
@@ -879,14 +940,14 @@ def validate_voice_states(field_value):
     
     Returns
     -------
-    entity_dictionary : `dict` of (`int`, ``VoiceState``) items
+    entity_dictionary : `None | dict<int, VoiceState>`
     
     Raises
     ------
     TypeError
         - If `field_value`'s or it's elements type is incorrect.
     """
-    validated = {}
+    validated = None
     
     if field_value is not None:
         if isinstance(field_value, dict):
@@ -898,15 +959,18 @@ def validate_voice_states(field_value):
         else:
             raise TypeError(
                 f'`voice_states` can be `None`, `dict` of (`int`, `{VoiceState.__name__}`) items, `iterable` of '
-                f'`{VoiceState.__name__}` items, got {field_value.__class__.__name__}; {field_value!r}.'
+                f'`{VoiceState.__name__}` items, got {type(field_value).__name__}; {field_value!r}.'
             )
         
         for voice_state in iterator:
             if not isinstance(voice_state, VoiceState):
                 raise TypeError(
-                    f'`voice_states` elements can be `{VoiceState.__name__}`, got {voice_state.__class__.__name__}; '
+                    f'`voice_states` elements can be `{VoiceState.__name__}`, got {type(voice_state).__name__}; '
                     f'{voice_state!r}; voice_states = {field_value!r}.'
                 )
+            
+            if validated is None:
+                validated = {}
             
             validated[voice_state.user_id] = voice_state
     
@@ -915,13 +979,13 @@ def validate_voice_states(field_value):
 # widget_channel_id
 
 parse_widget_channel_id = entity_id_parser_factory('widget_channel_id')
-put_widget_channel_id_into = entity_id_optional_putter_factory('widget_channel_id')
+put_widget_channel_id = entity_id_optional_putter_factory('widget_channel_id')
 validate_widget_channel_id = entity_id_validator_factory('widget_channel_id', Channel)
 
 # widget_enabled
 
 parse_widget_enabled = bool_parser_factory('widget_enabled', False)
-put_widget_enabled_into = bool_optional_putter_factory('widget_enabled', False)
+put_widget_enabled = bool_optional_putter_factory('widget_enabled', False)
 validate_widget_enabled = bool_validator_factory('widget_enabled', False)
 
 
@@ -956,7 +1020,7 @@ def validate_channels_and_channel_datas(channels):
             if not isinstance(element, (Channel, dict)):
                 raise TypeError(
                     f'`channel` elements can be `{Channel.__name__}`, `dict`. '
-                    f'Got {element.__class__.__name__}; {element!r}; channels = {channels!r}'
+                    f'Got {type(element).__name__}; {element!r}; channels = {channels!r}'
                 )
         
             if validated is None:
@@ -1002,7 +1066,7 @@ def validate_roles_and_role_datas(roles):
             if not isinstance(element, (Role, dict)):
                 raise TypeError(
                     f'`role` elements can be `{Role.__name__}`, `dict`. '
-                    f'Got {element.__class__.__name__}; {element!r}; roles = {roles!r}'
+                    f'Got {type(element).__name__}; {element!r}; roles = {roles!r}'
                 )
         
             if validated is None:
@@ -1019,7 +1083,7 @@ def validate_roles_and_role_datas(roles):
     return validated
 
 
-def put_channels_and_channel_datas_into(channels, data, defaults):
+def put_channels_and_channel_datas(channels, data, defaults):
     """
     Puts the given channels or their data into the given `data` json serializable object.
     
@@ -1027,14 +1091,14 @@ def put_channels_and_channel_datas_into(channels, data, defaults):
     ----------
     channels : `None`, `list` of (``Channel``, `dict`)
         Channels or channel datas.
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Json serializable dictionary.
     defaults : `bool`
         Whether default values should be included as well.
     
     Returns
     -------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
     """
     channel_datas = []
     
@@ -1050,7 +1114,7 @@ def put_channels_and_channel_datas_into(channels, data, defaults):
     return data
 
 
-def put_roles_and_role_datas_into(roles, data, defaults):
+def put_roles_and_role_datas(roles, data, defaults):
     """
     Puts the given roles or their data into the given `data` json serializable object.
     
@@ -1058,14 +1122,14 @@ def put_roles_and_role_datas_into(roles, data, defaults):
     ----------
     roles : `None`, `list` of (``Role``, `dict`)
         Roles or role datas.
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
         Json serializable dictionary.
     defaults : `bool`
         Whether default values should be included as well.
     
     Returns
     -------
-    data : `dict` of (`str`, `object`) items
+    data : `dict<str, object>`
     """
     role_datas = []
     

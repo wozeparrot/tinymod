@@ -1,6 +1,7 @@
 import vampytest
 
 from ....bases import Icon, IconType
+from ....emoji import Emoji
 from ....guild import Guild
 from ....user import User
 
@@ -17,10 +18,10 @@ from ..flags import (
     ApplicationOverlayMethodFlags
 )
 from ..preinstanced import (
-    ApplicationDiscoverabilityState, ApplicationExplicitContentFilterLevel, ApplicationIntegrationType,
-    ApplicationInteractionEventType, ApplicationInteractionVersion, ApplicationInternalGuildRestriction,
-    ApplicationMonetizationState, ApplicationRPCState, ApplicationStoreState, ApplicationType,
-    ApplicationVerificationState
+    ApplicationDiscoverabilityState, ApplicationEventWebhookEventType, ApplicationEventWebhookState,
+    ApplicationExplicitContentFilterLevel, ApplicationIntegrationType, ApplicationInteractionEventType,
+    ApplicationInteractionVersion, ApplicationInternalGuildRestriction, ApplicationMonetizationState,
+    ApplicationRPCState, ApplicationStoreState, ApplicationTheme, ApplicationType, ApplicationVerificationState
 )
 
 from .test__Application__constructor import _assert_fields_set
@@ -32,6 +33,8 @@ def test__Application__copy():
     """
     aliases = ['orin', 'rin']
     approximate_guild_count = 11
+    approximate_user_authorization_count = 21
+    approximate_user_install_count = 13
     bot_public = True
     bot_requires_code_grant = True
     cover = Icon(IconType.static, 23)
@@ -44,6 +47,12 @@ def test__Application__copy():
     discovery_eligibility_flags = ApplicationDiscoveryEligibilityFlags(9)
     embedded_activity_configuration = EmbeddedActivityConfiguration(position = 6)
     eula_id = 202211290073
+    event_webhook_event_types = [
+        ApplicationEventWebhookEventType.application_authorization,
+        ApplicationEventWebhookEventType.entitlement_create
+    ]
+    event_webhook_state = ApplicationEventWebhookState.enabled
+    event_webhook_url = 'https://orindance.party/event-webhook'
     executables = [ApplicationExecutable(name = 'Okuu')]
     explicit_content_filter_level = ApplicationExplicitContentFilterLevel.filtered
     flags = ApplicationFlag(96)
@@ -87,6 +96,7 @@ def test__Application__copy():
     store_state = ApplicationStoreState.approved
     tags = ['cat']
     terms_of_service_url = 'https://orindance.party/'
+    themes = [ApplicationTheme.action]
     third_party_skus = [ThirdPartySKU(distributor = 'Dead')]
     application_type = ApplicationType.game
     verification_state = ApplicationVerificationState.approved
@@ -95,6 +105,8 @@ def test__Application__copy():
     application = Application(
         aliases = aliases,
         approximate_guild_count = approximate_guild_count,
+        approximate_user_authorization_count = approximate_user_authorization_count,
+        approximate_user_install_count = approximate_user_install_count,
         bot_public = bot_public,
         bot_requires_code_grant = bot_requires_code_grant,
         cover = cover,
@@ -107,6 +119,9 @@ def test__Application__copy():
         discovery_eligibility_flags = discovery_eligibility_flags,
         embedded_activity_configuration = embedded_activity_configuration,
         eula_id = eula_id,
+        event_webhook_event_types = event_webhook_event_types,
+        event_webhook_state = event_webhook_state,
+        event_webhook_url = event_webhook_url,
         executables = executables,
         explicit_content_filter_level = explicit_content_filter_level,
         flags = flags,
@@ -143,6 +158,7 @@ def test__Application__copy():
         store_state = store_state,
         tags = tags,
         terms_of_service_url = terms_of_service_url,
+        themes = themes,
         third_party_skus = third_party_skus,
         application_type = application_type,
         verification_state = verification_state,
@@ -162,6 +178,8 @@ def test__Application__copy_with__no_fields():
     """
     aliases = ['orin', 'rin']
     approximate_guild_count = 11
+    approximate_user_authorization_count = 21
+    approximate_user_install_count = 13
     bot_public = True
     bot_requires_code_grant = True
     cover = Icon(IconType.static, 23)
@@ -174,6 +192,12 @@ def test__Application__copy_with__no_fields():
     discovery_eligibility_flags = ApplicationDiscoveryEligibilityFlags(9)
     embedded_activity_configuration = EmbeddedActivityConfiguration(position = 6)
     eula_id = 202211290078
+    event_webhook_event_types = [
+        ApplicationEventWebhookEventType.application_authorization,
+        ApplicationEventWebhookEventType.entitlement_create
+    ]
+    event_webhook_state = ApplicationEventWebhookState.enabled
+    event_webhook_url = 'https://orindance.party/event-webhook'
     executables = [ApplicationExecutable(name = 'Okuu')]
     explicit_content_filter_level = ApplicationExplicitContentFilterLevel.filtered
     flags = ApplicationFlag(96)
@@ -217,6 +241,7 @@ def test__Application__copy_with__no_fields():
     store_state = ApplicationStoreState.approved
     tags = ['cat']
     terms_of_service_url = 'https://orindance.party/'
+    themes = [ApplicationTheme.action]
     third_party_skus = [ThirdPartySKU(distributor = 'Dead')]
     application_type = ApplicationType.game
     verification_state = ApplicationVerificationState.approved
@@ -225,6 +250,8 @@ def test__Application__copy_with__no_fields():
     application = Application(
         aliases = aliases,
         approximate_guild_count = approximate_guild_count,
+        approximate_user_authorization_count = approximate_user_authorization_count,
+        approximate_user_install_count = approximate_user_install_count,
         bot_public = bot_public,
         bot_requires_code_grant = bot_requires_code_grant,
         cover = cover,
@@ -237,6 +264,9 @@ def test__Application__copy_with__no_fields():
         discovery_eligibility_flags = discovery_eligibility_flags,
         embedded_activity_configuration = embedded_activity_configuration,
         eula_id = eula_id,
+        event_webhook_event_types = event_webhook_event_types,
+        event_webhook_state = event_webhook_state,
+        event_webhook_url = event_webhook_url,
         executables = executables,
         explicit_content_filter_level = explicit_content_filter_level,
         flags = flags,
@@ -273,6 +303,7 @@ def test__Application__copy_with__no_fields():
         store_state = store_state,
         tags = tags,
         terms_of_service_url = terms_of_service_url,
+        themes = themes,
         third_party_skus = third_party_skus,
         application_type = application_type,
         verification_state = verification_state,
@@ -293,6 +324,8 @@ def test__Application__copy_with__all_fields():
     """
     old_aliases = ['orin', 'rin']
     old_approximate_guild_count = 12
+    old_approximate_user_authorization_count = 21
+    old_approximate_user_install_count = 13
     old_bot_requires_code_grant = True
     old_bot_public = True
     old_cover = Icon(IconType.static, 23)
@@ -305,6 +338,12 @@ def test__Application__copy_with__all_fields():
     old_discovery_eligibility_flags = ApplicationDiscoveryEligibilityFlags(9)
     old_embedded_activity_configuration = EmbeddedActivityConfiguration(position = 6)
     old_eula_id = 202211290085
+    old_event_webhook_event_types = [
+        ApplicationEventWebhookEventType.application_authorization,
+        ApplicationEventWebhookEventType.entitlement_create
+    ]
+    old_event_webhook_state = ApplicationEventWebhookState.enabled
+    old_event_webhook_url = 'https://orindance.party/event-webhook'
     old_executables = [ApplicationExecutable(name = 'Okuu')]
     old_explicit_content_filter_level = ApplicationExplicitContentFilterLevel.filtered
     old_flags = ApplicationFlag(96)
@@ -348,6 +387,7 @@ def test__Application__copy_with__all_fields():
     old_store_state = ApplicationStoreState.approved
     old_tags = ['cat']
     old_terms_of_service_url = 'https://orindance.party/'
+    old_themes = [ApplicationTheme.action]
     old_third_party_skus = [ThirdPartySKU(distributor = 'Dead')]
     old_application_type = ApplicationType.game
     old_verification_state = ApplicationVerificationState.approved
@@ -355,6 +395,8 @@ def test__Application__copy_with__all_fields():
     
     new_aliases = ['nue']
     new_approximate_guild_count = 15
+    new_approximate_user_authorization_count = 23
+    new_approximate_user_install_count = 14
     new_bot_public = False
     new_bot_requires_code_grant = False
     new_cover = Icon(IconType.static, 33)
@@ -367,6 +409,12 @@ def test__Application__copy_with__all_fields():
     new_discovery_eligibility_flags = ApplicationDiscoveryEligibilityFlags(10)
     new_embedded_activity_configuration = EmbeddedActivityConfiguration(position = 6)
     new_eula_id = 202211290086
+    new_event_webhook_event_types = [
+        ApplicationEventWebhookEventType.application_authorization,
+        ApplicationEventWebhookEventType.quest_enrollment
+    ]
+    new_event_webhook_state = ApplicationEventWebhookState.disabled
+    new_event_webhook_url = 'https://orindance.party/event-webhook/v2'
     new_executables = [ApplicationExecutable(name = 'Nue')]
     new_explicit_content_filter_level = ApplicationExplicitContentFilterLevel.none
     new_flags = ApplicationFlag(2)
@@ -407,6 +455,7 @@ def test__Application__copy_with__all_fields():
     new_store_state = ApplicationStoreState.submitted
     new_tags = ['alien', 'lovely']
     new_terms_of_service_url = 'https://www.astil.dev/project/hata/'
+    new_themes = [ApplicationTheme.business]
     new_third_party_skus = [ThirdPartySKU(distributor = 'Sia')]
     new_application_type = ApplicationType.music
     new_verification_state = ApplicationVerificationState.submitted
@@ -415,6 +464,8 @@ def test__Application__copy_with__all_fields():
     application = Application(
         aliases = old_aliases,
         approximate_guild_count = old_approximate_guild_count,
+        approximate_user_authorization_count = old_approximate_user_authorization_count,
+        approximate_user_install_count = old_approximate_user_install_count,
         bot_public = old_bot_public,
         bot_requires_code_grant = old_bot_requires_code_grant,
         cover = old_cover,
@@ -427,6 +478,9 @@ def test__Application__copy_with__all_fields():
         discovery_eligibility_flags = old_discovery_eligibility_flags,
         embedded_activity_configuration = old_embedded_activity_configuration,
         eula_id = old_eula_id,
+        event_webhook_event_types = old_event_webhook_event_types,
+        event_webhook_state = old_event_webhook_state,
+        event_webhook_url = old_event_webhook_url,
         executables = old_executables,
         explicit_content_filter_level = old_explicit_content_filter_level,
         flags = old_flags,
@@ -463,6 +517,7 @@ def test__Application__copy_with__all_fields():
         store_state = old_store_state,
         tags = old_tags,
         terms_of_service_url = old_terms_of_service_url,
+        themes = old_themes,
         third_party_skus = old_third_party_skus,
         application_type = old_application_type,
         verification_state = old_verification_state,
@@ -472,6 +527,8 @@ def test__Application__copy_with__all_fields():
     copy = application.copy_with(
         aliases = new_aliases,
         approximate_guild_count = new_approximate_guild_count,
+        approximate_user_authorization_count = new_approximate_user_authorization_count,
+        approximate_user_install_count = new_approximate_user_install_count,
         bot_public = new_bot_public,
         bot_requires_code_grant = new_bot_requires_code_grant,
         cover = new_cover,
@@ -484,6 +541,9 @@ def test__Application__copy_with__all_fields():
         discovery_eligibility_flags = new_discovery_eligibility_flags,
         embedded_activity_configuration = new_embedded_activity_configuration,
         eula_id = new_eula_id,
+        event_webhook_event_types = new_event_webhook_event_types,
+        event_webhook_state = new_event_webhook_state,
+        event_webhook_url = new_event_webhook_url,
         executables = new_executables,
         explicit_content_filter_level = new_explicit_content_filter_level,
         flags = new_flags,
@@ -520,6 +580,7 @@ def test__Application__copy_with__all_fields():
         store_state = new_store_state,
         tags = new_tags,
         terms_of_service_url = new_terms_of_service_url,
+        themes = new_themes,
         third_party_skus = new_third_party_skus,
         application_type = new_application_type,
         verification_state = new_verification_state,
@@ -530,6 +591,8 @@ def test__Application__copy_with__all_fields():
     
     vampytest.assert_eq(copy.aliases, tuple(new_aliases))
     vampytest.assert_eq(copy.approximate_guild_count, new_approximate_guild_count)
+    vampytest.assert_eq(copy.approximate_user_authorization_count, new_approximate_user_authorization_count)
+    vampytest.assert_eq(copy.approximate_user_install_count, new_approximate_user_install_count)
     vampytest.assert_eq(copy.bot_public, new_bot_public)
     vampytest.assert_eq(copy.bot_requires_code_grant, new_bot_requires_code_grant)
     vampytest.assert_eq(copy.cover, new_cover)
@@ -542,6 +605,9 @@ def test__Application__copy_with__all_fields():
     vampytest.assert_eq(copy.discovery_eligibility_flags, new_discovery_eligibility_flags)
     vampytest.assert_eq(copy.embedded_activity_configuration, new_embedded_activity_configuration)
     vampytest.assert_eq(copy.eula_id, new_eula_id)
+    vampytest.assert_eq(copy.event_webhook_event_types, tuple(new_event_webhook_event_types))
+    vampytest.assert_is(copy.event_webhook_state, new_event_webhook_state)
+    vampytest.assert_eq(copy.event_webhook_url, new_event_webhook_url)
     vampytest.assert_eq(copy.executables, tuple(new_executables))
     vampytest.assert_is(copy.explicit_content_filter_level, new_explicit_content_filter_level)
     vampytest.assert_eq(copy.flags, new_flags)
@@ -577,6 +643,7 @@ def test__Application__copy_with__all_fields():
     vampytest.assert_is(copy.store_state, new_store_state)
     vampytest.assert_eq(copy.tags, tuple(new_tags))
     vampytest.assert_eq(copy.terms_of_service_url, new_terms_of_service_url)
+    vampytest.assert_eq(copy.themes, tuple(new_themes))
     vampytest.assert_eq(copy.third_party_skus, tuple(new_third_party_skus))
     vampytest.assert_is(copy.type, new_application_type)
     vampytest.assert_is(copy.verification_state, new_verification_state)
@@ -647,6 +714,36 @@ def test__Application__iter_developers(input_value):
     """
     application = Application(developers = input_value)
     return [*application.iter_developers()]
+
+
+def _iter_options__iter_event_webhook_event_types():
+    event_webhook_event_type_0 = ApplicationEventWebhookEventType.application_authorization
+    event_webhook_event_type_1 = ApplicationEventWebhookEventType.quest_enrollment
+
+    yield None, []
+    yield [event_webhook_event_type_0], [event_webhook_event_type_0]
+    yield (
+        [event_webhook_event_type_0, event_webhook_event_type_1],
+        [event_webhook_event_type_0, event_webhook_event_type_1],
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__iter_event_webhook_event_types()).returning_last())
+def test__Application__iter_event_webhook_event_types(input_value):
+    """
+    Tests whether ``Application.iter_event_webhook_event_types`` works as intended.
+    
+    Parameters
+    ----------
+    input_value : `None | list<ApplicationEventWebhookEventType>`
+        Developers to create the application with.
+    
+    Returns
+    -------
+    output : `list<ApplicationEventWebhookEventType>`
+    """
+    application = Application(event_webhook_event_types = input_value)
+    return [*application.iter_event_webhook_event_types()]
 
 
 def _iter_options__iter_executables():
@@ -757,6 +854,33 @@ def test__Application__iter_tags(input_value):
     return [*application.iter_tags()]
 
 
+def _iter_options__iter_themes():
+    theme_0 = ApplicationTheme.action
+    theme_1 = ApplicationTheme.business
+    
+    yield None, []
+    yield [theme_0], [theme_0]
+    yield [theme_0, theme_1], [theme_0, theme_1]
+
+
+@vampytest._(vampytest.call_from(_iter_options__iter_themes()).returning_last())
+def test__Application__iter_themes(input_value):
+    """
+    Tests whether ``Application.iter_themes`` works as intended.
+    
+    Parameters
+    ----------
+    input_value : `None | list<ThirdPartySKU>`
+        Third party stock keeping units origins to create the application with.
+    
+    Returns
+    -------
+    output : `list<ThirdPartySKU>`
+    """
+    application = Application(themes = input_value)
+    return [*application.iter_themes()]
+
+
 def _iter_options__iter_third_party_skus():
     third_party_sku_0 = ThirdPartySKU(distributor = 'Suika')
     third_party_sku_1 = ThirdPartySKU(distributor = 'Yuugi')
@@ -799,12 +923,12 @@ def test__Application__guild(application):
     
     Parameters
     ----------
-    input_value : ``Application```
+    application : ``Application```
         Application to test with.
     
     Returns
     -------
-    output : `None | Guild`
+    output : ``None | Guild``
     """
     return application.guild
 
@@ -881,9 +1005,9 @@ def test__Application__has_integration_type(input_value, integration_type):
     
     Parameters
     ----------
-    input_value : `None | list<ApplicationIntegrationType>`
+    input_value : ``None | list<ApplicationIntegrationType>``
         Application integration types to create the application with.
-    integration_type : `int | ApplicationIntegrationType`
+    integration_type : ``int | ApplicationIntegrationType``
         Integration type to check for.
     
     Returns
@@ -910,7 +1034,7 @@ def test__Application__iter_integration_types(input_value):
     
     Parameters
     ----------
-    input_value : `None | list<ApplicationIntegrationType>`
+    input_value : ``None | list<ApplicationIntegrationType>``
         Application integration types to create the application with.
     
     Returns
@@ -952,9 +1076,10 @@ def test__Application__get_integration_type_configuration(input_value, integrati
     
     Parameters
     ----------
-    input_value : `None | list<ApplicationIntegrationType>`
+    input_value : ``None | list<ApplicationIntegrationType>``
         Application integration types to create the application with.
-    integration_type : `int | ApplicationIntegrationType`
+    
+    integration_type : ``int | ApplicationIntegrationType``
         Integration type to check for.
     
     Returns
@@ -963,3 +1088,263 @@ def test__Application__get_integration_type_configuration(input_value, integrati
     """
     application = Application(integration_types_configuration = input_value)
     return application.get_integration_type_configuration(integration_type)
+
+
+def test__Application__add_cache_emoji():
+    """
+    Tests whether ``Application._add_cache_emoji`` works as intended.
+    """
+    emoji_id_0 = 202407300000
+    emoji_id_1 = 202407300001
+    application_id = 202407300002
+    
+    emoji_0 = Emoji.precreate(emoji_id_0)
+    emoji_1 = Emoji.precreate(emoji_id_1)
+    
+    application = Application.precreate(application_id)
+    
+    vampytest.assert_eq(
+        application._cache_emojis,
+        None,
+    )
+    
+    # add emoji 0
+    application._add_cache_emoji(emoji_0)
+    
+    vampytest.assert_eq(
+        application._cache_emojis,
+        {
+            emoji_id_0: emoji_0,
+        },
+    )
+    
+    # add emoji 1
+    application._add_cache_emoji(emoji_1)
+    
+    vampytest.assert_eq(
+        application._cache_emojis,
+        {
+            emoji_id_0: emoji_0,
+            emoji_id_1: emoji_1,
+        },
+    )
+
+
+def test__Application__delete_cache_emoji_by_id():
+    """
+    Tests whether ``Application._delete_cache_emoji_by_id`` works as intended.
+    """
+    emoji_id_0 = 202407300003
+    emoji_id_1 = 202407300004
+    application_id = 202407300005
+    
+    emoji_0 = Emoji.precreate(emoji_id_0)
+    emoji_1 = Emoji.precreate(emoji_id_1)
+    
+    application = Application.precreate(application_id)
+    application._add_cache_emoji(emoji_0)
+    application._add_cache_emoji(emoji_1)
+    
+    # delete emoji 1 twice
+    output = application._delete_cache_emoji_by_id(emoji_id_1)
+    
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, True)
+    vampytest.assert_eq(
+        application._cache_emojis,
+        {
+            emoji_id_0: emoji_0,
+        },
+    )
+        
+    output = application._delete_cache_emoji_by_id(emoji_id_1)
+    
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, False)
+
+    # delete emoji 0 twice
+    output = application._delete_cache_emoji_by_id(emoji_id_0)
+    
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, True)
+    vampytest.assert_eq(
+        application._cache_emojis,
+        None
+    )
+        
+    output = application._delete_cache_emoji_by_id(emoji_id_0)
+    
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, False)
+
+
+
+def test__Application__has_cache_emoji_by_id():
+    """
+    Tests whether ``Application._has_cache_emoji_by_id`` works as intended.
+    """
+    emoji_id_0 = 202407300006
+    emoji_id_1 = 202407300007
+    application_id = 202407300008
+    
+    emoji_0 = Emoji.precreate(emoji_id_0)
+    emoji_1 = Emoji.precreate(emoji_id_1)
+    
+    application = Application.precreate(application_id)
+    
+    # has emoji 0, but we have no emoji yet
+    
+    output = application._has_cache_emoji_by_id(emoji_id_0)
+    
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, False)
+    
+    # has emoji 0, we have emoji 0
+    
+    application._add_cache_emoji(emoji_0)
+    output = application._has_cache_emoji_by_id(emoji_id_0)
+    
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, True)
+    
+    
+    # has emoji 1, we have emoji 0
+    
+    output = application._has_cache_emoji_by_id(emoji_id_1)
+    
+    vampytest.assert_instance(output, bool)
+    vampytest.assert_eq(output, False)
+
+
+def _iter_options__icon_url():
+    yield 202505310006, None, False
+    yield 202505310007, Icon(IconType.animated, 5), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__icon_url()).returning_last())
+def test__Application__icon_url(application_id, icon):
+    """
+    Tests whether ``Application.icon_url`` works as intended.
+    
+    Parameters
+    ----------
+    application_id : `int`
+        Identifier to create application with.
+    
+    icon : ``None | Icon``
+        Icon to create the application with.
+    
+    Returns
+    -------
+    has_icon_url : `bool`
+    """
+    application = Application.precreate(
+        application_id,
+        icon = icon,
+    )
+    
+    output = application.icon_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__icon_url_as():
+    yield 202505310008, None, {'ext': 'webp', 'size': 128}, False
+    yield 202505310009, Icon(IconType.animated, 5), {'ext': 'webp', 'size': 128}, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__icon_url_as()).returning_last())
+def test__Application__icon_url_as(application_id, icon, keyword_parameters):
+    """
+    Tests whether ``Application.icon_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    application_id : `int`
+        Identifier to create application with.
+    
+    icon : ``None | Icon``
+        Icon to create the application with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_icon_url : `bool`
+    """
+    application = Application.precreate(
+        application_id,
+        icon = icon,
+    )
+    
+    output = application.icon_url_as(**keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__cover_url():
+    yield 202505310010, None, False
+    yield 202505310011, Icon(IconType.animated, 5), True
+
+
+@vampytest._(vampytest.call_from(_iter_options__cover_url()).returning_last())
+def test__Application__cover_url(application_id, icon):
+    """
+    Tests whether ``Application.cover_url`` works as intended.
+    
+    Parameters
+    ----------
+    application_id : `int`
+        Identifier to create application with.
+    
+    icon : ``None | Icon``
+        Icon to create the application with.
+    
+    Returns
+    -------
+    has_cover_url : `bool`
+    """
+    application = Application.precreate(
+        application_id,
+        cover = icon,
+    )
+    
+    output = application.cover_url
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)
+
+
+def _iter_options__cover_url_as():
+    yield 202505310012, None, {'ext': 'webp', 'size': 128}, False
+    yield 202505310013, Icon(IconType.animated, 5), {'ext': 'webp', 'size': 128}, True
+
+
+@vampytest._(vampytest.call_from(_iter_options__cover_url_as()).returning_last())
+def test__Application__cover_url_as(application_id, icon, keyword_parameters):
+    """
+    Tests whether ``Application.cover_url_as`` works as intended.
+    
+    Parameters
+    ----------
+    application_id : `int`
+        Identifier to create application with.
+    
+    icon : ``None | Icon``
+        Icon to create the application with.
+    
+    keyword_parameters : `dict<str, object>`
+        Additional keyword parameters to pass.
+    
+    Returns
+    -------
+    has_cover_url : `bool`
+    """
+    application = Application.precreate(
+        application_id,
+        cover = icon,
+    )
+    
+    output = application.cover_url_as(**keyword_parameters)
+    vampytest.assert_instance(output, str, nullable = True)
+    return (output is not None)

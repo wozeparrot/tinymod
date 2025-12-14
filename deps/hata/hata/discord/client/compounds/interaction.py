@@ -19,7 +19,9 @@ from ...message.message_builder import (
     MessageBuilderInteractionFollowupEdit, MessageBuilderInteractionResponseCreate,
     MessageBuilderInteractionResponseEdit
 )
+
 from ..functionality_helpers import application_command_autocomplete_choice_parser
+from ..request_helpers import get_message_id
 
 MESSAGE_FLAG_VALUE_INVOKING_USER_ONLY = MessageFlag().update_by_keys(invoking_user_only = True)
 
@@ -37,6 +39,7 @@ MESSAGE_SERIALIZER_INTERACTION_FOLLOWUP_CREATE = create_serializer(
             MessageBuilderInteractionFollowupCreate.poll,
             MessageBuilderInteractionFollowupCreate.show_for_invoking_user_only,
             MessageBuilderInteractionFollowupCreate.tts,
+            MessageBuilderInteractionFollowupCreate.voice_attachment,
         ],
         False,
     )
@@ -56,7 +59,6 @@ MESSAGE_SERIALIZER_INTERACTION_FOLLOWUP_EDIT = create_serializer(
         True,
     )
 )
-
 
 MESSAGE_SERIALIZER_INTERACTION_COMPONENT_EDIT = create_serializer(
     MessageBuilderInteractionComponentEdit,
@@ -99,6 +101,8 @@ MESSAGE_SERIALIZER_INTERACTION_RESPONSE_EDIT = create_serializer(
             MessageBuilderInteractionResponseEdit.content,
             MessageBuilderInteractionResponseEdit.embeds,
             MessageBuilderInteractionResponseEdit.flags,
+            MessageBuilderInteractionResponseEdit.poll,
+            MessageBuilderInteractionResponseEdit.voice_attachment,
         ],
         True,
     )
@@ -167,10 +171,43 @@ def _assert__form(form):
     if not isinstance(form, InteractionForm):
         raise AssertionError(
             f'`form` can be `{InteractionForm.__name__}`, got '
-            f'{form.__class__.__name__}; {form!r}.'
+            f'{type(form).__name__}; {form!r}.'
         )
     
     return True
+
+
+def _process_interaction_response(interaction_event, interaction_response_data):
+    """
+    Processes interaction event trying to create a message from it.
+    
+    Parameters
+    ----------
+    interaction_event : ``InteractionEvent``
+        Interaction to acknowledge.
+    
+    interaction_response_data : `None | dict<str, object>`
+        Interaction response data.
+    
+    Returns
+    -------
+    message : ``None | Message``
+        Returns `None` on failure.
+    """
+    if (interaction_response_data is None):
+        return None
+    
+    nested_data = interaction_response_data.get('resource', None)
+    if (nested_data is None):
+        return None
+    
+    message_data = nested_data.get('message', None)
+    if (message_data is None):
+        return None
+    
+    message = interaction_event.channel._create_new_message(message_data)
+    try_resolve_interaction_message(message, interaction_event)
+    return message
 
 
 class ClientCompoundInteractionEndpoints(Compound):
@@ -195,6 +232,12 @@ class ClientCompoundInteractionEndpoints(Compound):
             Whether the interaction should be ensured asynchronously.
         show_for_invoking_user_only : `bool` = `False`, Optional (Keyword only)
             Whether the sent message should only be shown to the invoking user. Defaults to `False`.
+        
+        Returns
+        -------
+        response_message : ``None | Message``
+            Returns a message oon success.
+            If `wait` was given as `False` then `None`.
         
         Raises
         ------
@@ -223,13 +266,35 @@ class ClientCompoundInteractionEndpoints(Compound):
             data['data'] = {'flags': MESSAGE_FLAG_VALUE_INVOKING_USER_ONLY}
         
         context = InteractionResponseContext(interaction_event, True, show_for_invoking_user_only)
-        coroutine = self.api.interaction_response_message_create(interaction_event.id, interaction_event.token, data)
+        coroutine = self.api.interaction_response_message_create(
+            interaction_event.id, interaction_event.token, data, {'with_response': True}
+        )
         
-        if wait:
-            async with context:
-                await coroutine
-        else:
-            await context.ensure(coroutine)
+        if not wait:        
+            await context.ensure(coroutine, _process_interaction_response)
+            return
+        
+        async with context:
+            interaction_response_data = await coroutine
+        
+        # Example response
+        # {
+        #     'interaction': {
+        #         'id': '...',
+        #         'type': 2,
+        #         'response_message_id': '...',
+        #         'response_message_loading': True,
+        #         'response_message_ephemeral': False,
+        #         'channel_id': '...',
+        #         'guild_id': '...'
+        #     },
+        #     'resource': {
+        #         'type': 4,
+        #         'message': {...},
+        #      }
+        #  }
+        
+        return _process_interaction_response(interaction_event, interaction_response_data)
     
     
     async def interaction_application_command_autocomplete(self, interaction_event, choices):
@@ -241,8 +306,9 @@ class ClientCompoundInteractionEndpoints(Compound):
         Parameters
         ----------
         interaction_event : ``InteractionEvent``
-            Interaction to acknowledge
-        choices : `None`, `iterable` of `str`
+            Interaction to acknowledge.
+        
+        choices : `None | iterable<str | int | float | (str, str | int | float)>
             Choices to show for the user.
         
         Raises
@@ -278,7 +344,20 @@ class ClientCompoundInteractionEndpoints(Compound):
         }
         
         async with InteractionResponseContext(interaction_event, True, False):
-            await self.api.interaction_response_message_create(interaction_event.id, interaction_event.token, data)
+            await self.api.interaction_response_message_create(
+                interaction_event.id, interaction_event.token, data, None
+            )
+        
+        # Example output:
+        # {
+        #     'interaction': {
+        #         'id': '...',
+        #         'type': 4,
+        #         'channel_id': '...',
+        #         'guild_id': '...',
+        #     }
+        # }
+        # No need to handle
     
     
     async def interaction_form_send(self, interaction_event, form):
@@ -345,7 +424,20 @@ class ClientCompoundInteractionEndpoints(Compound):
         }
         
         async with InteractionResponseContext(interaction_event, False, True):
-            await self.api.interaction_response_message_create(interaction_event.id, interaction_event.token, data)
+            await self.api.interaction_response_message_create(
+                interaction_event.id, interaction_event.token, data, None
+            )
+            
+        # Example response:
+        # {
+        #     'interaction': {
+        #         'id': '...',
+        #         'type': 2,
+        #         'channel_id': '...',
+        #         'guild_id': '...',
+        #     }
+        # }
+        # No need to handle.
         
         return None
     
@@ -412,6 +504,11 @@ class ClientCompoundInteractionEndpoints(Compound):
         tts : `bool` = `False`, Optional (Keyword only)
             Whether the message is text-to-speech.
         
+        Returns
+        -------
+        response_message : ``None | Message``
+            Returns a message on success.
+        
         Raises
         ------
         TypeError
@@ -423,8 +520,6 @@ class ClientCompoundInteractionEndpoints(Compound):
         
         Notes
         -----
-        Discord do not returns message data, so the method cannot return a ``Message`` either.
-        
         If the interaction is already timed or out or was used, you will get:
         
         ```
@@ -461,10 +556,29 @@ class ClientCompoundInteractionEndpoints(Compound):
         data['type'] = response_type.value
         
         async with InteractionResponseContext(interaction_event, is_deferring, show_for_invoking_user_only):
-            await self.api.interaction_response_message_create(interaction_event.id, interaction_event.token, data)
+            interaction_response_data = await self.api.interaction_response_message_create(
+                interaction_event.id, interaction_event.token, data, {'with_response': True}
+            )
+            
+        # Example output:
+        # {
+        #     'interaction': {
+        #         'id': '1287034694394712105',
+        #         'type': 2,
+        #         'response_message_id': '...',
+        #         'response_message_loading': False,
+        #         'response_message_ephemeral': False,
+        #         'channel_id': '...',
+        #         'guild_id': '...'
+        #     },
+        #     'resource': {
+        #         'type': 4,
+        #         'message': {...},
+        #     },
+        # }
         
-        # No message data is returned by Discord, return `None`.
-        return None
+        output = _process_interaction_response(interaction_event, interaction_response_data)
+        return output
     
     
     async def interaction_component_acknowledge(self, interaction_event, wait = True):
@@ -504,7 +618,9 @@ class ClientCompoundInteractionEndpoints(Compound):
         data = {'type': InteractionResponseType.component.value}
         
         context = InteractionResponseContext(interaction_event, True, False)
-        coroutine = self.api.interaction_response_message_create(interaction_event.id, interaction_event.token, data)
+        coroutine = self.api.interaction_response_message_create(
+            interaction_event.id, interaction_event.token, data, None
+        )
         
         
         if wait:
@@ -512,6 +628,88 @@ class ClientCompoundInteractionEndpoints(Compound):
                 await coroutine
         else:
             await context.ensure(coroutine)
+        
+        # Example output:
+        # {
+        #     'interaction': {
+        #         'id': '...',
+        #         'type': 3,
+        #         'response_message_id': '...',
+        #         'response_message_loading': False,
+        #         'response_message_ephemeral': False,
+        #         'channel_id': '...',
+        #         'guild_id': '...',
+        #     }
+        # }
+        # No need to handle.
+    
+    
+    async def interaction_embedded_activity_launch(self, interaction_event, wait = True):
+        """
+        Acknowledges the interaction by launching an embedded activity. Omits the option for response message, but
+        allowed followup messages as normal.
+        
+        Can be used if: `interaction_event.target_type is ApplicationCommandTargetType.embedded_activity_launch`.
+        
+        This method is a coroutine.
+        
+        Parameters
+        ----------
+        interaction_event : ``InteractionEvent``
+            Interaction to launch its embedded activity of.
+        
+        wait : `bool` = `True`, Optional
+            Whether the interaction should be ensured asynchronously.
+        
+        Raises
+        ------
+        ConnectionError
+            No internet connection.
+        DiscordException
+            If any exception was received from the Discord API.
+        
+        Notes
+        -----
+        If the interaction is already timed or out or was used, you will get:
+        
+        ```
+        DiscordException Not Found (404), code = 10062: Unknown interaction
+        ```
+        """
+        assert _assert__interaction_event_type(interaction_event)
+        
+        data = {
+            'type': InteractionResponseType.embedded_activity_launch.value,
+        }
+        
+        context = InteractionResponseContext(interaction_event, False, False)
+        coroutine = self.api.interaction_response_message_create(
+            interaction_event.id, interaction_event.token, data, None
+        )
+        
+        if wait:
+            async with context:
+                await coroutine
+        else:
+            await context.ensure(coroutine)
+        
+        # Example output:
+        # {
+        #     'interaction': {
+        #         'id': '...',
+        #         'type': 2,
+        #         'activity_instance_id': 'i-...-gc-...-...',
+        #         'channel_id': '...',
+        #         'guild_id': '...',
+        #     },
+        #     'resource': {
+        #         'type': 12,
+        #         'activity_instance': {
+        #             'id': 'i-...-gc-...-...',
+        #          },
+        #      },
+        #  }
+        # No need to handle.
     
     
     async def interaction_response_message_edit(
@@ -541,7 +739,7 @@ class ClientCompoundInteractionEndpoints(Compound):
             Which user or role can the message ping (or everyone). Check ``parse_allowed_mentions``
             for details.
         
-        attachments : `None`, `object`, Optional (Keyword only)
+        attachments : `None | object`, Optional (Keyword only)
             Attachments to send.
         
         components : `None`, ``Component``, `(tuple | list)<Component, (tuple | list)<Component>>`
@@ -560,17 +758,23 @@ class ClientCompoundInteractionEndpoints(Compound):
             
             By passing it as `None`, you can remove the old.
         
-        file : `None`, `object`, Optional (Keyword only)
+        file : `None | object`, Optional (Keyword only)
             Alternative for `attachments`.
         
-        files : `None`, `object`, Optional (Keyword only)
+        files : `None | object`, Optional (Keyword only)
             Alternative for `attachments`.
         
         flags : `int`, ``MessageFlag`, Optional
             The message's new flags.
         
+        poll : `None`, ``Poll``, Optional
+            The message's poll.
+        
         suppress_embeds : `bool`, Optional (Keyword only)
             Whether the message's embeds should be suppressed or unsuppressed.
+        
+        voice_attachment : ``None | VoiceAttachment``, Optional (Keyword only)
+            Modifies the message to be a voice message, allowing it to contain just a single voice attachment.
         
         Raises
         ------
@@ -672,7 +876,26 @@ class ClientCompoundInteractionEndpoints(Compound):
         
         
         async with InteractionResponseContext(interaction_event, deferring, False):
-            await self.api.interaction_response_message_create(interaction_event.id, interaction_event.token, data)
+            await self.api.interaction_response_message_create(
+                interaction_event.id, interaction_event.token, data, None
+            )
+        
+        # Example output:
+        # {
+        #     'interaction': {
+        #         'id': '...',
+        #         'type': 3,
+        #         'response_message_id': '...',
+        #         'response_message_loading': False,
+        #         'response_message_ephemeral': False,
+        #         'channel_id': '...',
+        #         'guild_id': '...'
+        #     },
+        #     'resource': {
+        #         'type': 7,
+        #         'message': {...},
+        #     }
+        # }
     
     
     async def interaction_response_message_delete(self, interaction_event):
@@ -763,7 +986,7 @@ class ClientCompoundInteractionEndpoints(Compound):
             Which user or role can the message ping (or everyone). Check ``parse_allowed_mentions``
             for details.
         
-        attachments : `None`, `object`, Optional (Keyword only)
+        attachments : `None | object`, Optional (Keyword only)
             Attachments to send.
         
         components : `None`, ``Component``, `(tuple | list)<Component, (tuple | list)<Component>>`
@@ -783,10 +1006,10 @@ class ClientCompoundInteractionEndpoints(Compound):
         embeds : `None`, `list<Embed>`, Optional
             The new embedded content of the message.
         
-        file : `None`, `object`, Optional (Keyword only)
+        file : `None | object`, Optional (Keyword only)
             Alternative for `attachments`.
         
-        files : `None`, `object`, Optional (Keyword only)
+        files : `None | object`, Optional (Keyword only)
             Alternative for `attachments`.
         
         flags : `int`, ``MessageFlag`, Optional
@@ -804,10 +1027,12 @@ class ClientCompoundInteractionEndpoints(Compound):
         tts : `bool` = `False`, Optional (Keyword only)
             Whether the message is text-to-speech.
         
+        voice_attachment : ``None | VoiceAttachment``, Optional (Keyword only)
+            Modifies the message to be a voice message, allowing it to contain just a single voice attachment.
         
         Returns
         -------
-        message : `None`, ``Message``
+        message : ``None | Message``
             Returns `None` if there is nothing to send.
         
         Raises
@@ -878,7 +1103,7 @@ class ClientCompoundInteractionEndpoints(Compound):
             Which user or role can the message ping (or everyone). Check ``parse_allowed_mentions``
             for details.
         
-        attachments : `None`, `object`, Optional (Keyword only)
+        attachments : `None | object`, Optional (Keyword only)
             Attachments to send.
         
         components : `None`, ``Component``, `(tuple | list)<Component, (tuple | list)<Component>>`
@@ -897,10 +1122,10 @@ class ClientCompoundInteractionEndpoints(Compound):
             
             By passing it as `None`, you can remove the old.
         
-        file : `None`, `object`, Optional (Keyword only)
+        file : `None | object`, Optional (Keyword only)
             Alternative for `attachments`.
         
-        files : `None`, `object`, Optional (Keyword only)
+        files : `None | object`, Optional (Keyword only)
             Alternative for `attachments`.
         
         flags : `int`, ``MessageFlag`, Optional
@@ -935,7 +1160,7 @@ class ClientCompoundInteractionEndpoints(Compound):
             if (message_id is None):
                 raise TypeError(
                     f'`message` can be `{Message.__name__}`, `int`, got '
-                    f'{message.__class__.__name__}, {message!r}.'
+                    f'{type(message).__name__}, {message!r}.'
                 )
         
         message_data = MESSAGE_SERIALIZER_INTERACTION_FOLLOWUP_EDIT(positional_parameters, keyword_parameters)
@@ -996,7 +1221,7 @@ class ClientCompoundInteractionEndpoints(Compound):
         )
     
     
-    async def interaction_followup_message_get(self, interaction_event, message_id):
+    async def interaction_followup_message_get(self, interaction_event, message):
         """
         Gets a previously sent message with an interaction.
         
@@ -1006,8 +1231,8 @@ class ClientCompoundInteractionEndpoints(Compound):
         ----------
         interaction_event : ``InteractionEvent``
             Interaction with what the followup message was sent with.
-        message_id : `int`
-            The webhook's message's identifier to get.
+        message : ``Message``, `int`
+            The message or it's identifier to get.
         
         Returns
         -------
@@ -1027,12 +1252,7 @@ class ClientCompoundInteractionEndpoints(Compound):
         application_id = self.application.id
         assert _assert__application_id(application_id)
         
-        
-        message_id_value = maybe_snowflake(message_id)
-        if message_id_value is None:
-            raise TypeError(
-                f'`message_id` can be `int`, got {message_id.__class__.__name__}; {message_id!r}.'
-            )
+        message_id = get_message_id(message)
         
         message_data = await self.api.interaction_followup_message_get(
             application_id, interaction_event.id, interaction_event.token, message_id
@@ -1079,5 +1299,5 @@ class ClientCompoundInteractionEndpoints(Compound):
         async with InteractionResponseContext(interaction_event, False, True):
             # Uses the same endpoint as message create
             await self.api.interaction_response_message_create(
-                interaction_event.id, interaction_event.token, data,
+                interaction_event.id, interaction_event.token, data, None
             )

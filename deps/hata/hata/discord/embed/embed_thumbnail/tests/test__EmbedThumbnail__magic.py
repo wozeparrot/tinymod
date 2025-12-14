@@ -1,5 +1,7 @@
 import vampytest
 
+from ...embed_field_base import EmbedMediaFlag
+
 from ..thumbnail import EmbedThumbnail
 
 
@@ -9,8 +11,8 @@ def test__EmbedThumbnail__repr():
     """
     url = 'https://orindance.party/'
     
-    field = EmbedThumbnail(url)
-    vampytest.assert_instance(repr(field), str)
+    embed_thumbnail = EmbedThumbnail(url)
+    vampytest.assert_instance(repr(embed_thumbnail), str)
 
 
 def test__EmbedThumbnail__hash():
@@ -19,30 +21,201 @@ def test__EmbedThumbnail__hash():
     """
     url = 'https://orindance.party/'
     
-    field = EmbedThumbnail(url)
-    vampytest.assert_instance(hash(field), int)
+    embed_thumbnail = EmbedThumbnail(url)
+    vampytest.assert_instance(hash(embed_thumbnail), int)
 
 
-def test__EmbedThumbnail__eq():
+
+def _iter_options__eq():
+    url_0 = 'https://orindance.party/'
+    url_1 = 'https://www.astil.dev/'
+    
+    yield (
+        {
+            'url': url_0,
+        },
+        {},
+        {
+            'url': url_0,
+        },
+        {},
+        True,
+    )
+    
+    yield (
+        {
+            'url': url_0,
+        },
+        {},
+        {
+            'url': url_1,
+        },
+        {},
+        False,
+    )
+    
+    yield (
+        {
+            'url': url_0,
+        },
+        {
+            'flags': EmbedMediaFlag(3),
+            'proxy_url': url_0,
+            'width': 2,
+            'height': 3,
+        },
+        {
+            'url': url_0,
+        },
+        {},
+        True,
+    )
+    
+    yield (
+        {
+            'url': url_0,
+        },
+        {
+            'flags': EmbedMediaFlag(3),
+            'proxy_url': url_0,
+            'width': 2,
+            'height': 3,
+        },
+        {
+            'url': url_0,
+        },
+        {
+            'proxy_url': url_1,
+        },
+        False,
+    )
+    
+    yield (
+        {
+            'url': url_0,
+        },
+        {
+            'flags': EmbedMediaFlag(3),
+            'proxy_url': url_0,
+            'width': 2,
+            'height': 3,
+        },
+        {
+            'url': url_0,
+        },
+        {
+            'flags': EmbedMediaFlag(3),
+            'proxy_url': url_1,
+            'width': 2,
+        },
+        False,
+    )
+    
+    yield (
+        {
+            'url': url_0,
+        },
+        {
+            'flags': EmbedMediaFlag(3),
+            'proxy_url': url_0,
+            'width': 2,
+            'height': 3,
+        },
+        {
+            'url': url_0,
+        },
+        {
+            'flags': EmbedMediaFlag(3),
+            'proxy_url': url_1,
+            'height': 3,
+        },
+        False,
+    )
+    
+    yield (
+        {
+            'url': url_0,
+        },
+        {
+            'flags': EmbedMediaFlag(3),
+            'proxy_url': url_0,
+            'width': 2,
+            'height': 3,
+        },
+        {
+            'url': url_0,
+        },
+        {
+            'proxy_url': url_1,
+            'width': 2,
+            'height': 3,
+        },
+        False,
+    )
+    
+    yield (
+        {
+            'url': url_0,
+        },
+        {
+            'flags': EmbedMediaFlag(3),
+            'proxy_url': url_0,
+            'width': 2,
+            'height': 3,
+        },
+        {
+            'url': url_0,
+        },
+        {
+            'flags': EmbedMediaFlag(3),
+            'proxy_url': url_1,
+            'width': 2,
+            'height': 3,
+        },
+        True,
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__eq()).returning_last())
+def test__EmbedThumbnail__eq(
+    keyword_parameters_0,
+    additional_attributes_0,
+    keyword_parameters_1,
+    additional_attributes_1,
+):
     """
     Tests whether ``EmbedThumbnail.__eq__`` works as intended.
+    
+    Parameters
+    ----------
+    keyword_parameters_0 : `dict<str, object>`
+        Keyword parameters to create instance with.
+    
+    additional_attributes_0 : `dict<str, object>`
+        Additional attributes to set.
+    
+    keyword_parameters_1 : `dict<str, object>`
+        Keyword parameters to create instance with.
+    
+    additional_attributes_1 : `dict<str, object>`
+        Additional attributes to set.
+    
+    Returns
+    -------
+    output : `bool`
     """
-    url = 'https://orindance.party/'
+    embed_thumbnail_0 = EmbedThumbnail(**keyword_parameters_0)
+    for item in additional_attributes_0.items():
+        setattr(embed_thumbnail_0, *item)
     
-    keyword_parameters = {
-        'url': url,
-    }
     
-    field = EmbedThumbnail(**keyword_parameters)
+    embed_thumbnail_1 = EmbedThumbnail(**keyword_parameters_1)
+    for item in additional_attributes_1.items():
+        setattr(embed_thumbnail_1, *item)
     
-    vampytest.assert_eq(field, field)
-    vampytest.assert_ne(field, object())
-    
-    for field_name, field_value in (
-        ('url', 'https://www.astil.dev/'),
-    ):
-        test_field = EmbedThumbnail(**{**keyword_parameters, field_name: field_value})
-        vampytest.assert_ne(field, test_field)
+    output = embed_thumbnail_0 == embed_thumbnail_1
+    vampytest.assert_instance(output, bool)
+    return output
 
 
 def _iter_options__bool():
@@ -66,8 +239,8 @@ def test__EmbedThumbnail__bool(keyword_parameters):
     -------
     output : `bool`
     """
-    field = EmbedThumbnail(**keyword_parameters)
-    output = bool(field)
+    embed_thumbnail = EmbedThumbnail(**keyword_parameters)
+    output = bool(embed_thumbnail)
     vampytest.assert_instance(output, bool)
     return output
 
@@ -93,7 +266,7 @@ def test__EmbedThumbnail__len(keyword_parameters):
     -------
     output : `int`
     """
-    field = EmbedThumbnail(**keyword_parameters)
-    output = len(field)
+    embed_thumbnail = EmbedThumbnail(**keyword_parameters)
+    output = len(embed_thumbnail)
     vampytest.assert_instance(output, int)
     return output

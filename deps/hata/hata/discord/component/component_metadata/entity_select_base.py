@@ -2,7 +2,7 @@ __all__ = ('ComponentMetadataEntitySelectBase', )
 
 from scarletio import copy_docs
 
-from .fields import parse_default_values, put_default_values_into, validate_default_values
+from .fields import parse_default_values, put_default_values, validate_default_values
 from .select_base import ComponentMetadataSelectBase
 
 
@@ -12,10 +12,10 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
     
     Attributes
     ----------
-    custom_id : `None`, `str`
+    custom_id : `None | str`
         Custom identifier to detect which component was used by the user.
     
-    default_values : `None`, `tuple` of ``EntitySelectDefaultValue``
+    default_values : ``None | tuple<EntitySelectDefaultValue>``
         Entities presented in the select by default.
     
     enabled : `bool`
@@ -27,8 +27,11 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
     min_values : `int`
         The minimal amount of options to select.
     
-    placeholder : `None`, `str`
+    placeholder : `None | str`
         Placeholder text of the select.
+    
+    required : `bool`
+        Whether the field is required to be fulfilled.
     """
     __slots__ = ('default_values',)
     
@@ -42,16 +45,17 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
         max_values = ...,
         min_values = ...,
         placeholder = ...,
+        required = ...,
     ):
         """
         Creates a new channel select component metadata with the given parameters.
         
         Parameters
         ----------
-        custom_id : `None`, `str`, Optional (Keyword only)
+        custom_id : `None | str`, Optional (Keyword only)
             Custom identifier to detect which component was used by the user.
         
-        default_values : `None | iterable<Channel | Role | ClientUserBase | EntitySelectDefaultValue | tuple>` \
+        default_values : ``None | iterable<Channel> | iterable<Role> | iterable<ClientUserBase> | iterable<EntitySelectDefaultValue> | iterable<(str | EntitySelectDefaultValueTyp, int | str)>>`` \
                 , Optional (Keyword only)
             Entities presented in the select by default.
         
@@ -64,8 +68,11 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
         min_values : `int`, Optional (Keyword only)
             The minimal amount of options to select.
         
-        placeholder : `None`, `str`, Optional (Keyword only)
+        placeholder : `None | str`, Optional (Keyword only)
             Placeholder text of the select.
+        
+        required : `None | bool`, Optional (Keyword only)
+            Whether the field is required to be fulfilled.
         
         Raises
         ------
@@ -88,6 +95,7 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
             max_values = max_values,
             min_values = min_values,
             placeholder = placeholder,
+            required = required,
         )
         self.default_values = default_values
         
@@ -104,6 +112,7 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
             max_values = keyword_parameters.pop('max_values', ...),
             min_values = keyword_parameters.pop('min_values', ...),
             placeholder = keyword_parameters.pop('placeholder', ...),
+            required = keyword_parameters.pop('required', ...),
         )
     
     
@@ -168,12 +177,25 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
     
     
     @copy_docs(ComponentMetadataSelectBase.to_data)
-    def to_data(self, *, defaults = False):
-        data = ComponentMetadataSelectBase.to_data(self)
+    def to_data(self, *, defaults = False, include_internals = False):
+        data = ComponentMetadataSelectBase.to_data(self, defaults = defaults, include_internals = include_internals)
         
-        put_default_values_into(self.default_values, data, defaults)
+        put_default_values(self.default_values, data, defaults)
         
         return data
+    
+    
+    @copy_docs(ComponentMetadataSelectBase.clean_copy)
+    def clean_copy(self, guild = None):
+        new = ComponentMetadataSelectBase.clean_copy(self, guild)
+        
+        # default_values
+        default_values = self.default_values
+        if (default_values is not None):
+            default_values = (*default_values,)
+        new.default_values = default_values
+        
+        return new
     
     
     @copy_docs(ComponentMetadataSelectBase.copy)
@@ -198,16 +220,17 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
         max_values = ...,
         min_values = ...,
         placeholder = ...,
+        required = ...,
     ):
         """
         Copies the channel select component metadata with the given fields.
         
         Parameters
         ----------
-        custom_id : `None`, `str`, Optional (Keyword only)
+        custom_id : `None | str`, Optional (Keyword only)
             Custom identifier to detect which component was used by the user.
         
-        default_values : `None | iterable<Channel | Role | ClientUserBase | EntitySelectDefaultValue | tuple>` \
+        default_values : ``None | iterable<Channel> | iterable<Role> | iterable<ClientUserBase> | iterable<EntitySelectDefaultValue> | iterable<(str | EntitySelectDefaultValueTyp, int | str)>>`` \
                 , Optional (Keyword only)
             Entities presented in the select by default.
         
@@ -220,8 +243,11 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
         min_values : `int`, Optional (Keyword only)
             The minimal amount of options to select.
         
-        placeholder : `None`, `str`, Optional (Keyword only)
+        placeholder : `None | str`, Optional (Keyword only)
             Placeholder text of the select.
+        
+        required : `None | bool`, Optional (Keyword only)
+            Whether the field is required to be fulfilled.
         
         Returns
         -------
@@ -251,6 +277,7 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
             max_values = max_values,
             min_values = min_values,
             placeholder = placeholder,
+            required = required,
         )
         new.default_values = default_values
         return new
@@ -265,4 +292,5 @@ class ComponentMetadataEntitySelectBase(ComponentMetadataSelectBase):
             max_values = keyword_parameters.pop('max_values', ...),
             min_values = keyword_parameters.pop('min_values', ...),
             placeholder = keyword_parameters.pop('placeholder', ...),
+            required = keyword_parameters.pop('required', ...),
         )

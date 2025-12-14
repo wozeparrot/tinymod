@@ -14,11 +14,12 @@ if RICH_DISCORD_EXCEPTION:
 else:
     reconstruct_payload = None
 
-EXCEPTION_RESPONSE_RP = re.compile('\d+\: (.*)')
+
+EXCEPTION_RESPONSE_RP = re.compile('\\d+\\: (.*)')
 
 
 class DiscordException(Exception):
-    """
+    r"""
     Represents an exception raised by Discord, when it response with a not expected response code.
     
     Depending on Discord's response code, the http client's behaviours differently.
@@ -59,30 +60,30 @@ class DiscordException(Exception):
     
     Attributes
     ----------
-    _code : `None`, `int`
+    _code : `None | int`
         Cache of the `.code` property.
         
         If the response data does not contains `code`, then this attribute is set to `0`.
     
-    _debug_info : `None`, `str`
+    _debug_info : `None | str`
         cache of the `.debug_info` property.
     
-    _errors : `None`, `list` of `str`
+    _errors : `None | list<str>`
         Cache of the `errors` property.
     
-    _request_info : `None`, `str`
+    _request_info : `None | str`
         Cache of the `.request_info` property.
     
-    _retry_after : `None`, `float`
+    _retry_after : `None | float`
         Cache pf the `.retry_after` property.
     
-    _message : `None`,  `str`
+    _message : `None | str`
         Cache of the `.message` property.
     
-    _status : `None`, `int`
+    _status : `None | int`
         Cache of the `.status` property.
     
-    debug_options : `None`, `set` of `str`
+    debug_options : `None | set<str>`
         Debug options of the http client.
     
     received_data : `object`
@@ -111,7 +112,7 @@ class DiscordException(Exception):
             Deserialized `json` response data if applicable.
         sent_data : `object`
             Sent data.
-        debug_options : `None`, `set` of `str`
+        debug_options : `None | set<str>`
             Debug options of the http client.
         """
         self = Exception.__new__(cls, response, received_data, sent_data, debug_options)
@@ -176,7 +177,7 @@ class DiscordException(Exception):
             if not message_base.endswith(('.', ',')):
                 message_parts.append(';')
             
-            message_parts.append('retry after: ')
+            message_parts.append(' retry after: ')
             message_parts.append(format(self.retry_after, '.02f'))
         
         return ''.join(message_parts)
@@ -333,7 +334,7 @@ class DiscordException(Exception):
                             
                             if error_data_length:
                                 error_extra = ' '.join(
-                                    f'{key}={value!r}' for key, value in error_data.items()
+                                    f'{key} = {value!r}' for key, value in error_data.items()
                                     if key not in ('code', 'message')
                                 )
                                 

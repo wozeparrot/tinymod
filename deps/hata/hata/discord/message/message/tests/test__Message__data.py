@@ -1,14 +1,16 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
 from ....channel import Channel, ChannelType, create_partial_channel_data
+from ....client import Client
 from ....component import Component, ComponentType
 from ....core import BUILTIN_EMOJIS
 from ....embed import Embed
 from ....emoji import Reaction, ReactionMapping, ReactionMappingLine, ReactionType
-from ....interaction import Resolved
 from ....poll import Poll
+from ....resolved import Resolved
+from ....soundboard import SoundboardSound
 from ....sticker import Sticker, create_partial_sticker_data
 from ....user import User
 from ....utils import datetime_to_timestamp
@@ -22,6 +24,7 @@ from ...message_role_subscription import MessageRoleSubscription
 from ...message_snapshot import MessageSnapshot
 from ...poll_change import PollChange
 from ...poll_update import PollUpdate
+from ...shared_client_theme import SharedClientTheme
 
 from ..flags import MessageFlag
 from ..message import Message
@@ -44,13 +47,13 @@ def test__Message__from_data__all_fields():
         Attachment.precreate(202305030042, name = 'Komeiji'),
     ]
     author = User.precreate(202305030043, name = 'Orin')
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
     ]
     content = 'Satori'
-    edited_at = DateTime(2016, 5, 14)
+    edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     embeds = [
         Embed('Yakumo'),
         Embed('Yukari'),
@@ -70,7 +73,7 @@ def test__Message__from_data__all_fields():
     message_type = MessageType.call
     nonce = 'Sakuya'
     pinned = True
-    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     reactions = ReactionMapping(
         lines = {
             Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
@@ -79,9 +82,14 @@ def test__Message__from_data__all_fields():
     referenced_message = Message.precreate(202305030051, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110008)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    shared_client_theme = SharedClientTheme(intensity = 6)
     snapshots = [
         MessageSnapshot(content = 'Kazami'),
         MessageSnapshot(content = 'Yuuka'),
+    ]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202501290010, name = 'whither'),
+        SoundboardSound.precreate(202501290011, name = 'Yuyuko'),
     ]
     stickers = [
         Sticker.precreate(202305030052, name = 'Kirisame'),
@@ -118,7 +126,11 @@ def test__Message__from_data__all_fields():
         'message_reference': referenced_message.to_message_reference_data(),
         'resolved': resolved.to_data(),
         'role_subscription_data': role_subscription.to_data(),
-        'message_snapshots': [snapshot.to_data() for snapshot in snapshots],
+        'shared_client_theme': shared_client_theme.to_data(),
+        'message_snapshots': [snapshot.to_data(guild_id = guild_id) for snapshot in snapshots],
+        'soundboard_sounds': [
+            soundboard_sound.to_data(include_internals = True) for soundboard_sound in soundboard_sounds
+        ],
         'sticker_items': [create_partial_sticker_data(sticker) for sticker in stickers],
         'thread': thread.to_data(include_internals = True),
         
@@ -157,7 +169,9 @@ def test__Message__from_data__all_fields():
     vampytest.assert_eq(message.referenced_message, referenced_message)
     vampytest.assert_eq(message.resolved, resolved)
     vampytest.assert_eq(message.role_subscription, role_subscription)
+    vampytest.assert_eq(message.shared_client_theme, shared_client_theme)
     vampytest.assert_eq(message.snapshots, tuple(snapshots))
+    vampytest.assert_eq(message.soundboard_sounds, tuple(soundboard_sounds))
     vampytest.assert_eq(message.stickers, tuple(stickers))
     vampytest.assert_eq(message.thread, thread)
     vampytest.assert_eq(message.tts, tts)
@@ -190,24 +204,70 @@ def test__Message__from_data__should_not_update_if_updated():
     """
     Tests whether ``from_data`` works as intended.
     
-    Case: Should not update if already up to date.
+    Case: Should not update if already up to date & at least 1 client can see it.
     """
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    client_id = 202407230000
+    channel_id = 202407230001
     message_id = 202305030059
+    
+    client = Client(
+        'token_' + str(client_id),
+        client_id = client_id,
+    )
+    
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
+    channel = Channel.precreate(channel_id, channel_type = ChannelType.private, users = [client])
+    
+    try:
+        input_data = {
+            'id': str(message_id),
+            'channel_id': str(channel_id),
+        }
+        
+        message = Message.from_data(input_data)
+        
+        input_data = {
+            'id': str(message_id),
+            'channel_id': str(channel_id),
+            'call': call.to_data(),
+        }
+        
+        Message.from_data(input_data)
+    
+    finally:
+        client = None
+    
+    vampytest.assert_is(message.call, None)
+
+
+def test__Message__from_data__should_update_if_no_clients_can_see_it():
+    """
+    Tests whether ``from_data`` works as intended.
+    
+    Case: Should update if no clients can see it.
+    """
+    channel_id = 202407230002
+    message_id = 202305030003
+    
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
+    channel = Channel.precreate(channel_id, channel_type = ChannelType.private, users = [])
     
     input_data = {
         'id': str(message_id),
+        'channel_id': str(channel_id),
     }
     
     message = Message.from_data(input_data)
     
     input_data = {
         'id': str(message_id),
+        'channel_id': str(channel_id),
         'call': call.to_data(),
     }
     
     Message.from_data(input_data)
-    vampytest.assert_is(message.call, None)
+    
+    vampytest.assert_is_not(message.call, None)
 
 
 def test__Message__from_data__should_update_if_precreate():
@@ -216,7 +276,7 @@ def test__Message__from_data__should_update_if_precreate():
     
     Case: Should update if precreated
     """
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     message_id = 202305030060
     
     message = Message.precreate(message_id)
@@ -245,13 +305,13 @@ def test__Message__to_data():
         Attachment.precreate(202310110013, name = 'Komeiji'),
     ]
     author = User.precreate(202310110014, name = 'Orin')
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
     ]
     content = 'Satori'
-    edited_at = DateTime(2016, 5, 14)
+    edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     embeds = [
         Embed('Yakumo'),
         Embed('Yukari'),
@@ -271,7 +331,7 @@ def test__Message__to_data():
     message_type = MessageType.inline_reply
     nonce = 'Sakuya'
     pinned = True
-    poll = Poll(expires_at = DateTime(2016, 5, 14))
+    poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     reactions = ReactionMapping(
         lines = {
             Reaction.from_fields(BUILTIN_EMOJIS['x'], ReactionType.standard): ReactionMappingLine(count = 2),
@@ -280,9 +340,14 @@ def test__Message__to_data():
     referenced_message = Message.precreate(202310110022, content = 'Patchouli')
     resolved = Resolved(attachments = [Attachment.precreate(202310110023)])
     role_subscription = MessageRoleSubscription(tier_name = 'Knowledge')
+    shared_client_theme = SharedClientTheme(intensity = 6)
     snapshots = [
         MessageSnapshot(content = 'Kazami'),
         MessageSnapshot(content = 'Yuuka'),
+    ]
+    soundboard_sounds = [
+        SoundboardSound.precreate(202501290012, name = 'whither'),
+        SoundboardSound.precreate(202501290013, name = 'Yuyuko'),
     ]
     stickers = [
         Sticker.precreate(202310110024, name = 'Kirisame'),
@@ -320,7 +385,12 @@ def test__Message__to_data():
         'message_reference': referenced_message.to_message_reference_data(),
         'resolved': resolved.to_data(defaults = True),
         'role_subscription_data': role_subscription.to_data(defaults = True),
-        'message_snapshots': [snapshots.to_data(defaults = True) for snapshots in snapshots],
+        'shared_client_theme': shared_client_theme.to_data(defaults = True),
+        'message_snapshots': [snapshots.to_data(defaults = True, guild_id = guild_id) for snapshots in snapshots],
+        'soundboard_sounds': [
+            soundboard_sound.to_data(defaults = True, include_internals = True)
+            for soundboard_sound in soundboard_sounds
+        ],
         'sticker_items': [create_partial_sticker_data(sticker) for sticker in stickers],
         'thread': thread.to_data(defaults = True, include_internals = True),
         'type': message_type.value,
@@ -362,7 +432,9 @@ def test__Message__to_data():
         referenced_message = referenced_message,
         resolved = resolved,
         role_subscription = role_subscription,
+        shared_client_theme = shared_client_theme,
         snapshots = snapshots,
+        soundboard_sounds = soundboard_sounds,
         stickers = stickers,
         thread = thread,
         tts = tts,
@@ -380,7 +452,7 @@ def test__Message__create_message_was_up_to_date__new():
     
     Case: New.
     """
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     message_id = 202305030061
     
     input_data = {
@@ -402,7 +474,7 @@ def test__Message__create_message_was_up_to_date__in_cache_require_update():
     
     Case: In cache, needs update.
     """
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     message_id = 202305030062
     
     message = Message.precreate(message_id)
@@ -426,7 +498,7 @@ def test__Message__create_message_was_up_to_date__in_cache_up_to_date():
     
     Case: In cache, up to date.
     """
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     message_id = 202305030063
     
     input_data = {
@@ -594,13 +666,13 @@ def test__Message__set_attributes__caching():
     vampytest.assert_ne(old_mentioned_channels, new_mentioned_channels)
 
 
-def test__message__late_init__loading():
+def test__Message__late_init__loading():
     """
     Tests whether ``Message._late_init`` works as intended.
     
     Case: flags -> Loading.
     """
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     message_id = 202305030078
     
     message = Message.precreate(message_id, flags = MessageFlag().update_by_keys(loading = True))
@@ -615,14 +687,14 @@ def test__message__late_init__loading():
     vampytest.assert_eq(message.call, call)
 
 
-def test__message__late_init__not_loading_but_receiving_interaction():
+def test__Message__late_init__not_loading_but_receiving_interaction():
     """
     Tests whether ``Message._late_init`` works as intended.
     
     Case: flags -> not Loading & interaction received.
     """
     interaction = MessageInteraction.precreate(202305030081, name = 'Koishi')
-    call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     message_id = 202305030082
     
     message = Message.precreate(message_id, flags = MessageFlag().update_by_keys(loading = False))
@@ -649,13 +721,13 @@ def test__Message__difference_update_attributes():
         Attachment.precreate(202305030083, name = 'Koishi'),
         Attachment.precreate(202305030084, name = 'Komeiji'),
     ]
-    old_call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    old_call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     old_components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
     ]
     old_content = 'Satori'
-    old_edited_at = DateTime(2016, 5, 14)
+    old_edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     old_embeds = [
         Embed('Yakumo'),
         Embed('Yukari'),
@@ -672,20 +744,20 @@ def test__Message__difference_update_attributes():
         User.precreate(202305030088, name = 'Izaoyi'),
     ]
     old_pinned = True
-    old_poll = Poll(expires_at = DateTime(2016, 5, 14))
+    old_poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     old_resolved = Resolved(attachments = [Attachment.precreate(202310140050)])
     
     new_attachments = [
         Attachment.precreate(202305030089, name = 'Yuuka'),
         Attachment.precreate(202305030090, name = 'Yuugi'),
     ]
-    new_call = MessageCall(ended_at = DateTime(2045, 4, 4))
+    new_call = MessageCall(ended_at = DateTime(2045, 4, 4, tzinfo = TimeZone.utc))
     new_components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Chiruno')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Dai')]),
     ]
     new_content = 'Mokou'
-    new_edited_at = DateTime(2016, 10, 28)
+    new_edited_at = DateTime(2016, 10, 28, tzinfo = TimeZone.utc)
     new_embeds = [
         Embed('Kokoro'),
         Embed('Keine'),
@@ -702,7 +774,7 @@ def test__Message__difference_update_attributes():
         User.precreate(202305030096, name = 'Lapislazuli'),
     ]
     new_pinned = False
-    new_poll = Poll(expires_at = DateTime(2016, 5, 15))
+    new_poll = Poll(expires_at = DateTime(2016, 5, 15, tzinfo = TimeZone.utc))
     new_resolved = Resolved(attachments = [Attachment.precreate(202310140051)])
     
     
@@ -773,7 +845,11 @@ def test__Message__difference_update_attributes():
         'mentioned_role_ids': tuple(old_mentioned_role_ids),
         'mentioned_users': tuple(old_mentioned_users),
         'pinned': old_pinned,
-        'poll': PollChange.from_fields(None, PollUpdate.from_fields(new_poll, {'expires_at': DateTime(2016, 5, 14)}), None),
+        'poll': PollChange.from_fields(
+            None,
+            PollUpdate.from_fields(new_poll, {'expires_at': DateTime(2016, 5, 14, tzinfo = TimeZone.utc)}),
+            None,
+        ),
         'resolved': old_resolved,
     }
     
@@ -818,13 +894,13 @@ def test__Message__update_attributes():
         Attachment.precreate(202305030098, name = 'Koishi'),
         Attachment.precreate(202305030099, name = 'Komeiji'),
     ]
-    old_call = MessageCall(ended_at = DateTime(2045, 3, 4))
+    old_call = MessageCall(ended_at = DateTime(2045, 3, 4, tzinfo = TimeZone.utc))
     old_components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Okuu')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Parsee')]),
     ]
     old_content = 'Satori'
-    old_edited_at = DateTime(2016, 5, 14)
+    old_edited_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     old_embeds = [
         Embed('Yakumo'),
         Embed('Yukari'),
@@ -841,20 +917,20 @@ def test__Message__update_attributes():
         User.precreate(202305030105, name = 'Izaoyi'),
     ]
     old_pinned = True
-    old_poll = Poll(expires_at = DateTime(2016, 5, 14))
+    old_poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     old_resolved = Resolved(attachments = [Attachment.precreate(202310140052)])
     
     new_attachments = [
         Attachment.precreate(202305030106, name = 'Yuuka'),
         Attachment.precreate(202305030107, name = 'Yuugi'),
     ]
-    new_call = MessageCall(ended_at = DateTime(2045, 4, 4))
+    new_call = MessageCall(ended_at = DateTime(2045, 4, 4, tzinfo = TimeZone.utc))
     new_components = [
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Chiruno')]),
         Component(ComponentType.row, components = [Component(ComponentType.button, label = 'Dai')]),
     ]
     new_content = 'Mokou'
-    new_edited_at = DateTime(2016, 10, 28)
+    new_edited_at = DateTime(2016, 10, 28, tzinfo = TimeZone.utc)
     new_embeds = [
         Embed('Kokoro'),
         Embed('Keine'),
@@ -871,7 +947,7 @@ def test__Message__update_attributes():
         User.precreate(202305030113, name = 'Lapislazuli'),
     ]
     new_pinned = False
-    new_poll = Poll(expires_at = DateTime(2016, 5, 15))
+    new_poll = Poll(expires_at = DateTime(2016, 5, 15, tzinfo = TimeZone.utc))
     new_resolved = Resolved(attachments = [Attachment.precreate(202310140053)])
     
     
@@ -977,7 +1053,7 @@ def test__Message__update_content_fields():
         Embed('Yakumo'),
         Embed('Yukari'),
     ]
-    old_poll = Poll(expires_at = DateTime(2016, 5, 14))
+    old_poll = Poll(expires_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc))
     
     new_attachments = [
         Attachment.precreate(202305030123, name = 'Yuuka'),
@@ -992,7 +1068,7 @@ def test__Message__update_content_fields():
         Embed('Kokoro'),
         Embed('Keine'),
     ]
-    new_poll = Poll(expires_at = DateTime(2016, 5, 15))
+    new_poll = Poll(expires_at = DateTime(2016, 5, 15, tzinfo = TimeZone.utc))
     
     
     message_id = 202305030125

@@ -4,13 +4,15 @@ from scarletio import RichAttributeErrorBaseType, copy_docs, export
 
 from ..component_metadata import ComponentMetadataBase
 from ..component_metadata.fields import (
-    validate_button_style, validate_channel_types, validate_default_values, validate_enabled, validate_label,
-    validate_max_length, validate_max_values, validate_min_length, validate_min_values, validate_options,
-    validate_placeholder, validate_required, validate_sku_id, validate_text_input_style, validate_url, validate_value
+    validate_button_style, validate_channel_types, validate_color, validate_component__label, validate_content,
+    validate_default_values, validate_description, validate_divider, validate_enabled, validate_items, validate_label,
+    validate_max_length, validate_max_values, validate_media, validate_min_length, validate_min_values, validate_name,
+    validate_options, validate_placeholder, validate_required, validate_size, validate_sku_id, validate_spacing_size,
+    validate_spoiler, validate_text_input_style, validate_thumbnail, validate_url, validate_value
 )
 from ..shared_fields import validate_components, validate_custom_id, validate_emoji
 
-from .fields import parse_type, put_type_into, validate_type
+from .fields import parse_type, put_type, validate_type
 from .preinstanced import ComponentType
 
 
@@ -21,10 +23,11 @@ class Component(RichAttributeErrorBaseType):
     
     Attributes
     ----------
-    type : ``ComponentType``
-        The component's type.
     metadata : ``ComponentMetadataBase``
         The component's metadata.
+    
+    type : ``ComponentType``
+        The component's type.
     """
     __slots__ = ('metadata', 'type',)
     
@@ -34,7 +37,7 @@ class Component(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        component_type : `int`, ``ComponentType``
+        component_type : ``None | int | ComponentType``
             The component's type to create.
         
         **keyword_parameters : Keyword parameters
@@ -42,29 +45,47 @@ class Component(RichAttributeErrorBaseType):
         
         Other Parameters
         ----------------
-        button_style : ``ButtonStyle``, Optional (Keyword only)
+        button_style : ``None | int | ButtonStyle``, Optional (Keyword only)
             The component's style. Applicable for button components.
         
-        channel_types : `None`, `tuple` of (``ChannelType``, `int`), Optional (Keyword only)
+        channel_types : ``None | iterable<int> | iterable<ChannelType>``, Optional (Keyword only)
             The allowed channel types by the select.
         
-        components : `None`, `tuple` of ``Component``, Optional (Keyword only)
+        color : ``None | int | Color``, Optional (Keywords only)
+            The color of the component.
+        
+        component : ``None | Component``, Optional (Keyword only)
+            The sub-component nested inside (the label component).
+        
+        components : ``None | tuple<Component>``, Optional (Keyword only)
             Sub-components.
         
-        custom_id : `None`, `str`, Optional (Keyword only)
+        content : `None | str`, Optional (Keyword only)
+            The content shown on the component.
+        
+        custom_id : `None | str`, Optional (Keyword only)
             Custom identifier to detect which component was clicked (or used) by the user.
         
-        default_values : `None | iterable<Channel | Role | ClientUserBase | EntitySelectDefaultValue | tuple>` \
+        default_values : ``None | iterable<Channel> | iterable<Role> | iterable<ClientUserBase> | iterable<EntitySelectDefaultValue> | iterable<(str | EntitySelectDefaultValueTyp, int | str)>>`` \
                 , Optional (Keyword only)
             Entities presented in the select by default.
         
-        emoji : `None` ``Emoji``, Optional (Keyword only)
+        emoji : ``None | Emoji``, Optional (Keyword only)
             Emoji of the component if applicable.
         
         enabled : `bool`, Optional (Keyword only)
             Whether the component is enabled.
         
-        label : `None`, `str`, Optional (Keyword only)
+        description : `None | str`, Optional (Keyword only)
+            Description of the component's media.
+        
+        divider : `bool`, Optional (Keyword only)
+            Whether the separator should contain a divider.
+        
+        items : ``None | iterable<str> | iterable<MediaItem>``, Optional (Keyword only)
+            The media items shown on the component.
+        
+        label : `None | str`, Optional (Keyword only)
             Label of the component.
         
         max_length : `int`, Optional (Keyword only)
@@ -73,31 +94,44 @@ class Component(RichAttributeErrorBaseType):
         max_values : `int`, Optional (Keyword only)
             The maximal amount of options to select.
         
+        media : ``str | MediaInfo``, Optional (Keyword only)
+            The media of the component.
+            Supports only attachments using the `attachment://<file_name>` url format.
+        
         min_length : `int`, Optional (Keyword only)
             The minimal length of the inputted text.
         
         min_values : `int`, Optional (Keyword only)
             The minimal amount of options to select.
         
-        options : `None`, `tuple` of ``StringSelectOption``, Optional (Keyword only)
+        options : ``None | iterable<StringSelectOption>``, Optional (Keyword only)
             Options of the component.
         
-        placeholder : `None`, `str`, Optional (Keyword only)
+        placeholder : `None | str`, Optional (Keyword only)
             Placeholder of the select.
         
-        required : `bool`, Optional (Keyword only)
+        required : `None | bool`, Optional (Keyword only)
             Whether the field is required to be fulfilled.
         
-        sku_id : `int`, ``SKU``, Optional (keyword only)
+        sku_id : ``int | SKU``, Optional (keyword only)
             Purchasable stock keeping unit identifier.
         
-        text_input_style : ``TextInputStyle``, Optional (Keyword only)
+        spacing_size : ``int | SeparatorSpacingSize``, Optional (Keyword only)
+            The separator's spacing's size.
+        
+        spoiler : `bool`, Optional (Keyword only)
+            Whether the media or the content of the component is spoilered.
+        
+        text_input_style : ``int | TextInputStyle``, Optional (Keyword only)
             The text input's style.
         
-        url : `None`, `str`, Optional (Keyword only)
+        thumbnail : ``None | Component``, Optional (Keyword only)
+            The thumbnail or other accessory (button) of a section component.
+        
+        url : `None | str`, Optional (Keyword only)
             Url to redirect to.
         
-        value : `None`, `str`, Optional (Keyword only)
+        value : `None | str`, Optional (Keyword only)
             The input component's default value.
         
         Raises
@@ -138,7 +172,7 @@ class Component(RichAttributeErrorBaseType):
     
     
     def __eq__(self, other):
-        """Returns whether the two components are equal."""
+        """Returns self == other."""
         if type(self) is not type(other):
             return NotImplemented
         
@@ -152,8 +186,8 @@ class Component(RichAttributeErrorBaseType):
     
     
     def __repr__(self):
-        """Returns the component's representation."""
-        repr_parts = ['<', self.__class__.__name__]
+        """Returns repr(self)."""
+        repr_parts = ['<', type(self).__name__]
         
         repr_parts.append(' type = ')
         
@@ -170,7 +204,7 @@ class Component(RichAttributeErrorBaseType):
     
     
     def __hash__(self):
-        """Returns the component's hash value."""
+        """Returns hash(self)."""
         hash_value = 0
         
         # metadata
@@ -182,6 +216,16 @@ class Component(RichAttributeErrorBaseType):
         return hash_value
     
     
+    def __len__(self):
+        """Returns len(self)"""
+        length = 0
+        
+        for content in self.metadata.iter_contents():
+            length += len(content)
+        
+        return length
+    
+    
     @classmethod
     def from_data(cls, data):
         """
@@ -189,7 +233,7 @@ class Component(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Component data.
         
         Returns
@@ -206,7 +250,7 @@ class Component(RichAttributeErrorBaseType):
         return self
     
     
-    def to_data(self, *, defaults = False):
+    def to_data(self, *, defaults = False, include_internals = False):
         """
         Returns the component's json serializable representation.
         
@@ -215,17 +259,39 @@ class Component(RichAttributeErrorBaseType):
         defaults : `bool` = `False`, Optional (Keyword only)
             Whether fields with default values should be included as well.
         
+        include_internals : `bool` = `False`, Optional (Keyword only)
+            Whether internal fields should be included as well.
+        
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         # metadata
-        data = self.metadata.to_data(defaults = defaults)
+        data = self.metadata.to_data(defaults = defaults, include_internals = include_internals)
         
         # type
-        put_type_into(self.type, data, defaults)
+        put_type(self.type, data, defaults)
         
         return data
+    
+    
+    def clean_copy(self, guild = None):
+        """
+        Creates a clean copy of the component by removing the mentions in it's contents.
+        
+        Parameters
+        ----------
+        guild : ``None | Guild`` = `None`, Optional
+            The respective guild as a context to look up guild specific names of entities.
+        
+        Returns
+        -------
+        new : `instance<type<self>>`
+        """
+        new = object.__new__(type(self))
+        new.metadata = self.metadata.clean_copy(guild)
+        new.type = self.type
+        return new
     
     
     def copy(self):
@@ -250,7 +316,7 @@ class Component(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        component_type : `int`, ``ComponentType``, Optional (Keyword only)
+        component_type : ``None | int | ComponentType``, Optional (Keyword only)
             The component's type.
         
         **keyword_parameters : Keyword parameters
@@ -258,29 +324,47 @@ class Component(RichAttributeErrorBaseType):
         
         Other Parameters
         ----------------
-        button_style : ``ButtonStyle``, Optional (Keyword only)
+        button_style : ``None | int | ButtonStyle``, Optional (Keyword only)
             The component's style. Applicable for button components.
         
-        channel_types : `None`, `tuple` of (``ChannelType``, `int`), Optional (Keyword only)
+        channel_types : ``None | iterable<int> | iterable<ChannelType>``, Optional (Keyword only)
             The allowed channel types by the select.
         
-        components : `None`, `tuple` of ``Component``, Optional (Keyword only)
+        color : ``None | int | Color``, Optional (Keywords only)
+            The color of the component.
+        
+        component : ``None | Component``, Optional (Keyword only)
+            The sub-component nested inside (the label component).
+        
+        components : ``None | iterable<Component>``, Optional (Keyword only)
             Sub-components.
         
-        custom_id : `None`, `str`, Optional (Keyword only)
+        content : `None | str`, Optional (Keyword only)
+            The content shown on the component.
+        
+        custom_id : `None | str`, Optional (Keyword only)
             Custom identifier to detect which component was clicked (or used) by the user.
         
-        default_values : `None | iterable<Channel | Role | ClientUserBase | EntitySelectDefaultValue | tuple>` \
+        default_values : ``None | iterable<Channel> | iterable<Role> | iterable<ClientUserBase> | iterable<EntitySelectDefaultValue> | iterable<(str | EntitySelectDefaultValueTyp, int | str)>>`` \
                 , Optional (Keyword only)
             Entities presented in the select by default.
         
-        emoji : `None` ``Emoji``, Optional (Keyword only)
+        description : `None | str`, Optional (Keyword only)
+            Description of the component's media.
+        
+        divider : `bool`, Optional (Keyword only)
+            Whether the separator should contain a divider.
+        
+        emoji : ``None | Emoji``, Optional (Keyword only)
             Emoji of the component if applicable.
         
         enabled : `bool`, Optional (Keyword only)
             Whether the component is enabled.
         
-        label : `None`, `str`, Optional (Keyword only)
+        items : ``None | iterable<str> | iterable<MediaItem>``, Optional (Keyword only)
+            The media items shown on the component.
+        
+        label : `None | str`, Optional (Keyword only)
             Label of the component.
         
         max_length : `int`, Optional (Keyword only)
@@ -292,28 +376,41 @@ class Component(RichAttributeErrorBaseType):
         min_length : `int`, Optional (Keyword only)
             The minimal length of the inputted text.
         
+        media : ``str | MediaInfo``, Optional (Keyword only)
+            The media of the component.
+            Supports only attachments using the `attachment://<file_name>` url format.
+        
         min_values : `int`, Optional (Keyword only)
             The minimal amount of options to select.
         
-        options : `None`, `tuple` of ``StringSelectOption``, Optional (Keyword only)
+        options : ``None | iterable<StringSelectOption>``, Optional (Keyword only)
             Options of the component.
         
-        placeholder : `None`, `str`, Optional (Keyword only)
+        placeholder : `None | str`, Optional (Keyword only)
             Placeholder of the select.
         
-        required : `bool`, Optional (Keyword only)
+        required : `None | bool`, Optional (Keyword only)
             Whether the field is required to be fulfilled.
         
-        sku_id : `int`, ``SKU``, Optional (keyword only)
+        sku_id : ``int | SKU``, Optional (keyword only)
             Purchasable stock keeping unit identifier.
         
-        text_input_style : ``TextInputStyle``, Optional (Keyword only)
+        spacing_size : ``int | SeparatorSpacingSize``, Optional (Keyword only)
+            The separator's spacing's size.
+        
+        spoiler : `bool`, Optional (Keyword only)
+            Whether the media or the content of the component is spoilered.
+        
+        text_input_style : ``int | TextInputStyle``, Optional (Keyword only)
             The text input's style.
         
-        url : `None`, `str`, Optional (Keyword only)
+        thumbnail : ``None | Component``, Optional (Keyword only)
+            The thumbnail or other accessory (button) of a section component.
+        
+        url : `None | str`, Optional (Keyword only)
             Url to redirect to.
         
-        value : `None`, `str`, Optional (Keyword only)
+        value : `None | str`, Optional (Keyword only)
             The input component's default value.
         
         Returns
@@ -354,6 +451,7 @@ class Component(RichAttributeErrorBaseType):
     
     # Field proxies
     
+    # button_style
     @property
     @copy_docs(ComponentMetadataBase.button_style)
     def button_style(self):
@@ -364,6 +462,7 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.button_style = validate_button_style(button_style)
     
     
+    # channel_types
     @property
     @copy_docs(ComponentMetadataBase.channel_types)
     def channel_types(self):
@@ -374,6 +473,29 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.channel_types = validate_channel_types(channel_types)
     
     
+    # color
+    @property
+    @copy_docs(ComponentMetadataBase.color)
+    def color(self):
+        return self.metadata.color
+    
+    @color.setter
+    def color(self, color):
+        self.metadata.color = validate_color(color)
+    
+    
+    # component
+    @property
+    @copy_docs(ComponentMetadataBase.component)
+    def component(self):
+        return self.metadata.component
+    
+    @component.setter
+    def component(self, component):
+        self.metadata.component = validate_component__label(component)
+    
+    
+    # components
     @property
     @copy_docs(ComponentMetadataBase.components)
     def components(self):
@@ -384,6 +506,18 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.components = validate_components(components)
     
     
+    # content
+    @property
+    @copy_docs(ComponentMetadataBase.content)
+    def content(self):
+        return self.metadata.content
+    
+    @content.setter
+    def content(self, content):
+        self.metadata.content = validate_content(content)
+    
+    
+    # custom_id
     @property
     @copy_docs(ComponentMetadataBase.custom_id)
     def custom_id(self):
@@ -394,6 +528,7 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.custom_id = validate_custom_id(custom_id)
     
     
+    # default_values
     @property
     @copy_docs(ComponentMetadataBase.default_values)
     def default_values(self):
@@ -404,6 +539,29 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.default_values = validate_default_values(default_values)
     
     
+    # description
+    @property
+    @copy_docs(ComponentMetadataBase.description)
+    def description(self):
+        return self.metadata.description
+    
+    @description.setter
+    def description(self, description):
+        self.metadata.description = validate_description(description)
+    
+    
+    # divider
+    @property
+    @copy_docs(ComponentMetadataBase.divider)
+    def divider(self):
+        return self.metadata.divider
+    
+    @divider.setter
+    def divider(self, divider):
+        self.metadata.divider = validate_divider(divider)
+    
+    
+    # emoji
     @property
     @copy_docs(ComponentMetadataBase.emoji)
     def emoji(self):
@@ -414,6 +572,7 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.emoji = validate_emoji(emoji)
     
     
+    # enabled
     @property
     @copy_docs(ComponentMetadataBase.enabled)
     def enabled(self):
@@ -424,6 +583,7 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.enabled = validate_enabled(enabled)
     
     
+    # label
     @property
     @copy_docs(ComponentMetadataBase.label)
     def label(self):
@@ -434,6 +594,18 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.label = validate_label(label)
     
     
+    # items
+    @property
+    @copy_docs(ComponentMetadataBase.items)
+    def items(self):
+        return self.metadata.items
+    
+    @items.setter
+    def items(self, items):
+        self.metadata.items = validate_items(items)
+    
+    
+    # max_length
     @property
     @copy_docs(ComponentMetadataBase.max_length)
     def max_length(self):
@@ -444,6 +616,7 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.max_length = validate_max_length(max_length)
     
     
+    # max_values
     @property
     @copy_docs(ComponentMetadataBase.max_values)
     def max_values(self):
@@ -454,6 +627,18 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.max_values = validate_max_values(max_values)
     
     
+    # media
+    @property
+    @copy_docs(ComponentMetadataBase.media)
+    def media(self):
+        return self.metadata.media
+    
+    @media.setter
+    def media(self, media):
+        self.metadata.media = validate_media(media)
+    
+    
+    # min_length
     @property
     @copy_docs(ComponentMetadataBase.min_length)
     def min_length(self):
@@ -464,6 +649,7 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.min_length = validate_min_length(min_length)
     
     
+    # min_values
     @property
     @copy_docs(ComponentMetadataBase.min_values)
     def min_values(self):
@@ -474,6 +660,18 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.min_values = validate_min_values(min_values)
     
     
+    # name
+    @property
+    @copy_docs(ComponentMetadataBase.name)
+    def name(self):
+        return self.metadata.name
+    
+    @name.setter
+    def name(self, name):
+        self.metadata.name = validate_name(name)
+    
+    
+    # options
     @property
     @copy_docs(ComponentMetadataBase.options)
     def options(self):
@@ -484,6 +682,7 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.options = validate_options(options)
     
     
+    # placeholder
     @property
     @copy_docs(ComponentMetadataBase.placeholder)
     def placeholder(self):
@@ -494,6 +693,7 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.placeholder = validate_placeholder(placeholder)
     
     
+    # required
     @property
     @copy_docs(ComponentMetadataBase.required)
     def required(self):
@@ -504,6 +704,18 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.required = validate_required(required)
     
     
+    # size
+    @property
+    @copy_docs(ComponentMetadataBase.size)
+    def size(self):
+        return self.metadata.size
+    
+    @size.setter
+    def size(self, size):
+        self.metadata.size = validate_size(size)
+    
+    
+    # sku_id
     @property
     @copy_docs(ComponentMetadataBase.sku_id)
     def sku_id(self):
@@ -514,6 +726,29 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.sku_id = validate_sku_id(sku_id)
     
     
+    # spacing_size
+    @property
+    @copy_docs(ComponentMetadataBase.spacing_size)
+    def spacing_size(self):
+        return self.metadata.spacing_size
+    
+    @spacing_size.setter
+    def spacing_size(self, spacing_size):
+        self.metadata.spacing_size = validate_spacing_size(spacing_size)
+    
+    
+    # spoiler
+    @property
+    @copy_docs(ComponentMetadataBase.spoiler)
+    def spoiler(self):
+        return self.metadata.spoiler
+    
+    @spoiler.setter
+    def spoiler(self, spoiler):
+        self.metadata.spoiler = validate_spoiler(spoiler)
+    
+    
+    # text_input_style
     @property
     @copy_docs(ComponentMetadataBase.text_input_style)
     def text_input_style(self):
@@ -523,6 +758,19 @@ class Component(RichAttributeErrorBaseType):
     def text_input_style(self, text_input_style):
         self.metadata.text_input_style = validate_text_input_style(text_input_style)
     
+    
+    # thumbnail
+    @property
+    @copy_docs(ComponentMetadataBase.thumbnail)
+    def thumbnail(self):
+        return self.metadata.thumbnail
+    
+    @thumbnail.setter
+    def thumbnail(self, thumbnail):
+        self.metadata.thumbnail = validate_thumbnail(thumbnail)
+    
+    
+    # url
     @property
     @copy_docs(ComponentMetadataBase.url)
     def url(self):
@@ -533,6 +781,7 @@ class Component(RichAttributeErrorBaseType):
         self.metadata.url = validate_url(url)
     
     
+    # value
     @property
     @copy_docs(ComponentMetadataBase.value)
     def value(self):
@@ -619,3 +868,43 @@ class Component(RichAttributeErrorBaseType):
         default_values = self.default_values
         if (default_values is not None):
             yield from default_values
+
+    
+    def iter_items(self):
+        """
+        Iterates over the media items of the component.
+        
+        This method is an iterable generator.
+        
+        Yields
+        ------
+        item : ``MediaItem``
+        """
+        items = self.items
+        if (items is not None):
+            yield from items
+    
+    
+    def iter_contents(self):
+        """
+        Iterates over the component's contents.
+        
+        This method is an iterable generator.
+        
+        Yields
+        -------
+        contents : `str`
+        """
+        yield from self.metadata.iter_contents()
+    
+    
+    @property
+    def contents(self):
+        """
+        Returns the component's contents.
+        
+        Returns
+        -------
+        contents : `list<str>`
+        """
+        return [*self.metadata.iter_contents()]

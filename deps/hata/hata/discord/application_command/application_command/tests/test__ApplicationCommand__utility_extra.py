@@ -203,7 +203,7 @@ def test__ApplicationCommand__guild(application_command_id, guild_id):
     
     Returns
     -------
-    guild : `None | Guild`
+    guild : ``None | Guild``
     """
     application_command = ApplicationCommand.precreate(application_command_id, name = 'kimi', guild_id = guild_id)
     return application_command.guild
@@ -256,9 +256,9 @@ def test__ApplicationCommand__has_integration_type(integration_types, integratio
     
     Parameters
     ----------
-    integration_types : `None | list<ApplicationIntegrationType>`
+    integration_types : ``None | list<ApplicationIntegrationType>``
         Application integration types to create the application command with.
-    integration_type : `int | ApplicationIntegrationType`
+    integration_type : ``int | ApplicationIntegrationType``
         Integration type to check for.
     
     Returns
@@ -285,7 +285,7 @@ def test__ApplicationCommand__iter_integration_types(integration_types):
     
     Parameters
     ----------
-    integration_types : `None | list<ApplicationIntegrationType>`
+    integration_types : ``None | list<ApplicationIntegrationType>``
         Application integration types to create the application command with.
     
     Returns
@@ -300,7 +300,7 @@ def _iter_options__has_integration_context_type():
     integration_context_type_0 = ApplicationCommandIntegrationContextType.guild
     integration_context_type_1 = ApplicationCommandIntegrationContextType.bot_private_channel
     
-    yield None, integration_context_type_0, True
+    yield None, integration_context_type_0, False
     yield [integration_context_type_0], integration_context_type_0, True
     yield [integration_context_type_0], integration_context_type_1, False
     yield [integration_context_type_0, integration_context_type_1], integration_context_type_1, True

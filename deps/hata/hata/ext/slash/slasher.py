@@ -1,7 +1,7 @@
 __all__ = ('Slasher', )
 
-import warnings
-from datetime import datetime, timedelta
+from warnings import warn
+from datetime import datetime as DateTime, timedelta as TimeDelta, timezone as TimeZone
 
 from scarletio import (
     RichAttributeErrorBaseType, Task, TaskGroup, WeakKeyDictionary, WeakReferer, copy_docs, export, run_coroutine
@@ -19,8 +19,8 @@ from ...discord.guild import Guild
 from ...discord.interaction import InteractionEvent, InteractionType
 
 from .command import (
-    CommandBase, CommandBaseApplicationCommand, ComponentCommand, ContextCommand, FormSubmitCommand, SlashCommand,
-    validate_application_target_type
+    CommandBase, CommandBaseApplicationCommand, ComponentCommand, ContextCommand, EmbeddedActivityLaunchCommand,
+    FormSubmitCommand, SlashCommand, validate_application_target_type
 )
 from .command.component_command.constants import COMMAND_TARGETS_COMPONENT_COMMAND
 from .command.form_submit_command.constants import COMMAND_TARGETS_FORM_COMPONENT_COMMAND
@@ -49,7 +49,7 @@ INTERACTION_TYPE_APPLICATION_COMMAND_AUTOCOMPLETE = InteractionType.application_
 INTERACTION_TYPE_FORM_SUBMIT = InteractionType.form_submit
 
 # It is 7 days, but lets re-request after 6
-OWNERS_ACCESS_REQUEST_INTERVAL = timedelta(days = 6)
+OWNERS_ACCESS_REQUEST_INTERVAL = TimeDelta(days = 6)
 
 
 def match_application_commands_to_commands(application_commands, commands, match_schema):
@@ -86,7 +86,7 @@ def match_application_commands_to_commands(application_commands, commands, match
                 if command.name != application_command_name:
                     continue
                 
-                if command.target is not application_command_target_type:
+                if command.target_type is not application_command_target_type:
                     continue
                 
                 if match_schema:
@@ -129,7 +129,7 @@ class CommandChange(RichAttributeErrorBaseType):
     """
     __slots__ = ('added', 'command')
     
-    def __init__(self, added, command):
+    def __new__(cls, added, command):
         """
         Creates a new command change instance.
         
@@ -140,17 +140,33 @@ class CommandChange(RichAttributeErrorBaseType):
         command : ``CommandBaseApplicationCommand``
             The command itself.
         """
+        self = object.__new__(cls)
         self.added = added
         self.command = command
+        return self
+    
     
     def __repr__(self):
         """returns the command change's representation."""
-        return f'{self.__class__.__name__}(added={self.added!r}, command={self.command!r})'
+        repr_parts = ['<', type(self).__name__]
+        
+        # added
+        repr_parts.append(' added = ')
+        repr_parts.append(repr(self.added))
+        
+        # command
+        repr_parts.append(' command = ')
+        repr_parts.append(repr(self.command))
+        
+        repr_parts.append('>')
+        return ''.join(repr_parts)
+    
     
     def __iter__(self):
         """Unpacks the command change."""
         yield self.added
         yield self.command
+    
     
     def __len__(self):
         """Helper for unpacking."""
@@ -190,7 +206,7 @@ class CommandState(RichAttributeErrorBaseType):
     
     def __repr__(self):
         """Returns the command state's representation."""
-        result = ['<', self.__class__.__name__]
+        result = ['<', type(self).__name__]
         if self._is_non_global:
             result.append(' (non global)')
         
@@ -253,14 +269,14 @@ class CommandState(RichAttributeErrorBaseType):
         if (changes is not None):
             for added, command in changes:
                 command_name = command.name
-                command_target_type = command.target
+                command_target_type = command.target_type
                 
                 for index in range(len(commands)):
                     iter_command = commands[index]
                     if iter_command.name != command_name:
                         continue
                     
-                    if iter_command.target is not command_target_type:
+                    if iter_command.target_type is not command_target_type:
                         continue
                     
                     if added:
@@ -293,14 +309,14 @@ class CommandState(RichAttributeErrorBaseType):
         if (changes is not None):
             for command_change_state in changes:
                 command_name = command_change_state.command.name
-                command_target_type = command_change_state.command.target
+                command_target_type = command_change_state.command.target_type
                 
                 for index in range(len(commands)):
                     iter_command = commands[index]
                     if iter_command.name != command_name:
                         continue
                     
-                    if iter_command.target is not command_target_type:
+                    if iter_command.target_type is not command_target_type:
                         continue
                     
                     del commands[index]
@@ -322,14 +338,14 @@ class CommandState(RichAttributeErrorBaseType):
         if (changes is not None):
             for added, command in changes:
                 command_name = command.name
-                command_target_type = command.target
+                command_target_type = command.target_type
                 
                 for index in range(len(commands)):
                     iter_command = commands[index]
                     if iter_command.name != command_name:
                         continue
                     
-                    if iter_command.target is not command_target_type:
+                    if iter_command.target_type is not command_target_type:
                         continue
                     
                     if added:
@@ -402,7 +418,7 @@ class CommandState(RichAttributeErrorBaseType):
                 if command.name != name:
                     continue
                 
-                if command.target is not target_type:
+                if command.target_type is not target_type:
                     continue
                 
                 del changes[index]
@@ -459,7 +475,7 @@ class CommandState(RichAttributeErrorBaseType):
         if (active is not None):
             for index in range(len(active)):
                 command = active[index]
-                if (command.name == name) and (command.target is target_type):
+                if (command.name == name) and (command.target_type is target_type):
                     del active[index]
                     if not active:
                         self._active = None
@@ -470,7 +486,7 @@ class CommandState(RichAttributeErrorBaseType):
         if (kept is not None):
             for index in range(len(kept)):
                 command = kept[index]
-                if (command.name == name) and (command.target is target_type):
+                if (command.name == name) and (command.target_type is target_type):
                     del kept[index]
                     if not kept:
                         self._kept = None
@@ -492,7 +508,7 @@ class CommandState(RichAttributeErrorBaseType):
         if self._is_non_global:
             return
         
-        self._try_purge(command.name, command.target)
+        self._try_purge(command.name, command.target_type)
         active = self._active
         if active is None:
             self._active = active = []
@@ -512,7 +528,7 @@ class CommandState(RichAttributeErrorBaseType):
         if self._is_non_global:
             return
         
-        self._try_purge(command.name, command.target)
+        self._try_purge(command.name, command.target_type)
         kept = self._kept
         if kept is None:
             self._kept = kept = []
@@ -532,7 +548,7 @@ class CommandState(RichAttributeErrorBaseType):
         if self._is_non_global:
             return
         
-        self._try_purge(command.name, command.target)
+        self._try_purge(command.name, command.target_type)
     
     
     def add(self, command):
@@ -567,7 +583,7 @@ class CommandState(RichAttributeErrorBaseType):
             +---------------------------------------+-------+
         """
         if self._is_non_global:
-            existing_command, purge_identifier = self._try_purge(command.name, command.target)
+            existing_command, purge_identifier = self._try_purge(command.name, command.target_type)
             active = self._active
             if active is None:
                 self._active = active = []
@@ -578,14 +594,14 @@ class CommandState(RichAttributeErrorBaseType):
         kept = self._kept
         if (kept is not None):
             command_name = command.name
-            command_target_type = command.target
+            command_target_type = command.target_type
             
             for index in range(len(kept)):
                 kept_command = kept[index]
                 if kept_command.name != command_name:
                     continue
                 
-                if kept_command.target is not command_target_type:
+                if kept_command.target_type is not command_target_type:
                     continue
                 
                 if kept_command != command:
@@ -602,14 +618,14 @@ class CommandState(RichAttributeErrorBaseType):
         active = self._active
         if (active is not None):
             command_name = command.name
-            command_target_type = command.target
+            command_target_type = command.target_type
             
             for index in range(len(active)):
                 active_command = active[index]
                 if active_command.name != command_name:
                     continue
                 
-                if active_command.target is not command_target_type:
+                if active_command.target_type is not command_target_type:
                     continue
                 
                 if active_command != command:
@@ -629,6 +645,7 @@ class CommandState(RichAttributeErrorBaseType):
         change = CommandChange(True, command)
         changes.append(change)
         return command, COMMAND_STATE_IDENTIFIER_ADDED
+    
     
     def remove(self, command, slasher_unloading_behaviour):
         """
@@ -684,7 +701,7 @@ class CommandState(RichAttributeErrorBaseType):
                 should_keep = True
         
         if self._is_non_global:
-            existing_command, purge_identifier = self._try_purge(command.name, command.target)
+            existing_command, purge_identifier = self._try_purge(command.name, command.target_type)
             if should_keep:
                 kept = self._kept
                 if kept is None:
@@ -695,19 +712,19 @@ class CommandState(RichAttributeErrorBaseType):
             return existing_command, COMMAND_STATE_IDENTIFIER_NON_GLOBAL
         
         if should_keep:
-            self._try_purge_from_changes(command.name, command.target)
+            self._try_purge_from_changes(command.name, command.target_type)
             
             kept = self._kept
             if (kept is not None):
                 command_name = command.name
-                command_target_type = command.target
+                command_target_type = command.target_type
                 
                 for index in range(len(kept)):
                     kept_command = kept[index]
                     if kept_command.name != command_name:
                         continue
                     
-                    if kept_command.target is not command_target_type:
+                    if kept_command.target_type is not command_target_type:
                         continue
                     
                     if kept_command != command:
@@ -718,14 +735,14 @@ class CommandState(RichAttributeErrorBaseType):
             active = self._active
             if (active is not None):
                 command_name = command.name
-                command_target_type = command.target
+                command_target_type = command.target_type
                 
                 for index in range(len(active)):
                     active_command = active[index]
                     if active_command.name != command_name:
                         continue
                     
-                    if active_command.target is not command_target_type:
+                    if active_command.target_type is not command_target_type:
                         continue
                     
                     if active_command != command:
@@ -753,14 +770,14 @@ class CommandState(RichAttributeErrorBaseType):
         kept = self._kept
         if (kept is not None):
             command_name = command.name
-            command_target_type = command.target
+            command_target_type = command.target_type
             
             for index in range(len(kept)):
                 kept_command = kept[index]
                 if kept_command.name != command_name:
                     continue
                 
-                if kept_command.target is not command_target_type:
+                if kept_command.target_type is not command_target_type:
                     continue
                 
                 if kept_command != command:
@@ -874,8 +891,8 @@ class Slasher(
         +-------------------+-------------------------------------------------------------------------------+
         | interaction_event | ``InteractionEvent``                                                          |
         +-------------------+-------------------------------------------------------------------------------+
-        | command           | ``ComponentCommand``, ``ContextCommand``, ``SlashCommand``,                   |
-        |                   | ``SlashCommandFunction``, ``SlashCommandCategory``                            |
+        | command           | ``ComponentCommand``, ``ContextCommand``, ``EmbeddedActivityLaunchCommand``,  |
+        |                   | ``SlashCommand``, ``SlashCommandFunction``, ``SlashCommandCategory``,         |
         |                   | ``SlashCommandParameterAutoCompleter``, ``FormSubmitCommand``                 |
         +-------------------+-------------------------------------------------------------------------------+
         | exception         | `BaseException`                                                               |
@@ -898,7 +915,7 @@ class Slasher(
     _regex_custom_id_to_form_submit_command : `dict` of (``RegexMatcher``, ``FormSubmitCommand``) items
         A dictionary which contains form submit commands based on regex patterns.
     
-    _self_reference : `None`, ``WeakReferer`` to `instance<cls>`
+    _self_reference : `None | WeakReferer<instance>`
         Reference back to the slasher. Used to reference back from commands.
     
     _string_custom_id_to_component_command : `dict` of (`str`, ``ComponentCommand``) items
@@ -935,7 +952,7 @@ class Slasher(
         A nested dictionary, which contains application command permission overwrites per guild_id and per
         `command_id`.
     
-    _translation_table : `None`, `dict` of (``Locale`, `dict` of (`str`, `str`) items) items
+    _translation_table : ``None | dict<Locale, dict<str, str>>``
         Translation table for the commands of the slasher.
     
     command_id_to_command : `dict` of (`int`, ``SlashCommand``) items
@@ -946,7 +963,8 @@ class Slasher(
     __event_name__ : `str` = 'interaction_create'
         Tells for the ``EventHandlerManager`` that ``Slasher`` is a `interaction_create` event handler.
     
-    SUPPORTED_TYPES : `tuple` (``SlashCommand``, ``ComponentCommand``, ``FormSubmitCommand``)
+    SUPPORTED_TYPES : `tuple` (``EmbeddedActivityLaunchCommand``, ``ComponentCommand``, ``ContextCommand``,
+            ``FormSubmitCommand``, ``SlashCommand``)
         Tells to ``eventlist`` what exact types the ``Slasher`` accepts.
     
     Notes
@@ -966,7 +984,7 @@ class Slasher(
     
     __event_name__ = 'interaction_create'
     
-    SUPPORTED_TYPES = (SlashCommand, ContextCommand, ComponentCommand, FormSubmitCommand)
+    SUPPORTED_TYPES = (EmbeddedActivityLaunchCommand, ComponentCommand, ContextCommand, FormSubmitCommand, SlashCommand)
     
     def __new__(
         cls,
@@ -986,7 +1004,7 @@ class Slasher(
         client : ``Client``
             The owner client instance.
             
-        assert_application_command_permission_missmatch_at : `None`, `int`, ``Guild``, `iterable` of (`int`, ``Guild``)
+        assert_application_command_permission_missmatch_at : ``None | int | Guild | iterable<int> | iterable<Guild>``
                 = `None`, Optional (Keyword only)
             Guilds, where permission overwrites missmatch should be asserted.
         
@@ -1021,7 +1039,7 @@ class Slasher(
         # client
         if not isinstance(client, Client):
             raise TypeError(
-                f'`client` can be `{Client.__name__}`, got {client.__class__.__name__}; {client!r}.'
+                f'`client` can be `{Client.__name__}`, got {type(client).__name__}; {client!r}.'
             )
         
         client_reference = WeakReferer(client)
@@ -1046,7 +1064,8 @@ class Slasher(
                 iterator = getattr(type(assert_application_command_permission_missmatch_at), '__iter__', None)
                 if iterator is None:
                     raise TypeError(
-                        f'`assert_application_command_permission_missmatch_at` can be `iterable`, got {assert_application_command_permission_missmatch_at.__class__.__name__}; '
+                        f'`assert_application_command_permission_missmatch_at` can be `iterable`, got '
+                        f'{type(assert_application_command_permission_missmatch_at).__name__}; '
                         f'{assert_application_command_permission_missmatch_at!r}.'
                     )
                 
@@ -1059,8 +1078,9 @@ class Slasher(
                         additional_owner = additional_owner.id
                     else:
                         raise TypeError(
-                            f'`assert_application_command_permission_missmatch_at` contains a non `int`, `{Guild.__name__}` , got '
-                            f'{additional_owner.__class__.__name__}; {additional_owner!r}.'
+                            f'`assert_application_command_permission_missmatch_at` contains a non '
+                            f'`int`, `{Guild.__name__}` , got '
+                            f'{type(additional_owner).__name__}; {additional_owner!r}.'
                         )
                     
                     asserted_guild_ids.add(additional_owner)
@@ -1076,7 +1096,7 @@ class Slasher(
         else:
             raise TypeError(
                 f'`delete_commands_on_unload` can be `bool`, got '
-                f'{delete_commands_on_unload.__class__.__name__}; {delete_commands_on_unload!r}.'
+                f'{type(delete_commands_on_unload).__name__}; {delete_commands_on_unload!r}.'
             )
         
         if delete_commands_on_unload:
@@ -1092,7 +1112,7 @@ class Slasher(
         else:
             raise TypeError(
                 f'`enforce_application_command_permissions` can be `bool`, got '
-                f'{enforce_application_command_permissions.__class__.__name__};'
+                f'{type(enforce_application_command_permissions).__name__};'
                 f'{enforce_application_command_permissions!r}.'
             )
         
@@ -1113,7 +1133,7 @@ class Slasher(
         else:
             raise TypeError(
                 f'`use_default_exception_handler` can be `bool`, got '
-                f'{use_default_exception_handler.__class__.__name__}; {use_default_exception_handler!r}.'
+                f'{type(use_default_exception_handler).__name__}; {use_default_exception_handler!r}.'
             )
         
         if use_default_exception_handler:
@@ -1241,7 +1261,8 @@ class Slasher(
             
             return
         
-        custom_id = interaction_event.interaction.custom_id
+        
+        custom_id = interaction_event.custom_id
         try:
             component_command = self._string_custom_id_to_component_command[custom_id]
         except KeyError:
@@ -1273,7 +1294,7 @@ class Slasher(
         interaction_event : ``InteractionEvent``
             The received interaction event.
         """
-        auto_complete_option = interaction_event.interaction
+        auto_complete_option = interaction_event.metadata
         if auto_complete_option.options is None:
             return
         
@@ -1306,7 +1327,7 @@ class Slasher(
         interaction_event : ``InteractionEvent``
             The received interaction event.
         """
-        custom_id = interaction_event.interaction.custom_id
+        custom_id = interaction_event.custom_id
         try:
             form_submit_command = self._string_custom_id_to_form_submit_command[custom_id]
         except KeyError:
@@ -1418,39 +1439,17 @@ class Slasher(
                 )
         
         else:
-            target = validate_application_target_type(target)
-            if target in APPLICATION_COMMAND_CONTEXT_TARGET_TYPES:
-                instance = ContextCommand(function, *positional_parameters, **keyword_parameters, target = target)
+            target_type = validate_application_target_type(target)
+            if target_type in APPLICATION_COMMAND_CONTEXT_TARGET_TYPES:
+                instance = ContextCommand(
+                    function, *positional_parameters, target_type = target_type, **keyword_parameters
+                )
+            
+            elif target_type is ApplicationCommandTargetType.embedded_activity_launch:
+                instance = EmbeddedActivityLaunchCommand(function, *positional_parameters, **keyword_parameters)
+                
             else:
                 instance = SlashCommand(function, *positional_parameters, **keyword_parameters)
-        
-        return instance
-    
-    
-    @copy_docs(NestableInterface._make_command_instance_from_class)
-    def _make_command_instance_from_class(self, klass):
-        target = getattr(klass, 'target', None)
-        
-        if hasattr(klass, 'custom_id'):
-            if (target is None) or (target in COMMAND_TARGETS_COMPONENT_COMMAND):
-                instance = ComponentCommand.from_class(klass)
-            
-            elif (target in COMMAND_TARGETS_FORM_COMPONENT_COMMAND):
-                instance = FormSubmitCommand.from_class(klass)
-            
-            else:
-                raise ValueError(
-                    f'Unknown command target: {target!r}; If `custom_id` parameter is given, `target` '
-                    f'can be any of: `{COMMAND_TARGETS_COMPONENT_COMMAND | COMMAND_TARGETS_FORM_COMPONENT_COMMAND}`.'
-                )
-        
-        else:
-            target = validate_application_target_type(target)
-            if target in APPLICATION_COMMAND_CONTEXT_TARGET_TYPES:
-                instance = ContextCommand.from_class(klass)
-            
-            else:
-                instance = SlashCommand.from_class(klass)
         
         return instance
     
@@ -1693,9 +1692,9 @@ class Slasher(
         interaction_event : ``InteractionEvent``
             The invoked interaction.
         """
-        interaction_id = interaction_event.interaction.id
+        application_command_id = interaction_event.application_command_id
         try:
-            command = self.command_id_to_command[interaction_id]
+            command = self.command_id_to_command[application_command_id]
         except KeyError:
             pass
         else:
@@ -1709,7 +1708,7 @@ class Slasher(
                 return None
             
             try:
-                command = self.command_id_to_command[interaction_id]
+                command = self.command_id_to_command[application_command_id]
             except KeyError:
                 pass
             else:
@@ -1719,7 +1718,7 @@ class Slasher(
             return None
         
         try:
-            command = self.command_id_to_command[interaction_id]
+            command = self.command_id_to_command[application_command_id]
         except KeyError:
             pass
         else:
@@ -1795,7 +1794,7 @@ class Slasher(
             The respective guild's id.
         """
         if (command is not None):
-            command_id = command._pop_command_id_for(guild_id)
+            command_id = command._pop_application_command_id_for(guild_id)
             if command_id:
                 try:
                     del self.command_id_to_command[command_id]
@@ -1842,7 +1841,7 @@ class Slasher(
             The respective guild's id.
         """
         if (command is not None):
-            command_id = command._pop_command_id_for(guild_id)
+            command_id = command._pop_application_command_id_for(guild_id)
             if command_id:
                 try:
                     del self.command_id_to_command[command_id]
@@ -2339,10 +2338,18 @@ class Slasher(
         ):
             return True
         
-        if self._enforce_application_command_permissions:
+        if not self._enforce_application_command_permissions:
+            do_warn = True
+            success = True
+        
+        else:
             access = await self._get_owners_access(client)
             
-            if (access is not None):
+            if (access is None):
+                do_warn = True
+                success = False
+            
+            else:
                 try:
                     permission = await client.application_command_permission_edit(
                         access,
@@ -2369,18 +2376,11 @@ class Slasher(
                 
                 per_guild[permission.application_command_id] = permission
                 
-                warn = False
+                do_warn = False
                 success = True
-            
-            else:
-                warn = True
-                success = False
-        else:
-            warn = True
-            success = True
         
-        if warn:
-            warnings.warn(
+        if do_warn:
+            warn(
                 create_permission_mismatch_message(
                     application_command,
                     guild_id,
@@ -2848,7 +2848,7 @@ class Slasher(
     
     def __repr__(self):
         """Returns the slasher's representation."""
-        return f'<{self.__class__.__name__} sync_should = {len(self._sync_should)}, sync_done = {len(self._sync_done)}>'
+        return f'<{type(self).__name__} sync_should = {len(self._sync_should)}, sync_done = {len(self._sync_done)}>'
     
     
     @property
@@ -3249,7 +3249,7 @@ class Slasher(
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to gets command count of.
         
         Returns
@@ -3271,7 +3271,7 @@ class Slasher(
         
         Parameters
         ----------
-        guild : ``Guild``, `int`
+        guild : ``int | Guild``
             The guild to gets command count of.
         
         Returns
@@ -3393,7 +3393,7 @@ class Slasher(
                 return None
             
         else:
-            if (owners_access.created_at + OWNERS_ACCESS_REQUEST_INTERVAL) >= datetime.utcnow():
+            if (owners_access.created_at + OWNERS_ACCESS_REQUEST_INTERVAL) >= DateTime.now(TimeZone.utc):
                 return owners_access
         
         
@@ -3534,3 +3534,26 @@ class Slasher(
         
         self._sync_should.add(guild_id)
         self._sync_done.discard(guild_id)
+    
+    
+    @property
+    def random_error_message_getter(self):
+        """
+        Returns the random error message getter used by the default exception handler.
+        
+        Returns
+        -------
+        random_error_message_getter : `None | FunctionType`
+        """
+        return self._random_error_message_getter
+    
+    
+    @random_error_message_getter.setter
+    def random_error_message_getter(self, random_error_message_getter):
+        # random_error_message_getter
+        if random_error_message_getter is None:
+            random_error_message_getter = default_slasher_random_error_message_getter
+        else:
+            _validate_random_error_message_getter(random_error_message_getter)
+        
+        self._random_error_message_getter = random_error_message_getter

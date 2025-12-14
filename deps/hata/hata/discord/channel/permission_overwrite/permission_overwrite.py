@@ -5,8 +5,8 @@ from scarletio import RichAttributeErrorBaseType, include
 from ...permission import Permission
 
 from .fields import (
-    parse_allow, parse_deny, parse_target_id, parse_target_type, put_allow_into, put_deny_into, put_target_id_into,
-    put_target_type_into, validate_allow, validate_deny, validate_target, validate_target_id, validate_target_type
+    parse_allow, parse_deny, parse_target_id, parse_target_type, put_allow, put_deny, put_target_id,
+    put_target_type, validate_allow, validate_deny, validate_target, validate_target_id, validate_target_type
 )
 from .preinstanced import PermissionOverwriteTargetType
 
@@ -99,12 +99,12 @@ class PermissionOverwrite(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Received permission overwrite data.
         
         Returns
         -------
-        self : ``PermissionOverwrite``
+        self : `instance<cls>`
         """
         self = object.__new__(cls)
         
@@ -132,16 +132,16 @@ class PermissionOverwrite(RichAttributeErrorBaseType):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
         
-        put_allow_into(self.allow, data, defaults)
-        put_deny_into(self.deny, data, defaults)
-        put_target_type_into(self.target_type, data, defaults)
+        put_allow(self.allow, data, defaults)
+        put_deny(self.deny, data, defaults)
+        put_target_type(self.target_type, data, defaults)
         
         if include_internals:
-            put_target_id_into(self.target_id, data, defaults)
+            put_target_id(self.target_id, data, defaults)
         
         return data
     
@@ -177,7 +177,7 @@ class PermissionOverwrite(RichAttributeErrorBaseType):
     
     def __repr__(self):
         """Returns the permission overwrite's representation."""
-        return f'<{self.__class__.__name__} target={self.target!r}>'
+        return f'<{type(self).__name__} target = {self.target!r}>'
     
     
     def keys(self):
@@ -191,7 +191,7 @@ class PermissionOverwrite(RichAttributeErrorBaseType):
         name : `str`
             Permissions' respective name.
         """
-        yield from Permission.__keys__.keys()
+        yield from (name for name, shift in Permission.__shifts_ordered__)
     
     
     def values(self):
@@ -220,10 +220,10 @@ class PermissionOverwrite(RichAttributeErrorBaseType):
         """
         allow = self.allow
         deny = self.deny
-        for index in Permission.__keys__.values():
-            if (allow >> index) & 1:
+        for name, shift in Permission.__shifts_ordered__:
+            if (allow >> shift) & 1:
                 state = +1
-            elif (deny >> index) & 1:
+            elif (deny >> shift) & 1:
                 state = -1
             else:
                 state = 0
@@ -259,10 +259,10 @@ class PermissionOverwrite(RichAttributeErrorBaseType):
         """
         allow = self.allow
         deny = self.deny
-        for key, index in Permission.__keys__.items():
-            if (allow >> index) & 1:
+        for key, shift in Permission.__shifts_ordered__:
+            if (allow >> shift) & 1:
                 state = +1
-            elif (deny >> index) & 1:
+            elif (deny >> shift) & 1:
                 state = -1
             else:
                 state = 0
@@ -272,10 +272,10 @@ class PermissionOverwrite(RichAttributeErrorBaseType):
     
     def __getitem__(self, key):
         """Returns the permission's state for the given permission name."""
-        index = Permission.__keys__[key]
-        if (self.allow >> index) & 1:
+        shift = Permission._get_shift_of(key)
+        if (self.allow >> shift) & 1:
             state = +1
-        elif (self.deny >> index) & 1:
+        elif (self.deny >> shift) & 1:
             state = -1
         else:
             state = 0
@@ -391,7 +391,7 @@ class PermissionOverwrite(RichAttributeErrorBaseType):
         
         Returns
         -------
-        new : `instance<cls<self>>`
+        new : `instance<type<self>>`
         """
         new = object.__new__(type(self))
         new.allow = self.allow

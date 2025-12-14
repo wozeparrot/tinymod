@@ -1,10 +1,10 @@
-__all__ = ('TrackEndEvent', 'TrackExceptionEvent', 'TrackStartEvent', 'TrackStuckEvent', 'PlayerWebsocketClosedEvent')
+__all__ = ('TrackEndEvent', 'TrackExceptionEvent', 'TrackStartEvent', 'TrackStuckEvent', 'PlayerWebSocketClosedEvent')
 
 import reprlib
 
 from scarletio import copy_docs
 
-from ...discord.bases.event_types import EventBase
+from ...discord.bases import EventBase
 
 from .constants import (
     LAVALINK_KEY_END_REASON, LAVALINK_KEY_EXCEPTION_REASON_DEPRECATED, LAVALINK_KEY_EXCEPTION_REASON_OBJECT,
@@ -35,7 +35,7 @@ class TrackStartEvent(EventBase):
         ----------
         player : ``SolarPlayerBase``
             The player associated with the event.
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Event payload.
         """
         track = player.get_current()
@@ -117,7 +117,7 @@ class TrackEndEvent(EventBase):
         ----------
         player : ``SolarPlayerBase``
             The player associated with the event.
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Event payload.
         """
         track = player.get_current()
@@ -225,7 +225,7 @@ class TrackStuckEvent(EventBase):
         ----------
         player : ``SolarPlayerBase``
             The player associated with the event.
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Event payload.
         """
         track = player.get_current()
@@ -331,7 +331,7 @@ class TrackExceptionEvent(EventBase):
         ----------
         player : ``SolarPlayerBase``
             The player associated with the event.
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Event payload.
         """
         try:
@@ -433,16 +433,16 @@ class TrackExceptionEvent(EventBase):
         return hash_value
 
 
-class PlayerWebsocketClosedEvent(EventBase):
+class PlayerWebSocketClosedEvent(EventBase):
     """
-    Represents an event when a player's websocket is disconnected from a guild.
+    Represents an event when a player's web socket is disconnected from a guild.
     
     It usually is not a lavalink issue, but an issue with the stream.
     
     Attributes
     ----------
     by_remote : `bool`
-        Whether the websocket was closed remotely.
+        Whether the web socket was closed remotely.
     code : `int`
         Websocket close code.
     player : ``SolarPlayerBase``
@@ -454,13 +454,13 @@ class PlayerWebsocketClosedEvent(EventBase):
     
     def __new__(cls, player, data):
         """
-        Creates a new ``PlayerWebsocketClosedEvent`` event from the given parameters.
+        Creates a new ``PlayerWebSocketClosedEvent`` event from the given parameters.
         
         Parameters
         ----------
         player : ``SolarPlayerBase``
             The player associated with the event.
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Event payload.
         """
         close_code = data[LAVALINK_KEY_WEBSOCKET_CLOSE_CODE]

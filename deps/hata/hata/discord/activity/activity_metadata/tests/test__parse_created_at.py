@@ -1,4 +1,4 @@
-from datetime import datetime as DateTime
+from datetime import datetime as DateTime, timezone as TimeZone
 
 import vampytest
 
@@ -8,7 +8,7 @@ from ..fields import parse_created_at
 
 
 def _iter_options():
-    created_at = DateTime(2016, 5, 14)
+    created_at = DateTime(2016, 5, 14, tzinfo = TimeZone.utc)
     
     yield {}, None
     yield {'created_at': None}, None
@@ -29,4 +29,6 @@ def test__parse_created_at(input_data):
     -------
     output : `None | DateTime`
     """
-    return parse_created_at(input_data)
+    output = parse_created_at(input_data)
+    vampytest.assert_instance(output, DateTime, nullable = True)
+    return output

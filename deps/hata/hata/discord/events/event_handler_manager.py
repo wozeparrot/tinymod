@@ -1,9 +1,8 @@
 __all__ = ()
 
-import warnings
 from functools import partial as partial_func
 
-from scarletio import CallableAnalyzer, RichAttributeErrorBaseType, Task, WeakReferer
+from scarletio import RichAttributeErrorBaseType, Task, WeakReferer
 
 from ..core import KOKORO
 
@@ -18,7 +17,6 @@ from .default_event_handlers import (
     default_voice_server_update_event_handler
 )
 from .event_handler_plugin import EventHandlerPlugin
-from .event_types import WebhookUpdateEvent
 from .handling_helpers import (
     ChunkWaiter, _iterate_event_handler, asynclist, check_name, check_parameter_count_and_convert
 )
@@ -42,6 +40,7 @@ EVENT_HANDLER_ATTRIBUTES = frozenset((
     '_launch_called',
     'client_reference',
     '_plugin_events',
+    '_plugin_events_deprecated',
     '_plugins',
 ))
 
@@ -89,9 +88,9 @@ def _get_event_deprecation_state(name):
     deprecation_level : `int`
     """
     # if name == 'stuff':
-    #    warnings.warn(
+    #    warn(
     #        (
-    #            '`Client.events.stuff` is deprecated and will be removed in 2022 jan.\n'
+    #            '`Client.events.stuff` is deprecated and will be removed in 2030 jan.\n'
     #            'Please use `Client.events.stiff(client, event)` instead.'
     #        ),
     #        FutureWarning,
@@ -151,83 +150,10 @@ def _wrap_maybe_deprecated_event(name, func):
     func : ``FunctionType``
         The wrapper or maybe not wrapped event handler.
     """
-    if name == 'webhook_update':
-        analyzer = CallableAnalyzer(func)
-        if analyzer.is_async():
-            real_analyzer = analyzer
-        else:
-            real_analyzer = CallableAnalyzer(func.__call__, as_method = True)
-        
-        for parameter in real_analyzer.parameters:
-            if 'channel' in parameter.name:
-                has_channel_parameter = True
-                break
-        else:
-            has_channel_parameter = False
-        
-        if has_channel_parameter:
-            warnings.warn(
-                (
-                    f'`Client.events.webhook_update`\'s `channel` parameter` is removed.\n'
-                    f'Please use `event` (type {WebhookUpdateEvent.__name__}) parameter instead.'
-                ),
-                FutureWarning,
-                stacklevel = 3,
-            )
-            
-            if analyzer is not real_analyzer:
-                func = func()
-            
-            async def webhook_update_event_handler_wrapper(client, event):
-                return await func(client, event.channel)
-            
-            return webhook_update_event_handler_wrapper
-    
-    elif name == 'guild_user_update':
-        analyzer = CallableAnalyzer(func)
-        if analyzer.is_async():
-            real_analyzer = analyzer
-        else:
-            real_analyzer = CallableAnalyzer(func.__call__, as_method = True)
-        
-        for index, parameter in enumerate(real_analyzer.parameters, 0):
-            if 'guild' in parameter.name:
-                guild_parameter_index = index
-                break
-        else:
-            guild_parameter_index = -1
-        
-        for index, parameter in enumerate(real_analyzer.parameters, 0):
-            if 'user' in parameter.name:
-                user_parameter_index = index
-                break
-        else:
-            user_parameter_index = -1
-        
-        if (
-            guild_parameter_index != -1 and user_parameter_index != -1 and
-            guild_parameter_index > user_parameter_index
-        ):
-            warnings.warn(
-                (
-                    f'`Client.events.guild_user_update`\'s `user` and `guild` parameters have been switched to match'
-                    f'other event handlers.\n'
-                    f'Please change your event handler definition to `client, guild, user, old_attributes`.'
-                ),
-                FutureWarning,
-                stacklevel = 3,
-            )
-            
-            if analyzer is not real_analyzer:
-                func = func()
-            
-            async def guild_user_update_event_handler_wrapper(client, guild, user, old_attributes):
-                return await func(client, guild, user, old_attributes)
-            
-            return guild_user_update_event_handler_wrapper
-    
-    
-    elif name == 'role_delete':
+    # Currently there are no deprecations for this.
+    # Here is 1 for future reference just in case:
+    """
+    if name == 'role_delete':
         analyzer = CallableAnalyzer(func)
         if analyzer.is_async():
             real_analyzer = analyzer
@@ -236,7 +162,7 @@ def _wrap_maybe_deprecated_event(name, func):
         
         min_, max_ = real_analyzer.get_non_reserved_positional_parameter_range()
         if (min_ == 3) and not analyzer.accepts_args():
-            warnings.warn(
+            warn(
                 (
                     f'`Client.events.role_delete`\'s `guild` parameter` is removed.\n'
                     f'Please just use `client, role` parameters instead.'
@@ -252,8 +178,54 @@ def _wrap_maybe_deprecated_event(name, func):
                 return await func(client, role, role.guild)
             
             return role_delete_event_handler_wrapper
-    
+    """
     return func
+
+
+def _check_duplicate_plugin_event_name(plugin, event_name, plugin_events, plugin_deprecated_events):
+    """
+    Checks whether there is a duplicated event name already registered.
+    
+    Parameters
+    ----------
+    plugin : ``EventHandlerPlugin``
+        The plugin we check an event name of.
+    
+    event_name : `str`
+        The event name being checked.
+    
+    plugin_events : `None | dict<str, EventHandlerPlugin>`
+        Already registered plugin events.
+    
+    plugin_deprecated_events : `None | dict<str, (EventHandlerPlugin, PluginDeprecation, str)>`
+        Already registered deprecated plugin events.
+    
+    Raises
+    ------
+    RuntimeError
+    """
+    while True:
+        if (plugin_events is not None):
+            try:
+                other_plugin = plugin_events[event_name]
+            except KeyError:
+                pass
+            else:
+                break
+        
+        if (plugin_deprecated_events is not None):
+            try:
+                other_plugin, deprecation = plugin_deprecated_events[event_name]
+            except KeyError:
+                pass
+            else:
+                break
+        
+        return
+    
+    raise RuntimeError(
+        f'`{event_name!r}` of `{plugin!r}` is already defined by: `{other_plugin!r}`.'
+    )
 
 
 class EventHandlerManager(RichAttributeErrorBaseType):
@@ -339,11 +311,17 @@ class EventHandlerManager(RichAttributeErrorBaseType):
     ----------
     _launch_called : `bool`
         Whether The respective client's `.events.launch` was called already.
-    _plugin_events : `None`, `dict` of (`str`, ``EventHandlerPlugin``) items
+    
+    _plugin_events : `None | dict<str | EventHandlerPlugin>`
         Event name to plugin relation.
-    _plugins : `None`, `set` of ``EventHandlerPlugin``
+    
+    _plugin_events_deprecated : `None | dict<str, (EventHandlerPlugin, EventDeprecation)>`
+        Event name to plugin relation used for deprecated events.
+    
+    _plugins : `None | set<EventHandlerPlugin>`
         Plugins added to the event handler.
-    client_reference : ``WeakReferer`` to ``Client``
+    
+    client_reference : `WeakReferer<Client>`
         Weak reference to the parent client to avoid reference loops.
     
     Additional Event Attributes
@@ -377,6 +355,8 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         | description               | `None`, `str`                                                     |
         +---------------------------+-------------------------------------------------------------------+
         | description_localizations | `None`, `dict` of (``Locale``, `str`) items                       |
+        +---------------------------+-------------------------------------------------------------------+
+        | handler_type              | ``ApplicationCommandHandlerType``                                 |
         +---------------------------+-------------------------------------------------------------------+
         | integration_context_types | `None`, `tuple` of ``ApplicationCommandIntegrationContextType``   |
         +---------------------------+-------------------------------------------------------------------+
@@ -429,9 +409,9 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-------------------------------+-----------------------------------------------------------+
         | event_type                    | ``AutoModerationEventType``                               |
         +-------------------------------+-----------------------------------------------------------+
-        | excluded_channel_ids          | `None`, `tuple` of `int`                                  |
+        | excluded_channel_ids          | `None | tuple<int>`                                       |
         +-------------------------------+-----------------------------------------------------------+
-        | excluded_role_ids             | `None`, `tuple` of `int`                                  |
+        | excluded_role_ids             | `None | tuple<int>`                                       |
         +-------------------------------+-----------------------------------------------------------+
         | name                          | `str`                                                     |
         +-------------------------------+-----------------------------------------------------------+
@@ -460,11 +440,11 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +---------------------------------------+-----------------------------------------------------------+
         | Keys                                  | Values                                                    |
         +=======================================+===========================================================+
-        | applied_tag_ids                       | `None`, `tuple` of `int`                                  |
+        | applied_tag_ids                       | `None | tuple<int>`                                       |
         +---------------------------------------+-----------------------------------------------------------+
         | archived                              | `bool`                                                    |
         +---------------------------------------+-----------------------------------------------------------+
-        | archived_at                           | `None`, `DateTime`                                        |
+        | archived_at                           | `None | DateTime`                                         |
         +---------------------------------------+-----------------------------------------------------------+
         | auto_archive_after                    | `int`                                                     |
         +---------------------------------------+-----------------------------------------------------------+
@@ -478,7 +458,7 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +---------------------------------------+-----------------------------------------------------------+
         | default_thread_auto_archive_after     | `int`                                                     |
         +---------------------------------------+-----------------------------------------------------------+
-        | default_thread_reaction_emoji         | `None`, ``Emoji``                                         |
+        | default_thread_reaction_emoji         | ``None | Emoji``                                          |
         +---------------------------------------+-----------------------------------------------------------+
         | default_thread_slowmode               | `int`                                                     |
         +---------------------------------------+-----------------------------------------------------------+
@@ -518,6 +498,8 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +---------------------------------------+-----------------------------------------------------------+
         | video_quality_mode                    | ``VideoQualityMode``                                      |
         +---------------------------------------+-----------------------------------------------------------+
+        | voice_engaged_since                   | `None | DateTime`                                         |
+        +---------------------------------------+-----------------------------------------------------------+
     
     channel_group_user_add(client: ``Client``, channel: ``Channel``, user: ``ClientUserBase``):
         Called when a user is added to a group channel.
@@ -539,13 +521,11 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +=======================+===============================+
         | avatar                | ``Icon``                      |
         +-----------------------+-------------------------------+
-        | avatar_decoration     | `None`, ``AvatarDecoration``  |
+        | avatar_decoration     | ``None | AvatarDecoration``   |
         +-----------------------+-------------------------------+
         | banner                | ``Icon``                      |
         +-----------------------+-------------------------------+
         | banner_color          | `None`, ``Color``             |
-        +-----------------------+-------------------------------+
-        | clan                  | `None`, ``UserClan``          |
         +-----------------------+-------------------------------+
         | discriminator         | `int`                         |
         +-----------------------+-------------------------------+
@@ -563,7 +543,11 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-----------------------+-------------------------------+
         | name                  | `str`                         |
         +-----------------------+-------------------------------+
+        | name_plate            | ``None | NamePlate``          |
+        +-----------------------+-------------------------------+
         | premium_type          | ``PremiumType``               |
+        +-----------------------+-------------------------------+
+        | primary_guild_badge   | `None`, ``GuildBadge``        |
         +-----------------------+-------------------------------+
     
     embed_update(client: ``Client``, message: ``Message``, change_state: `int`):
@@ -585,13 +569,13 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         
         At the case of `EMBED_UPDATE_NONE` the event is of course not called.
     
-    embedded_activity_create(client: ``Client``, embedded_activity_state: ``EmbeddedActivityState``)
+    embedded_activity_create(client: ``Client``, embedded_activity: ``EmbeddedActivity``)
         Called when an embedded activity is created.
     
-    embedded_activity_delete(client: ``Client``, embedded_activity_state: ``EmbeddedActivityState``)
+    embedded_activity_delete(client: ``Client``, embedded_activity: ``EmbeddedActivity``)
         Called when an embedded activity is deleted (all users left).
     
-    embedded_activity_update(client: ``Client``, embedded_activity_state: ``EmbeddedActivityState``,
+    embedded_activity_update(client: ``Client``, embedded_activity: ``EmbeddedActivity``,
             old_attributes: `None | dict`)
         Called when an embedded activity is updated. The passed `old_attributes` parameter contains the old states of
         the respective activity in `attribute-name` - `old-value` relation.
@@ -601,7 +585,9 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-------------------+-----------------------------------+
         | Keys              | Values                            |
         +===================+===================================+
-        | assets            | `None`, ``ActivityAssets``        |
+        | assets            | ``None | ActivityAssets``         |
+        +-------------------+-----------------------------------+
+        | buttons           | `None | tuple<str>`               |
         +-------------------+-----------------------------------+
         | created_at        | `DateTime`                        |
         +-------------------+-----------------------------------+
@@ -609,13 +595,15 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-------------------+-----------------------------------+
         | flags             | ``ActivityFlag``                  |
         +-------------------+-----------------------------------+
+        | hang_type         | ``HangType``                      |
+        +-------------------+-----------------------------------+
         | name              | `str`                             |
         +-------------------+-----------------------------------+
         | metadata          | ``ActivityMetadataBase``          |
         +-------------------+-----------------------------------+
-        | party             | `None`, ``ActivityParty``         |
+        | party             | ``None | ActivityParty``          |
         +-------------------+-----------------------------------+
-        | secrets           | `None`, ``ActivitySecrets``       |
+        | secrets           | ``None | ActivitySecrets``        |
         +-------------------+-----------------------------------+
         | session_id        | `None`, `str`                     |
         +-------------------+-----------------------------------+
@@ -623,16 +611,16 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-------------------+-----------------------------------+
         | sync_id           | `None`, `str`                     |
         +-------------------+-----------------------------------+
-        | timestamps        | `None`, `ActivityTimestamps``     |
+        | timestamps        | ``None | ActivityTimestamps``     |
         +-------------------+-----------------------------------+
         | url               | `None`, `str`                     |
         +-------------------+-----------------------------------+
         
-    embedded_activity_user_add(client: ``Client``, embedded_activity_state: ``EmbeddedActivityState``,
+    embedded_activity_user_add(client: ``Client``, embedded_activity: ``EmbeddedActivity``,
             user_id: `int`)
         Called when a user joins an embedded activity. It is not called for the person(s) creating the activity.
     
-    embedded_activity_user_delete(client: ``Client``, embedded_activity_state: ``EmbeddedActivityState``,
+    embedded_activity_user_delete(client: ``Client``, embedded_activity: ``EmbeddedActivity``,
             user_id: `int`)
         Called when a user leaves / is removed from an embedded activity.
     
@@ -663,7 +651,7 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-------------------+-------------------------------+
         | require_colons    | `bool`                        |
         +-------------------+-------------------------------+
-        | role_ids          | `None`, `tuple` of `int`      |
+        | role_ids          | `None | tuple<int>`           |
         +-------------------+-------------------------------+
     
     entitlement_create(client : ``Client``, entitlement: ``Entitlement``):
@@ -685,9 +673,9 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +---------------------------+-----------------------------------------------+
         | deleted                   | `bool`                                        |
         +---------------------------+-----------------------------------------------+
-        | ends_at                   | `None`, `DateTime`                            |
+        | ends_at                   | `None | DateTime`                             |
         +---------------------------+-----------------------------------------------+
-        | starts_at                 | `None`, `DateTime`                            |
+        | starts_at                 | `None | DateTime`                             |
         +---------------------------+-----------------------------------------------+
     
     error(client: ``Client``, name: `str`, err: `object`):
@@ -735,6 +723,8 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +---------------------------------------+---------------------------------------+
         | boost_count                           | `int`                                 |
         +---------------------------------------+---------------------------------------+
+        | boost_level                           | `int`                                 |
+        +---------------------------------------+---------------------------------------+
         | boost_progress_bar_enabled            | `bool`                                |
         +---------------------------------------+---------------------------------------+
         | explicit_content_filter_level         | ``ExplicitContentFilterLevel``        |
@@ -746,6 +736,8 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         | discovery_splash                      | ``Icon``                              |
         +---------------------------------------+---------------------------------------+
         | features                              | `None`, `tuple` of ``GuildFeature``   |
+        +---------------------------------------+---------------------------------------+
+        | home_splash                           | ``Icon``                              |
         +---------------------------------------+---------------------------------------+
         | hub_type                              | ``HubType``                           |
         +---------------------------------------+---------------------------------------+
@@ -774,8 +766,6 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         | owner_id                              | `int`                                 |
         +---------------------------------------+---------------------------------------+
         | locale                                | ``Locale``                            |
-        +---------------------------------------+---------------------------------------+
-        | premium_tier                          | `int`                                 |
         +---------------------------------------+---------------------------------------+
         | public_updates_channel_id             | `int`                                 |
         +---------------------------------------+---------------------------------------+
@@ -816,7 +806,7 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         The event has a default handler called ``ChunkWaiter``.
     
     guild_user_delete(client: ``Client``, guild: ``Guild``, user: ``ClientUserBase``, \
-            profile: ``GuildProfile``):
+            guild_profile: `None` | ``GuildProfile``):
         Called when a user left (kicked or banned counts as well) from a guild. The `profile` parameter is the user's
         respective guild profile for the guild.
     
@@ -831,7 +821,11 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +===================+===============================+
         | avatar            | ``Icon``                      |
         +-------------------+-------------------------------+
-        | boosts_since      | `None`, `DateTime`            |
+        | avatar_decoration | ``None | AvatarDecoration``   |
+        +-------------------+-------------------------------+
+        | banner            | ``Icon``                      |
+        +-------------------+-------------------------------+
+        | boosts_since      | `None | DateTime`             |
         +-------------------+-------------------------------+
         | flags             | `None`, ``GuildProfileFlags`` |
         +-------------------+-------------------------------+
@@ -839,10 +833,16 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-------------------+-------------------------------+
         | pending           | `bool`                        |
         +-------------------+-------------------------------+
-        | role_ids          | `None`, `tuple` of `int`      |
+        | role_ids          | `None | tuple<int>`           |
         +-------------------+-------------------------------+
-        | timed_out_until   | `None`, `DateTime`            |
+        | timed_out_until   | `None | DateTime`             |
         +-------------------+-------------------------------+
+    
+    guild_enhancement_entitlements_create(client : ``Client``, event : ``GuildEnhancementEntitlementsCreateEvent``):
+        Called when enhancement entitlements are created for a guild.
+    
+    guild_enhancement_entitlements_delete(client : ``Client``, event : ``GuildEnhancementEntitlementsDeleteEvent``):
+        Called when enhancement entitlements are deleted for a guild.
     
     integration_create(client: ``Client``, guild: ``Guild``, integration: ``Integration``):
         Called when an integration is created inside of a guild. Includes cases when bots are added to the guild as
@@ -893,21 +893,21 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-----------------------------------+-----------------------------------------------------------------------+
         | call                              | `None`, ``MessageCall``                                               |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | components                        | `None`, `tuple` of ``Component``                                      |
+        | components                        | ``None | tuple<Component>``                                           |
         +-----------------------------------+-----------------------------------------------------------------------+
         | content                           | `None`, `str`                                                         |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | edited_at                         | `None`, `datetime`                                                    |
+        | edited_at                         | `None | DateTime`                                                     |
         +-----------------------------------+-----------------------------------------------------------------------+
         | embeds                            | `None`, `tuple` of ``Embed``                                          |
         +-----------------------------------+-----------------------------------------------------------------------+
         | flags                             | ``MessageFlag``                                                       |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | mentioned_channels_cross_guild    | `None`, `tuple` of ``Channel``                                        |
+        | mentioned_channels_cross_guild    | ``None | tuple<Channel>``                                             |
         +-----------------------------------+-----------------------------------------------------------------------+
         | mentioned_everyone                | `bool`                                                                |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | mentioned_role_ids                | `None`, `tuple` of `int`                                              |
+        | mentioned_role_ids                | `None | tuple<int>`                                                   |
         +-----------------------------------+-----------------------------------------------------------------------+
         | mentioned_users                   | `None`, `tuple` of ``ClientUserBase``                                 |
         +-----------------------------------+-----------------------------------------------------------------------+
@@ -915,7 +915,7 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-----------------------------------+-----------------------------------------------------------------------+
         | poll                              | ``PollChange``                                                        |
         +-----------------------------------+-----------------------------------------------------------------------+
-        | resolved                          | `None`, ``Resolved``                                                  |
+        | resolved                          | ``None | Resolved``                                                   |
         +-----------------------------------+-----------------------------------------------------------------------+
         
         A special case is if a message is (un)pinned or (un)suppressed, because then the `old_attributes` parameter is
@@ -972,29 +972,29 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         
         Every item in `old_attributes` is optional and they can be any of the following:
         
-        +---------------+-----------------------+
-        | Keys          | Values                |
-        +===============+=======================+
-        | color         | ``Color``             |
-        +---------------+-----------------------+
-        | icon          | ``Icon``              |
-        +---------------+-----------------------+
-        | flags         | ``RoleFlag``          |
-        +---------------+-----------------------+
-        | managed       | `bool`                |
-        +---------------+-----------------------+
-        | mentionable   | `bool`                |
-        +---------------+-----------------------+
-        | name          | `str`                 |
-        +---------------+-----------------------+
-        | permissions   | ``Permission``        |
-        +---------------+-----------------------+
-        | position      | `int`                 |
-        +---------------+-----------------------+
-        | separated     | `bool`                |
-        +---------------+-----------------------+
-        | unicode_emoji | `None`, ``Emoji``     |
-        +---------------+-----------------------+
+        +-----------------------+---------------------------+
+        | Keys                  | Values                    |
+        +=======================+===========================+
+        | color                 | ``Color``                 |
+        +-----------------------+---------------------------+
+        | color_configuration   | ``ColorConfiguration``    |
+        +-----------------------+---------------------------+
+        | flags                 | ``RoleFlag``              |
+        +-----------------------+---------------------------+
+        | icon                  | ``Icon``                  |
+        +-----------------------+---------------------------+
+        | mentionable           | `bool`                    |
+        +-----------------------+---------------------------+
+        | name                  | `str`                     |
+        +-----------------------+---------------------------+
+        | permissions           | ``Permission``            |
+        +-----------------------+---------------------------+
+        | position              | `int`                     |
+        +-----------------------+---------------------------+
+        | separated             | `bool`                    |
+        +-----------------------+---------------------------+
+        | unicode_emoji         | ``None | Emoji``          |
+        +-----------------------+---------------------------+
     
     scheduled_event_create(client: ``Client``, scheduled_event: ``ScheduledEvent``):
         Called when a scheduled event is created.
@@ -1017,7 +1017,7 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +---------------------------+-----------------------------------------------+
         | description               | `None`, `str`                                 |
         +---------------------------+-----------------------------------------------+
-        | end                       | `None`, `DateTime`                            |
+        | end                       | `None | DateTime`                             |
         +---------------------------+-----------------------------------------------+
         | entity_id                 | `int`                                         |
         +---------------------------+-----------------------------------------------+
@@ -1031,9 +1031,11 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +---------------------------+-----------------------------------------------+
         | privacy_level             | ``PrivacyLevel``                              |
         +---------------------------+-----------------------------------------------+
-        | sku_ids                   | `None`, `tuple` of `int`                      |
+        | schedule                  | ``None | Schedule``                           |
         +---------------------------+-----------------------------------------------+
-        | start                     | `None`, `DateTime`                            |
+        | sku_ids                   | `None | tuple<int>`                           |
+        +---------------------------+-----------------------------------------------+
+        | start                     | `None | DateTime`                             |
         +---------------------------+-----------------------------------------------+
         | status                    | ``ScheduledEventStatus``                      |
         +---------------------------+-----------------------------------------------+
@@ -1043,6 +1045,31 @@ class EventHandlerManager(RichAttributeErrorBaseType):
     
     scheduled_event_user_unsubscribe(client: ``Client``, event: ``ScheduledEventUnsubscribeEvent``):
         Called when a user unsubscribes from a scheduled event.
+    
+    scheduled_event_occasion_overwrite_create(client: ``Client``, event: ``ScheduledEventOccasionOverwriteCreateEvent``):
+        Called when a singular occasion of a reoccurring scheduled event is overwritten.
+    
+    scheduled_event_occasion_overwrite_update(client: ``Client``, event: ``ScheduledEventOccasionOverwriteCreateEvent``,
+            old_attributes : `None | dict`):
+        Called when a singular occasion of a reoccurring scheduled event's overwrite is updated.
+        
+        If the scheduled event occasion overwrite is cached, `old_attributes` will be a dictionary including the
+        changed attributes in `attribute-name` - `old-value` relation.
+        
+        Every item in `old_attributes` is optional any can be any of the following:
+        
+        +---------------------------+-----------------------------------------------+
+        | Key                       | Value                                         |
+        +===========================+===============================================+
+        | cancelled                 | `bool`                                        |
+        +===========================+===============================================+
+        | end                       | `None | DateTime`                             |
+        +---------------------------+-----------------------------------------------+
+        | start                     | `None | DateTime`                             |
+        +---------------------------+-----------------------------------------------+
+    
+    scheduled_event_occasion_overwrite_delete(client: ``Client``, event: ``ScheduledEventOccasionOverwriteDeleteEvent``):
+        Called when a singular occasion of a reoccurring scheduled event is not overwritten anymore.
     
     shutdown(client : ``Client``):
         Called when ``Client.stop``, ``Client.disconnect`` is called indicating, that the client is logging off and
@@ -1067,7 +1094,7 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +===========+===================+
         | available | `bool`            |
         +-----------+-------------------+
-        | emoji     | `None`, ``Emoji`` |
+        | emoji     | ``None | Emoji``  |
         +-----------+-------------------+
         | name      | `str`             |
         +-----------+-------------------+
@@ -1131,6 +1158,37 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         | tags                  | `None`  or `frozenset` of `str`   |
         +-----------------------+-----------------------------------+
     
+    
+    subscription_create(client : ``Client``, subscription: ``Subscription``):
+        Called when subscription is created.
+    
+    subscription_delete(client: ``Client``, subscription: ``Subscription``)
+        Called when an subscription is deleted.
+    
+    subscription_update(client: ``Client``, subscription: ``Subscription``, old_attributes: `None | dict`)
+        Called when an subscription is updated. The passed `old_attributes` parameter contains the emoji's overwritten
+        attributes in `attribute-name` - `old-value` relation.
+        
+        Every item in `old_attributes` is optional and it's items can be any of the following:
+        
+        +---------------------------+-----------------------------------------------+
+        | Key                       | Value                                         |
+        +===========================+===============================================+
+        | cancelled_at              | `None | DateTime`                             |
+        +---------------------------+-----------------------------------------------+
+        | country_code              | `None`, `str`                                 |
+        +---------------------------+-----------------------------------------------+
+        | current_period_end        | `None | DateTime`                             |
+        +---------------------------+-----------------------------------------------+
+        | current_period_start      | `None | DateTime`                             |
+        +---------------------------+-----------------------------------------------+
+        | renewal_sku_ids           | `None | tuple<int>`                           |
+        +---------------------------+-----------------------------------------------+
+        | sku_ids                   | `None | tuple<int>`                           |
+        +---------------------------+-----------------------------------------------+
+        | status                    | ``SubscriptionStatus``                        |
+        +---------------------------+-----------------------------------------------+
+    
     thread_user_add(client : ``Client``, thread_channel: ``Channel``, user: ``ClientUserBase``):
         Called when a user is added or joined a thread channel.
     
@@ -1172,13 +1230,11 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +=======================+===============================+
         | avatar                | ``Icon``                      |
         +-----------------------+-------------------------------+
-        | avatar_decoration     | `None`, ``AvatarDecoration``  |
+        | avatar_decoration     | ``None | AvatarDecoration``   |
         +-----------------------+-------------------------------+
         | banner                | ``Icon``                      |
         +-----------------------+-------------------------------+
         | banner_color          | `None`, ``Color``             |
-        +-----------------------+-------------------------------+
-        | clan                  | `None`, ``UserClan``          |
         +-----------------------+-------------------------------+
         | discriminator         | `int`                         |
         +-----------------------+-------------------------------+
@@ -1196,7 +1252,11 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-----------------------+-------------------------------+
         | name                  | `str`                         |
         +-----------------------+-------------------------------+
+        | name_plate            | ``None | NamePlate``          |
+        +-----------------------+-------------------------------+
         | premium_type          | ``PremiumType``               |
+        +-----------------------+-------------------------------+
+        | primary_guild_badge   | `None`, ``GuildBadge``        |
         +-----------------------+-------------------------------+
     
     user_presence_update(client: ``Client``, user: ``ClientUserBase``, old_attributes: `None | dict`):
@@ -1206,15 +1266,15 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         `attribute-name` - `old-value` relation. An exception from this is `activities`, because that is a
         ``ActivityChange`` containing all the changes of the user's activities.
         
-        +---------------+-----------------------------------+
-        | Keys          | Values                            |
-        +===============+===================================+
-        | activities    | ``ActivityChange``                |
-        +---------------+-----------------------------------+
-        | status        | ``Status``                        |
-        +---------------+-----------------------------------+
-        | statuses      | `dict` of (`str`, `str`) items    |
-        +---------------+-----------------------------------+
+        +-----------------------+-----------------------------------+
+        | Keys                  | Values                            |
+        +=======================+===================================+
+        | activities            | ``ActivityChange``                |
+        +-----------------------+-----------------------------------+
+        | status                | ``Status``                        |
+        +-----------------------+-----------------------------------+
+        | status_by_platform    | ``None | StatusByPlatform``       |
+        +-----------------------+-----------------------------------+
     
     user_voice_join(client: ``Client``, voice_state: ``VoiceState``)
         Called when a user joins a voice channel.
@@ -1237,7 +1297,7 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-----------------------+-----------------------+
         | mute                  | `bool`                |
         +-----------------------+-----------------------+
-        | requested_to_speak_at | `None`, `DateTime`    |
+        | requested_to_speak_at | `None | DateTime`     |
         +-----------------------+-----------------------+
         | self_deaf             | `bool`                |
         +-----------------------+-----------------------+
@@ -1252,6 +1312,8 @@ class EventHandlerManager(RichAttributeErrorBaseType):
     
     voice_channel_effect(client : ``Client``, event : ``VoiceChannelEffect``)
         Called when a user invokes (or sends) a voice channel effect.
+        
+        > This also includes soundboard sounds as well. The other event is likely to not be working anymore.
     
     voice_client_join(client : ``Client``, voice_state : ``VoiceState``)
         Called when the client join a voice channel.
@@ -1310,7 +1372,7 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         +-----------------------+-----------------------+
         | mute                  | `bool`                |
         +-----------------------+-----------------------+
-        | requested_to_speak_at | `None`, `DateTime`    |
+        | requested_to_speak_at | `None | DateTime`     |
         +-----------------------+-----------------------+
         | self_deaf             | `bool`                |
         +-----------------------+-----------------------+
@@ -1355,6 +1417,7 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         object.__setattr__(self, 'client_reference', client_reference)
         object.__setattr__(self, '_plugins', None)
         object.__setattr__(self, '_plugin_events', None)
+        object.__setattr__(self, '_plugin_events_deprecated', None)
         
         for name in EVENT_HANDLER_NAME_TO_PARSER_NAMES:
             object.__setattr__(self, name, DEFAULT_EVENT_HANDLER)
@@ -1651,6 +1714,16 @@ class EventHandlerManager(RichAttributeErrorBaseType):
             else:
                 return getattr(event_handler_plugin, name)
         
+        plugin_events_deprecated = self._plugin_events_deprecated
+        if (plugin_events_deprecated is not None):
+            try:
+                event_handler_plugin, deprecation = plugin_events_deprecated[name]
+            except KeyError:
+                pass
+            else:
+                deprecation.trigger(name, 2)
+                return getattr(event_handler_plugin, name)
+        
         RichAttributeErrorBaseType.__getattr__(self, name)
     
     
@@ -1662,7 +1735,9 @@ class EventHandlerManager(RichAttributeErrorBaseType):
             directory = set(directory)
             
             for plugin in plugins:
-                directory.update(plugin._plugin_event_names)
+                plugin_event_names = plugin._plugin_event_names
+                if (plugin_event_names is not None):
+                    directory.update(plugin_event_names)
             
             directory = sorted(directory)
         
@@ -1682,7 +1757,7 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         
         Returns
         -------
-        event_handler : `None`, `object`
+        event_handler : `None | object`
             The matched event handler if any.
         """
         plugin = get_plugin_event_handler(self, name)
@@ -1795,12 +1870,12 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        plugin : ``EventHandlerPlugin``
+        plugin : `EventHandlerPlugin | type<EventHandlerPlugin>`
             The plugin to add.
         
         Returns
         -------
-        plugin : ``EventHandlerPlugin``, `type<EventHandlerPlugin>`
+        plugin : ``EventHandlerPlugin``
             The added plugin.
         
         Raises
@@ -1819,34 +1894,45 @@ class EventHandlerManager(RichAttributeErrorBaseType):
         
         else:
             raise TypeError(
-                f'`plugin` can be `{EventHandlerPlugin.__name__}`, got {plugin.__class__.__name__}; {plugin!r}.'
+                f'`plugin` can be `{EventHandlerPlugin.__name__}`, got {type(plugin).__name__}; {plugin!r}.'
             )
+        
+        plugin_events = self._plugin_events
+        plugin_events_deprecated = self._plugin_events_deprecated
+        
+        event_names = plugin._plugin_event_names
+        deprecated_events = plugin._plugin_event_deprecations
+        
+        # precheck
+        if (event_names is not None):
+            for event_name in event_names:
+                _check_duplicate_plugin_event_name(plugin, event_name, plugin_events, plugin_events_deprecated)
+        
+        if (deprecated_events is not None):
+            for event_name, deprecation in deprecated_events:
+                _check_duplicate_plugin_event_name(plugin, event_name, plugin_events, plugin_events_deprecated)
+        
+        # assign
+        if (event_names is not None):
+            if (plugin_events is None):
+                plugin_events = {}
+                object.__setattr__(self, '_plugin_events', plugin_events)
+            
+            for event_name in event_names:
+                plugin_events[event_name] = plugin
+        
+        if (deprecated_events is not None):
+            if (plugin_events_deprecated is None):
+                plugin_events_deprecated = {}
+                object.__setattr__(self, '_plugin_events_deprecated', plugin_events_deprecated)
+            
+            for event_name, deprecation in deprecated_events:
+                plugin_events_deprecated[event_name] = (plugin, deprecation)
         
         plugins = self._plugins
         if plugins is None:
             plugins = set()
             object.__setattr__(self, '_plugins', plugins)
-        
-        plugin_events = self._plugin_events
-        event_names = plugin._plugin_event_names
-        
-        if (plugin_events is None):
-            plugin_events = {}
-            object.__setattr__(self, '_plugin_events', plugin_events)
-            
-        else:
-            for event_name in event_names:
-                try:
-                    other_plugin = plugin_events[event_name]
-                except KeyError:
-                    pass
-                else:
-                    raise RuntimeError(
-                        f'`{event_name!r}` of `{plugin!r}` is already defined by: `{other_plugin!r}`.'
-                    )
-        
-        for event_name in event_names:
-            plugin_events[event_name] = plugin
         
         plugins.add(plugin)
         

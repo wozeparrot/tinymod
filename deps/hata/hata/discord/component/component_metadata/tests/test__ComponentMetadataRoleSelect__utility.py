@@ -1,5 +1,7 @@
 import vampytest
 
+from ....guild import Guild
+
 from ...entity_select_default_value import EntitySelectDefaultValue, EntitySelectDefaultValueType
 
 from ..role_select import ComponentMetadataRoleSelect
@@ -7,24 +9,57 @@ from ..role_select import ComponentMetadataRoleSelect
 from .test__ComponentMetadataRoleSelect__constructor import _assert_fields_set
 
 
+def test__ComponentMetadataRoleSelect__clean_copy():
+    """
+    Tests whether ``ComponentMetadataRoleSelect.clean_copy`` works as intended.
+    """
+    guild_id = 202505030023
+    guild = Guild.precreate(guild_id)
+    
+    custom_id = 'oriental'
+    default_values = [EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 20250503004)]
+    enabled = False
+    max_values = 10
+    min_values = 9
+    placeholder = 'swing'
+    required = True
+    
+    component_metadata = ComponentMetadataRoleSelect(
+        custom_id = custom_id,
+        default_values = default_values,
+        enabled = enabled,
+        max_values = max_values,
+        min_values = min_values,
+        placeholder = placeholder,
+        required = required,
+    )
+    copy = component_metadata.clean_copy(guild)
+    
+    _assert_fields_set(copy)
+    vampytest.assert_is_not(copy, component_metadata)
+    vampytest.assert_eq(copy, component_metadata)
+
+
 def test__ComponentMetadataRoleSelect__copy():
     """
     Tests whether ``ComponentMetadataRoleSelect.copy`` works as intended.
     """
     custom_id = 'oriental'
+    default_values = [EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140041)]
     enabled = False
     max_values = 10
     min_values = 9
     placeholder = 'swing'
-    default_values = [EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140041)]
+    required = True
     
     component_metadata = ComponentMetadataRoleSelect(
         custom_id = custom_id,
+        default_values = default_values,
         enabled = enabled,
         max_values = max_values,
         min_values = min_values,
         placeholder = placeholder,
-        default_values = default_values,
+        required = required,
     )
     copy = component_metadata.copy()
     
@@ -40,30 +75,27 @@ def test__ComponentMetadataRoleSelect__copy_with__no_fields():
     Case: No fields.
     """
     custom_id = 'oriental'
+    default_values = [EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140042)]
     enabled = False
     max_values = 10
     min_values = 9
     placeholder = 'swing'
-    default_values = [EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140042)]
+    required = True
     
     component_metadata = ComponentMetadataRoleSelect(
         custom_id = custom_id,
+        default_values = default_values,
         enabled = enabled,
         max_values = max_values,
         min_values = min_values,
         placeholder = placeholder,
-        default_values = default_values,
+        required = required,
     )
     copy = component_metadata.copy_with()
     
     _assert_fields_set(copy)
-    vampytest.assert_is_not(component_metadata, copy)
-    vampytest.assert_eq(copy.custom_id, custom_id)
-    vampytest.assert_eq(copy.enabled, enabled)
-    vampytest.assert_eq(copy.max_values, max_values)
-    vampytest.assert_eq(copy.min_values, min_values)
-    vampytest.assert_eq(copy.placeholder, placeholder)
-    vampytest.assert_eq(component_metadata, copy)
+    vampytest.assert_is_not(copy, component_metadata)
+    vampytest.assert_eq(copy, component_metadata)
 
 
 def test__ComponentMetadataRoleSelect__copy_with__all_fields():
@@ -73,49 +105,54 @@ def test__ComponentMetadataRoleSelect__copy_with__all_fields():
     Case: All fields.
     """
     old_custom_id = 'oriental'
+    old_default_values = [
+        EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140043),
+    ]
     old_enabled = False
     old_max_values = 10
     old_min_values = 9
     old_placeholder = 'swing'
-    old_default_values = [
-        EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140043),
-    ]
+    old_required = True
     
     new_custom_id = 'uta'
-    new_enabled = True
-    new_max_values = 11
-    new_min_values = 8
-    new_placeholder = 'kotoba'
     new_default_values = [
         EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140044),
         EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140045),
     ]
+    new_enabled = True
+    new_max_values = 11
+    new_min_values = 8
+    new_placeholder = 'kotoba'
+    new_required = False
     
     component_metadata = ComponentMetadataRoleSelect(
         custom_id = old_custom_id,
+        default_values = old_default_values,
         enabled = old_enabled,
         max_values = old_max_values,
         min_values = old_min_values,
         placeholder = old_placeholder,
-        default_values = old_default_values,
+        required = old_required,
     )
     copy = component_metadata.copy_with(
         custom_id = new_custom_id,
+        default_values = new_default_values,
         enabled = new_enabled,
         max_values = new_max_values,
         min_values = new_min_values,
         placeholder = new_placeholder,
-        default_values = new_default_values,
+        required = new_required,
     )
     
     _assert_fields_set(copy)
     vampytest.assert_is_not(component_metadata, copy)
     vampytest.assert_eq(copy.custom_id, new_custom_id)
+    vampytest.assert_eq(copy.default_values, tuple(new_default_values))
     vampytest.assert_eq(copy.enabled, new_enabled)
     vampytest.assert_eq(copy.max_values, new_max_values)
     vampytest.assert_eq(copy.min_values, new_min_values)
     vampytest.assert_eq(copy.placeholder, new_placeholder)
-    vampytest.assert_eq(copy.default_values, tuple(new_default_values))
+    vampytest.assert_eq(copy.required, new_required)
 
 
 def test__ComponentMetadataRoleSelect__copy_with_keyword_parameters__no_fields():
@@ -125,25 +162,27 @@ def test__ComponentMetadataRoleSelect__copy_with_keyword_parameters__no_fields()
     Case: No fields.
     """
     custom_id = 'oriental'
+    default_values = [EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140046)]
     enabled = False
     max_values = 10
     min_values = 9
     placeholder = 'swing'
-    default_values = [EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140046)]
+    required = True
     
     component_metadata = ComponentMetadataRoleSelect(
         custom_id = custom_id,
+        default_values = default_values,
         enabled = enabled,
         max_values = max_values,
         min_values = min_values,
         placeholder = placeholder,
-        default_values = default_values,
+        required = required,
     )
     copy = component_metadata.copy_with_keyword_parameters({})
     
     _assert_fields_set(copy)
-    vampytest.assert_is_not(component_metadata, copy)
-    vampytest.assert_eq(component_metadata, copy)
+    vampytest.assert_is_not(copy, component_metadata)
+    vampytest.assert_eq(copy, component_metadata)
 
 
 def test__ComponentMetadataRoleSelect__copy_with_keyword_parameters__all_fields():
@@ -153,46 +192,102 @@ def test__ComponentMetadataRoleSelect__copy_with_keyword_parameters__all_fields(
     Case: All fields.
     """
     old_custom_id = 'oriental'
+    old_default_values = [
+        EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140047),
+    ]
     old_enabled = False
     old_max_values = 10
     old_min_values = 9
     old_placeholder = 'swing'
-    old_default_values = [
-        EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140047),
-    ]
+    old_required = True
     
     new_custom_id = 'uta'
-    new_enabled = True
-    new_max_values = 11
-    new_min_values = 8
-    new_placeholder = 'kotoba'
     new_default_values = [
         EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140048),
         EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202310140049),
     ]
+    new_enabled = True
+    new_max_values = 11
+    new_min_values = 8
+    new_placeholder = 'kotoba'
+    new_required = False
     
     component_metadata = ComponentMetadataRoleSelect(
         custom_id = old_custom_id,
+        default_values = old_default_values,
         enabled = old_enabled,
         max_values = old_max_values,
         min_values = old_min_values,
         placeholder = old_placeholder,
-        default_values = old_default_values,
+        required = old_required,
     )
     copy = component_metadata.copy_with_keyword_parameters({
         'custom_id': new_custom_id,
+        'default_values': new_default_values,
         'enabled': new_enabled,
         'max_values': new_max_values,
         'min_values': new_min_values,
         'placeholder': new_placeholder,
-        'default_values': new_default_values,
+        'required': new_required,
     })
     
     _assert_fields_set(copy)
     vampytest.assert_is_not(component_metadata, copy)
     vampytest.assert_eq(copy.custom_id, new_custom_id)
+    vampytest.assert_eq(copy.default_values, tuple(new_default_values))
     vampytest.assert_eq(copy.enabled, new_enabled)
     vampytest.assert_eq(copy.max_values, new_max_values)
     vampytest.assert_eq(copy.min_values, new_min_values)
     vampytest.assert_eq(copy.placeholder, new_placeholder)
-    vampytest.assert_eq(copy.default_values, tuple(new_default_values))
+    vampytest.assert_eq(copy.required, new_required)
+
+
+def _iter_options__iter_contents():
+    custom_id = 'oriental'
+    default_values = [EntitySelectDefaultValue(EntitySelectDefaultValueType.role, 202505030003)]
+    enabled = False
+    max_values = 10
+    min_values = 9
+    placeholder = 'swing'
+    required = True
+    
+    yield (
+        {},
+        [],
+    )
+    
+    yield (
+        {
+            'custom_id': custom_id,
+            'default_values': default_values,
+            'enabled': enabled,
+            'max_values': max_values,
+            'min_values': min_values,
+            'placeholder': placeholder,
+            'required': required,
+        },
+        [],
+    )
+
+
+@vampytest._(vampytest.call_from(_iter_options__iter_contents()).returning_last())
+def test__ComponentMetadataRoleSelect__iter_contents(keyword_parameters):
+    """
+    Tests whether ``ComponentMetadataRoleSelect.iter_contents`` works as intended.
+    
+    Parameters
+    ----------
+    keyword_parameters : `dict<str, object>`
+        Keyword parameters to create instance with.
+    
+    Returns
+    -------
+    output : `list<str>`
+    """
+    component_metadata = ComponentMetadataRoleSelect(**keyword_parameters)
+    output = [*component_metadata.iter_contents()]
+    
+    for element in output:
+        vampytest.assert_instance(element, str)
+    
+    return output

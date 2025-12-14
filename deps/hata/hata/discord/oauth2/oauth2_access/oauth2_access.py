@@ -1,13 +1,13 @@
 __all__ = ('Oauth2Access', )
 
-from datetime import datetime as DateTime, timedelta as TimeDelta
+from datetime import datetime as DateTime, timedelta as TimeDelta, timezone as TimeZone
 from time import time as time_now
 
 from scarletio import RichAttributeErrorBaseType
 
 from .fields import (
-    parse_access_token, parse_expires_after, parse_refresh_token, parse_scopes, put_access_token_into,
-    put_expires_after_into, put_refresh_token_into, put_scopes_into, validate_access_token, validate_created_at,
+    parse_access_token, parse_expires_after, parse_refresh_token, parse_scopes, put_access_token,
+    put_expires_after, put_refresh_token, put_scopes, validate_access_token, validate_created_at,
     validate_expires_after, validate_redirect_url, validate_refresh_token, validate_scopes
 )
 from .preinstanced import Oauth2Scope
@@ -94,7 +94,7 @@ class Oauth2Access(RichAttributeErrorBaseType):
         
         # created_at
         if created_at is ...:
-            created_at = DateTime.utcnow()
+            created_at = DateTime.now(TimeZone.utc)
         else:
             created_at = validate_created_at(created_at)
         
@@ -140,7 +140,7 @@ class Oauth2Access(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
             Received access data.
         redirect_url : `str`
             The redirect url with what the user granted the authorization code for the oauth2 scopes for the
@@ -152,7 +152,7 @@ class Oauth2Access(RichAttributeErrorBaseType):
         """
         self = object.__new__(cls)
         self.access_token = parse_access_token(data)
-        self.created_at = DateTime.utcnow()
+        self.created_at = DateTime.now(TimeZone.utc)
         self.expires_after = parse_expires_after(data)
         self.redirect_url = redirect_url
         self.refresh_token = parse_refresh_token(data)
@@ -172,13 +172,13 @@ class Oauth2Access(RichAttributeErrorBaseType):
         
         Returns
         -------
-        data : `dict` of (`str`, `object`) items
+        data : `dict<str, object>`
         """
         data = {}
-        put_access_token_into(self.access_token, data, defaults)
-        put_expires_after_into(self.expires_after, data, defaults)
-        put_refresh_token_into(self.refresh_token, data, defaults)
-        put_scopes_into(self.scopes, data, defaults)
+        put_access_token(self.access_token, data, defaults)
+        put_expires_after(self.expires_after, data, defaults)
+        put_refresh_token(self.refresh_token, data, defaults)
+        put_scopes(self.scopes, data, defaults)
         return data
     
     
@@ -302,10 +302,10 @@ class Oauth2Access(RichAttributeErrorBaseType):
         
         Parameters
         ----------
-        data : `None` or (`dict` of (`str`, `object`))
+        data : `None | dict<str, object>`
             Requested access data.
         """
-        self.created_at = DateTime.utcnow()
+        self.created_at = DateTime.now(TimeZone.utc)
         if data is None:
             return
         
@@ -430,11 +430,11 @@ class Oauth2Access(RichAttributeErrorBaseType):
             pass
         
         elif isinstance(scope, str):
-            scope = Oauth2Scope.get(scope)
+            scope = Oauth2Scope(scope)
         
         else:
             raise TypeError(
-                f'`scope` can be `str`, `{Oauth2Scope.__name__}`, got {scope.__class__.__name__}; {scope!r}.'
+                f'`scope` can be `str`, `{Oauth2Scope.__name__}`, got {type(scope).__name__}; {scope!r}.'
             )
         
         scopes = self.scopes
