@@ -19,7 +19,6 @@ CHANNEL = Channel.precreate(os.getenv("CC_CHANNEL_ID", 1215699423527698483))
 POST_TIME = {
   "weekday": 5,
   "hour": 8,
-  "minute": 0,
 }
 LAST_POST_DATE = None
 
@@ -82,8 +81,7 @@ async def post_commit_table_on_time():
 
   is_scheduled_time = (
     now.weekday() == POST_TIME["weekday"] and
-    now.hour == POST_TIME["hour"] and
-    now.minute == POST_TIME["minute"]
+    now.hour == POST_TIME["hour"]
   )
 
   if is_scheduled_time and LAST_POST_DATE != now.date():
@@ -92,4 +90,4 @@ async def post_commit_table_on_time():
 
     content = await get_commit_table()
 
-    TinyMod.message_create(CHANNEL, content=content)
+    await TinyMod.message_create(CHANNEL, content=content)
