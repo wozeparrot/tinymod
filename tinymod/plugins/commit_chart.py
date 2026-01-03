@@ -87,6 +87,7 @@ async def post_commit_table_on_time():
   )
 
   if is_scheduled_time and LAST_POST_DATE != now.date():
+    logging.info("Posting weekly commit table...")
     LAST_POST_DATE = now.date()
 
     content = await get_commit_table()
