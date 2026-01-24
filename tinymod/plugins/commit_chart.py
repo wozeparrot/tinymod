@@ -17,7 +17,7 @@ CHANNEL = Channel.precreate(os.getenv("CC_CHANNEL_ID", 1215699423527698483))
 
 # should post every saturday at 12:00 AM PST
 POST_TIME = {
-  "weekday": 5,
+  "weekday": 6,
   "hour": 8,
 }
 LAST_POST_DATE = None
