@@ -53,6 +53,8 @@
           poetry
           sqlite
           sqlite-web
+          net-snmp
+          ipmitool
         ];
       });
     });
