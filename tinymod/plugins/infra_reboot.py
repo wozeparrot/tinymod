@@ -45,7 +45,7 @@ async def infra_reboot(client: Client, event, hostname: ("str", "Hostname of the
   p = await get_event_loop().subprocess_exec("python", "-u", SCRIPT, "--reboot", hostname, stderr=STDOUT, stdin=False)
   lines = []
   buf = b""
-  while True:
+  while not p.stdout.is_at_eof():
     try:
       chunk = await p.stdout.read_once()
     except (EOFError, ConnectionError):
