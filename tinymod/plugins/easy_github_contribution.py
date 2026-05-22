@@ -99,7 +99,10 @@ async def egc_accept(client: Client, event: InteractionEvent):
 
   # dm the user that their request was accepted
   dm_channel = await client.channel_private_create(event.message.referenced_message.author)
-  await client.message_create(dm_channel, "You're now a purple!")
+  try:
+    await client.message_create(dm_channel, "You're now a purple!")
+  except:
+    pass
 
   # cleanup
   await client.message_delete(event.message.referenced_message)
