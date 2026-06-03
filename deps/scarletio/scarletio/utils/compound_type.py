@@ -193,7 +193,7 @@ def collect_attributes_per_type_from_type_attributes(type_attributes):
         if attribute_name == '__annotations__':
             continue
         
-        if attribute_name in {'__module__', '__qualname__'}:
+        if attribute_name in {'__module__', '__qualname__', '__static_attributes__', '__firstlineno__'}:
             leftover_type_attributes[attribute_name] = attribute_value
             continue
         
@@ -610,7 +610,8 @@ class CompoundLayer:
         
         type_directory = type_.__dict__
         for attribute_name in dir(type_):
-            if attribute_name in {'__doc__', '__slots__', '__annotations__', '__module__', '__qualname__', '__class__'}:
+            if attribute_name in {'__doc__', '__slots__', '__annotations__', '__module__', '__qualname__', '__class__',
+                                  '__static_attributes__', '__firstlineno__'}:
                 continue
             
             try:

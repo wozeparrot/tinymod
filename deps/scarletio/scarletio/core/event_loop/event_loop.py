@@ -11,6 +11,10 @@ from ssl import SSLContext, create_default_context as create_default_ssl_context
 from stat import S_ISSOCK
 from threading import Thread, current_thread
 
+# TODO: python 3.13 support patch
+if not hasattr(Thread, '_is_stopped'):
+  Thread._is_stopped = property(lambda self: self._started.is_set() and not self.is_alive())
+
 from ...utils import IS_UNIX, Reference, WeakSet, alchemy_incendiary, copy_docs, export, include, is_coroutine
 
 from ..exceptions import CancelledError
