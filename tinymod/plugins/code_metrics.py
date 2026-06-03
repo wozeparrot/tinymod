@@ -4,7 +4,7 @@ from scarletio import get_event_loop
 import prettytable
 from prettytable import MARKDOWN
 
-import token, tokenize, logging, re
+import sys, logging, re, importlib.util, os
 from pathlib import Path
 
 TinyMod: Client
@@ -27,22 +27,21 @@ async def ensure_curr_repo():
     await git_cmd("fetch")
     await git_cmd("reset", "--hard", "origin/master")
 
-def is_docstring(t):
-  return t.type == token.STRING and t.string.startswith('"""') and t.line.strip().startswith('"""')
+_sz = None
+def load_sz():
+  """Loads tinygrad's own sz.py from the cloned repo so we reuse its line counting."""
+  global _sz
+  if _sz is None:
+    repo = str(REPO_DIR.resolve())
+    if repo not in sys.path: sys.path.insert(0, repo)
+    spec = importlib.util.spec_from_file_location("tinygrad_sz", REPO_DIR / "sz.py")
+    _sz = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(_sz)
+  return _sz
 
-TOKEN_WHITELIST = [token.OP, token.NAME, token.NUMBER, token.STRING]
-PATH_BLACKLIST = ["autogen"]
 async def get_curr_metrics():
   await ensure_curr_repo()
-
-  metrics = {}
-  for path in (REPO_DIR / "tinygrad").rglob("*.py"):
-    if any(blacklist in str(path) for blacklist in PATH_BLACKLIST): continue
-    with path.open("r") as f:
-      tokens = [t for t in tokenize.generate_tokens(f.readline) if t.type in TOKEN_WHITELIST and not is_docstring(t)]
-    line_count = len(set([x for t in tokens for x in range(t.start[0], t.end[0]+1)]))
-    if line_count > 0: metrics[str(path.relative_to(REPO_DIR / "tinygrad"))] = {"line_count": line_count}
-  return metrics
+  return load_sz().gen_stats(str(REPO_DIR))
 
 MAX_LINE_REGEX = re.compile(r"MAX_LINE_COUNT=(\d+)")
 async def get_curr_max_lines():
@@ -60,17 +59,22 @@ async def line_count(client: Client, event):
   message = yield "calculating metrics..."
 
   metrics = await get_curr_metrics()
-  total_line_count = sum(m["line_count"] for m in metrics.values())
-  sorted_metrics = sorted(metrics.items(), key=lambda x: x[1]["line_count"], reverse=True)[:37]
+  total_line_count = sum(row[1] for row in metrics)
+  sorted_metrics = sorted(metrics, key=lambda x: x[1], reverse=True)
 
   table = prettytable.PrettyTable()
   table.set_style(MARKDOWN)
   table.field_names = ["File", "Line Count"]
-  for path, data in sorted_metrics: table.add_row([path, data["line_count"]])
+  def render(): return f"# Total line count: {total_line_count}\n\n**Largest Files:**\n```{table.get_string()}```"
+  for path, line_count, _ in sorted_metrics:
+    table.add_row([path, line_count])
+    if len(render()) > 1990:
+      table.del_row(len(table.rows) - 1)
+      break
 
-  yield InteractionResponse(content=f"# Total line count: {total_line_count}\n\n**Largest Files:**\n```{table.get_string()}```", message=message)
+  yield InteractionResponse(content=render(), message=message)
 
-LINE_COUNT_CHANNEL = Channel.precreate(1068991125353939066)
+LINE_COUNT_CHANNEL = Channel.precreate(os.getenv("LINE_COUNT_CHANNEL_ID", 1068991125353939066))
 @TinyMod.interactions(guild=GUILD, show_for_invoking_user_only=True) # type: ignore
 async def update_line_count(client: Client, event):
   """Updates the line count metrics."""
@@ -78,7 +82,7 @@ async def update_line_count(client: Client, event):
   message = yield "updating metrics..."
 
   metrics = await get_curr_metrics()
-  total_line_count = sum(m["line_count"] for m in metrics.values())
+  total_line_count = sum(row[1] for row in metrics)
   max_line_count = await get_curr_max_lines()
   free_lines = max_line_count - total_line_count
 
@@ -104,7 +108,7 @@ async def message_create(client: Client, message: Message):
   # update the line count
   logging.info("Updating line count topic...")
   metrics = await get_curr_metrics()
-  total_line_count = sum(m["line_count"] for m in metrics.values())
+  total_line_count = sum(row[1] for row in metrics)
   max_line_count = await get_curr_max_lines()
   free_lines = max_line_count - total_line_count
 
