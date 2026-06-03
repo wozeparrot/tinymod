@@ -39,14 +39,11 @@ def load_sz():
     spec.loader.exec_module(_sz)
   return _sz
 
-async def get_curr_metrics():
-  await ensure_curr_repo()
+def get_curr_metrics():
   return load_sz().gen_stats(str(REPO_DIR))
 
 MAX_LINE_REGEX = re.compile(r"MAX_LINE_COUNT=(\d+)")
-async def get_curr_max_lines():
-  await ensure_curr_repo()
-
+def get_curr_max_lines():
   with (REPO_DIR / ".github" / "workflows" / "test.yml").open("r") as f:
     for line in f:
       match = MAX_LINE_REGEX.search(line)
@@ -58,7 +55,8 @@ async def line_count(client: Client, event):
   """Displays the total line count and the line count per file."""
   message = yield "calculating metrics..."
 
-  metrics = await get_curr_metrics()
+  await ensure_curr_repo()
+  metrics = get_curr_metrics()
   total_line_count = sum(row[1] for row in metrics)
   sorted_metrics = sorted(metrics, key=lambda x: x[1], reverse=True)
 
@@ -81,9 +79,10 @@ async def update_line_count(client: Client, event):
   if not event.user.has_role(ADMIN_ROLE): return
   message = yield "updating metrics..."
 
-  metrics = await get_curr_metrics()
+  await ensure_curr_repo()
+  metrics = get_curr_metrics()
   total_line_count = sum(row[1] for row in metrics)
-  max_line_count = await get_curr_max_lines()
+  max_line_count = get_curr_max_lines()
   free_lines = max_line_count - total_line_count
 
   # update the topic
@@ -107,9 +106,10 @@ async def message_create(client: Client, message: Message):
 
   # update the line count
   logging.info("Updating line count topic...")
-  metrics = await get_curr_metrics()
+  await ensure_curr_repo()
+  metrics = get_curr_metrics()
   total_line_count = sum(row[1] for row in metrics)
-  max_line_count = await get_curr_max_lines()
+  max_line_count = get_curr_max_lines()
   free_lines = max_line_count - total_line_count
 
   # update the topic
